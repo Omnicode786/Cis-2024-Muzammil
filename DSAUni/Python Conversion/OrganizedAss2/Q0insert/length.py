@@ -9,3 +9,5 @@ def length(a):
         len += 1
         a = a.next
     return len
+
+# this is o (n)

@@ -10,3 +10,4 @@ def ins_tail(a, x):
     while a.next is not None:
         a = a.next
     insert(a, x)  # Using the insert function to insert at the tail
+# this is O(n)

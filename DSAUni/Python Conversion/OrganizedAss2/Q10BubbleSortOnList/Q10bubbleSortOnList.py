@@ -14,3 +14,4 @@ def bubbleSort(a):
         if not swap:
             return
         a = a.next
+# this is O(n^2)

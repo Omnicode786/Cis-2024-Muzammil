@@ -8,3 +8,5 @@ def newHead(a, x):
             a.data = a.next.data
             a.next = a.next.next
         a = a.next
+
+# this is O(n)

@@ -7,3 +7,5 @@ def del_tail(a):
         if a.next is not None and a.next.next is None:
             a.next = None
         a = a.next
+
+# this is o(n)

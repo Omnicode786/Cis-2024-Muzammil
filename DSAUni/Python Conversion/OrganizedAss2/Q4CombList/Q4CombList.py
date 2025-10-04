@@ -6,3 +6,4 @@ def combine(a, list2):
     while a.next is not None:
         a = a.next
     a.next = list2
+# this is O(n)

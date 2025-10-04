@@ -9,3 +9,4 @@ def len_x(a, x):
             count += 1
         a = a.next
     return count
+# this is O(n)

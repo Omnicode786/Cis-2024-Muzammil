@@ -12,3 +12,4 @@ def del_x(a, x):
             a.next = a.next.next
         else:
             a = a.next
+# this is O(n)
