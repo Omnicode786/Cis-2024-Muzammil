@@ -31,6 +31,12 @@ def newHEAD(H,val):
         a = a.next
     return H
 
+def EAsyHead(H,val):
+    while H.next != None and H.data != val:
+        H = H.next
+    return H
+
+
 a = Linknode(5)
 a.insert(7)
 a.insert(853)
@@ -65,6 +71,18 @@ print()
 
 print("New head")
 b = newHEAD(a,46)
+
+while b is not None:
+    print(b.data, end=" ")
+    b = b.next
+
+
+
+
+print()
+
+print("New head")
+b = EAsyHead(a,345)
 
 while b is not None:
     print(b.data, end=" ")
