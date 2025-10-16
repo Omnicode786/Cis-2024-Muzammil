@@ -17,6 +17,7 @@ def matmul(A, B):
     return C
 
 
+# Example
 A = [[1, 2, 3],
      [4, 5, 6]]
 
