@@ -18,6 +18,7 @@ class Linklist:
             b = b.next
 
 a = Linklist()
+# because the head is always the empty
 a.insert(5)
 a.insert(6)
 a.insert(8)
