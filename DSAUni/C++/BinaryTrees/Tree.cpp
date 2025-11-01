@@ -35,20 +35,98 @@ Tree* BuiltTree(vector<int>& sequence) {
 
     return root;
 }
+int nodecount = 0;
+
+void TraverseTreePreOrder(Tree* tree){
+    if (tree == NULL) return ;
+    cout << tree->data << " ";
+    nodecount++;
+    TraverseTreePreOrder(tree->left);
+    TraverseTreePreOrder(tree->right);
+
+}
+void InOrder(Tree *tree){
+if (tree == NULL) return;
+
+InOrder(tree->left);
+cout <<tree->data<<" ";
+InOrder(tree->right);
+
+}
+
+// post order 
+void PostOrder(Tree *tree){
+if (tree == NULL) return;
+
+PostOrder(tree->left);
+PostOrder(tree->right);
+cout <<tree->data<<" ";
+
+}
+
+// Level Order 
+
+void LevelOrder(Tree *tree){
+queue <Tree*> q;
+q.push(tree);
+q.push(NULL);
+while (q.size() > 0){
+    Tree* curr = q.front();
+    q.pop();
+
+    if (curr == NULL){
+        if (!q.empty()){
+            cout<<'\n';
+            q.push(NULL);
+            continue;
+        }
+        else{
+            break;
+        }
+    }
+
+    cout <<curr->data<<"  ";
+    if (curr->left != NULL) q.push(curr->left);
+    if (curr->right != NULL) q.push(curr->right);
+
+}
+    cout<<'\n';
+
+
+}
+
+
+
 
 int main() {
     Tree *tree1 = new Tree(6);
-    cout << tree1->data<<'\n';
+    cout << tree1->data<<' ';
     // because the tree variable is essentially a pointer 
-    vector <int> seq = {5,3,2,-1,-1,4,-1,-1,10,-1,-1};
+    vector <int> seq = {5,3,2,-1,-1,4,-1,-1,10,22,1,3,-1,-1,4,-1,-1,9,-1,-1,33,2,-1,-1,-1};
     Tree *tree = BuiltTree(seq);
 
     // printing all left notes
     Tree* a = tree;
-    while (a != NULL)
-    {
-        cout << a->data;
-        a = a->right;
-    }
+
+cout<<"PreOrder Traversal"<<"\n";
+     TraverseTreePreOrder(tree);
+
+
+
+     cout<<'\n'<<'\n';
+cout<<"InOrder Traversal"<<"\n";
+
+    InOrder(tree);
+     cout<<'\n'<<'\n';
+cout<<"PostOrder Traversal"<<"\n";
+
+ PostOrder(tree);
+     cout<<'\n'<<'\n';
     
-}
+cout<<"Level ORder Traversal"<<"\n";
+
+ LevelOrder(tree);
+     cout<<'\n'<<'\n';
+
+     cout<<nodecount;
+    }
