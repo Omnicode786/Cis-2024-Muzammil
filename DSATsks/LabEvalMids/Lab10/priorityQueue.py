@@ -6,6 +6,16 @@ class priorityQueue:
 
     def enqueue(self,value,priority):
         self.queue.append([value,priority])
+        # insert priority in c++ we use stl pq and it depends on the type of pq we are making
+        # for example 
+        #  priority_queue <int> pq;
+        # now this int makes it behave so minimum value is removed first 
+        # BUTTT
+        # priority_queue<int, vector<int>, greater<int>> pqm;
+        #  now maximum is on the top of the queue 
+
+# //  this min pq is minimum heap
+
 
     def dequeue(self):
 
