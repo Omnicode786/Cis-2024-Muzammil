@@ -1,6 +1,8 @@
 import numpy as np
 import math
 from collections import Counter
+import rawpy
+
 
 # ===============================================================
 # STEP 1: READ A SIMPLE RAW COLOR IMAGE
@@ -198,9 +200,17 @@ def compress_color_image(raw_filename, width, height):
 # ===============================================================
 if __name__ == "__main__":
     # Example usage
-    width = 16
-    height = 16
-    raw_filename = "color_input.raw"
+    import math, os
+
+    file_size = os.path.getsize("CEP/color_input.raw")
+    total_pixels = file_size // 3
+    # approximate square dimensions
+    side = int(math.sqrt(total_pixels))
+    width = side
+    height = total_pixels // side
+    print(f"Detected approx resolution: {width}x{height}")
+
+    raw_filename = "CEP\color_input.raw"
 
     print("Starting color JPEG-like compression...")
     compress_color_image(raw_filename, width, height)
