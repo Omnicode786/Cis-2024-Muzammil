@@ -2,13 +2,13 @@ class DoublyList:
     def __init__(self, data):
         self.data = data
         self.left = None
-        self.right = None
+        self.next = None
     def insert(self, data):
         x = DoublyList(data)
-        x.right = self.right
-        if self.right is not None:
-            self.right.left = x
-        self.right = x
+        x.next = self.next
+        if self.next is not None:
+            self.next.left = x
+        self.next = x
         x.left = self
 
 
@@ -32,15 +32,15 @@ def addd11(L1,L2):
     a.data = a.data + b.data
     c = a
     d = b
-    a = a.right
-    b = b.right
+    a = a.next
+    b = b.next
   
   if a is None and b is not None:
-    c.right = b
+    c.next = b
     b.left = c
   
   if b is None and a is not None:
-    d.right = a
+    d.next = a
     a.left = d
   
   return L1
@@ -63,17 +63,17 @@ b.insert(5)
 b.insert(9)
 
 d = a
-while d.right is not None:
+while d.next is not None:
    print(d.data)
-   d= d.right
+   d= d.next
 print()
 print()
 
 
 d = b
-while d.right is not None:
+while d.next is not None:
    print(d.data)
-   d= d.right
+   d= d.next
 print()
 print()
 print()
@@ -81,6 +81,6 @@ print()
 c = addd11(a,b)
 
 d = c
-while d.right is not None:
+while d.next is not None:
    print(d.data)
-   d= d.right
+   d= d.next

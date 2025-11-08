@@ -1,7 +1,7 @@
 import rawpy
 import numpy as np
 
-with rawpy.imread(r'CEP\raw.dng') as raw:
+with rawpy.imread('raw.dng') as raw:
     rgb = raw.postprocess()
 
 # Make sure it's uint8
