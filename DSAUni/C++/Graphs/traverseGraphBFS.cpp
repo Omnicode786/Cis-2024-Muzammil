@@ -6,7 +6,7 @@ vector<int> bfsTraverse(int n, vector<int> adj[]) {
     vector<int> bfs;
     queue<int> q;
 
-    vis[1] = 1;   // start BFS from node 0
+    vis[1] = 1;   // start BFS from node 1
     q.push(1);
 
     while (!q.empty()) {
