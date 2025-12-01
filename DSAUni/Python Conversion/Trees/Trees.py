@@ -75,30 +75,69 @@ class Tree:
         nodes = self.nodeCount()
 
         m = pow(2,height) - 1
-        if m == node:
+        if m == nodes:
             return True
         return False
 
 
     # to check if the tree is an acbt or not
     def isACBT(self):
-        if self == None:
-            return True
         if self.isPerfect():
             return True
-        if self.left == None and self.right is not None:
+        if self.left is None:
             return False
-        lh = self.left.height()
-        if self.right == None:
-            if lh == 1:
+        hl = self.left.height()
+        if self.right is None:
+            if hl == 1:
                 return True
-            else: return False
-        rh = self.right.height()
-        if rh == lh:
-            return True
-        if lh == rh+1:
-            return True
+            return False
+        hr = self.right.height()
+        if hl == hr and self.left.isPerfect():
+            return self.right.isACBT()
+        if hl == hr + 1 and self.right.isPerfect():
+            return self.left.isACBT()
         return False
+
+
+
+    def isStrictlyBinary(self):
+        if self.left == None and self.right == None:
+            return True
+        if self.left == None or self.right == None:
+            return False
+        return self.right.isStrictlyBinary() and self.left.isStrictlyBinary()
+
+    def BreadthFirstTraversal(self):
+        q = deque()
+        q.append(self)
+
+        result = []
+        while q:
+            node = q.popleft()
+            if node is None:
+                result.append(None)
+                continue
+            result.append(node.data)
+            q.append(node.left)
+            q.append(node.right)
+        return result
+    
+    def isAlmostCompletemyver(self):
+        if self.isPerfect(): return True
+        bfs = self.BreadthFirstTraversal()
+        print(bfs)
+        gapFound = False
+
+        for i in range(len(bfs)):
+            if bfs[i] == None:
+                if  gapFound == False:
+                    gapFound = True
+            else:
+                if gapFound == True:
+                    return False
+            
+        
+        return True
 
 
 idx = -1
@@ -119,7 +158,7 @@ def build_tree(sequence):
 
 # Driver code
 
-seq = [5, 3, 2, -1, -1, 4, -1, -1, 10, 22, 1, 3, -1, -1, 4, -1, -1, 9, -1, -1, 33, 2, -1, -1, -1]
+seq = [3,5,4,-1,-1,6,-1,-1,6,-1,-1,-1]
 seq = [None if x == -1 else x for x in seq]
 tree = build_tree(seq)
 
@@ -127,11 +166,24 @@ tree.LevelOrder()
 
 print()
 node = tree.search(33)
-print(node.data)
-print(node.left.data)
+# print(node.data)
+# print(node.left.data)
 
 print(tree.height())
 print(tree.nodeCount())
 
+print("No of edges")
 print(tree.edges())
+print("Is PERFECT")
 print(tree.isPerfect())
+print("Is acbt")
+
+print(tree.isACBT())
+print("Is sbt")
+
+print(tree.isStrictlyBinary())
+print()
+bfs = tree.BreadthFirstTraversal()
+print()
+
+print(tree.isAlmostCompletemyver())
