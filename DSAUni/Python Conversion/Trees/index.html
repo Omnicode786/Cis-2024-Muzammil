@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Exam Kit for Lectures 13–23 (CS-218)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.4;
+      margin: 40px;
+    }
+    h1, h2, h3, h4 {
+      font-family: Arial, sans-serif;
+      margin-top: 24px;
+      margin-bottom: 8px;
+    }
+    h1 {
+      font-size: 26px;
+      border-bottom: 2px solid #333;
+      padding-bottom: 4px;
+    }
+    h2 {
+      font-size: 22px;
+      margin-top: 28px;
+    }
+    h3 {
+      font-size: 18px;
+    }
+    h4 {
+      font-size: 16px;
+    }
+    p {
+      margin: 4px 0 8px 0;
+    }
+    ul {
+      margin-top: 0;
+      margin-bottom: 8px;
+    }
+    code {
+      font-family: Consolas, monospace;
+      background: #f4f4f4;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    .section-break {
+      page-break-before: always;
+      margin-top: 40px;
+    }
+    .mono-block {
+      font-family: Consolas, monospace;
+      white-space: pre;
+      background: #f9f9f9;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+
+<h1>EXAM KIT FOR LECTURES 13–23 (CS-218)</h1>
+<p><strong>Simple English Version – Preparation Booklet + Mind Map + Cheat Sheet</strong></p>
+
+<hr>
+
+<h2>SECTION 1 – PREPARATION BOOKLET</h2>
+
+<h3>1. Stacks and Expressions (Lectures 13–14)</h3>
+
+<h4>1.1 What a Stack Is</h4>
+<p>
+A stack is a simple data structure where you add and remove items only from the top.
+You can imagine a stack of plates: you put a plate on the top, and you also take from the top.
+</p>
+<p>Basic operations:</p>
+<ul>
+  <li><strong>push(x)</strong> – put x on the top of the stack</li>
+  <li><strong>pop()</strong> – remove and return the top item</li>
+  <li><strong>peek()</strong> – look at the top item without removing it</li>
+  <li><strong>isEmpty()</strong> – check if the stack has no items</li>
+</ul>
+<p>
+Rule: <strong>LIFO – Last In, First Out</strong>. The last item you pushed is the first one that will come out.
+</p>
+<p>
+Stacks can be implemented using a <strong>Python list</strong> (top at the end of the list) or a
+<strong>linked list</strong> (top is the head node).
+</p>
+<p>
+Time per operation (push, pop, peek): <strong>O(1)</strong>. Space per item: <strong>O(1)</strong>.
+</p>
+
+<h4>1.2 Expression Formats</h4>
+<p>We deal with three forms of arithmetic expressions:</p>
+<ul>
+  <li><strong>Infix:</strong> operator is in the middle (e.g., <code>A + B</code>, <code>3 * (4 + 5)</code>).</li>
+  <li><strong>Prefix:</strong> operator comes before operands (e.g., <code>+ A B</code>, <code>* 3 + 4 5</code>).</li>
+  <li><strong>Postfix:</strong> operator comes after operands (e.g., <code>A B +</code>, <code>3 4 5 + *</code>).</li>
+</ul>
+<p>
+Humans like infix, but computers find prefix/postfix easier because they avoid parentheses and operator precedence rules.
+</p>
+
+<h4>1.3 Evaluating Postfix Expressions</h4>
+<p>Algorithm (using a stack):</p>
+<ol>
+  <li>Read tokens from left to right.</li>
+  <li>If the token is a <strong>number or variable</strong> → push it onto the stack.</li>
+  <li>If the token is an <strong>operator</strong> (+, −, ×, ÷, etc.):
+    <ul>
+      <li>pop the top two values,</li>
+      <li>apply the operator (second popped is left operand, first popped is right operand),</li>
+      <li>push the result back onto the stack.</li>
+    </ul>
+  </li>
+  <li>At the end, the stack has one value: the answer.</li>
+</ol>
+<p><strong>Time Complexity:</strong> We process each token once, each stack operation is O(1), so total is <strong>O(n)</strong>.</p>
+<p><strong>Space Complexity:</strong> We store operands on the stack, proportional to n → <strong>O(n)</strong>.</p>
+
+<h4>1.4 Converting Infix to Postfix</h4>
+<p>We use an <strong>operator stack</strong>:</p>
+<ol>
+  <li>If the token is an <strong>operand</strong> → send it directly to output.</li>
+  <li>If the token is an <strong>operator</strong>:
+    <ul>
+      <li>while the stack top has an operator with higher or equal precedence, pop it and add to output,</li>
+      <li>then push the new operator.</li>
+    </ul>
+  </li>
+  <li>If the token is <code>'('</code> → push it.</li>
+  <li>If the token is <code>')'</code> → pop from stack to output until <code>'('</code> is found. Discard both parentheses.</li>
+  <li>After processing all tokens → pop remaining operators to output.</li>
+</ol>
+<p><strong>Time Complexity:</strong> O(n)</p>
+<p><strong>Space Complexity:</strong> O(n)</p>
+
+<hr>
+
+<h3>2. Quicksort (Lectures 15–16)</h3>
+
+<h4>2.1 Idea of Quicksort</h4>
+<p>
+Quicksort is a <strong>divide and conquer</strong> sorting algorithm:
+</p>
+<ol>
+  <li>Pick a <strong>pivot</strong> element from the array.</li>
+  <li>Rearrange elements so that:
+    <ul>
+      <li>all elements less than pivot are on the left,</li>
+      <li>all elements greater than pivot are on the right.</li>
+    </ul>
+  </li>
+  <li>Recursively apply the same process to the left and right parts.</li>
+</ol>
+<p>No explicit “merge” step is required; concatenating left part + pivot + right part gives the sorted array.</p>
+
+<h4>2.2 Time Complexity</h4>
+<p>Let n = number of elements.</p>
+<ul>
+  <li><strong>Best case:</strong> pivot splits the array into two equal halves each time.<br>
+    Recurrence: <code>T(n) = 2T(n/2) + n</code> → <strong>O(n log n)</strong>.
+  </li>
+  <li><strong>Average case:</strong> pivots tend to be reasonably balanced → <strong>O(n log n)</strong>.</li>
+  <li><strong>Worst case:</strong> pivot is always smallest or largest (e.g., sorted input with bad pivot choice).<br>
+    Recurrence: <code>T(n) = T(n − 1) + n</code> → <strong>O(n²)</strong>.
+  </li>
+</ul>
+
+<h4>2.3 Space Complexity</h4>
+<p>Space depends on recursion depth (or size of manual stack):</p>
+<ul>
+  <li><strong>Best/Average:</strong> height ≈ log n → <strong>O(log n)</strong> space.</li>
+  <li><strong>Worst:</strong> height = n → <strong>O(n)</strong> space.</li>
+</ul>
+
+<h4>2.4 How to Improve Quicksort</h4>
+<ul>
+  <li>Use a <strong>random pivot</strong>.</li>
+  <li>Use <strong>median-of-three pivot</strong> (first, middle, last).</li>
+  <li>Use <strong>tail recursion elimination</strong> where possible.</li>
+  <li>Use <strong>insertion sort</strong> for small subarrays.</li>
+</ul>
+
+<hr>
+
+<h3>3. Recursion (Lecture 17)</h3>
+
+<h4>3.1 What Is Recursion?</h4>
+<p>
+A function is recursive if it <strong>calls itself</strong>.
+It must have:
+</p>
+<ul>
+  <li>a <strong>base case</strong> (when to stop),</li>
+  <li>a <strong>recursive case</strong> (smaller problem).</li>
+</ul>
+<p>
+Each call adds an <strong>activation record</strong> to the run-time stack (local variables, return address, etc.).
+When the function returns, that record is removed.
+</p>
+
+<h4>3.2 Factorial Example</h4>
+<p>Recursive definition:</p>
+<ul>
+  <li><code>n! = n × (n − 1)!</code> if n &gt; 0</li>
+  <li><code>0! = 1</code></li>
+</ul>
+<p>Recursive function:</p>
+<ul>
+  <li>If <code>n == 0</code> → return 1.</li>
+  <li>Else → return <code>n * factorial(n − 1)</code>.</li>
+</ul>
+<p><strong>Time:</strong> O(n), <strong>Space:</strong> O(n)</p>
+
+<h4>3.3 Printing Numbers</h4>
+<p><strong>printdec(n):</strong> prints n, n−1, ..., 1</p>
+<p><strong>printasc(n):</strong> prints 1, 2, ..., n</p>
+<p>Both functions:</p>
+<ul>
+  <li>Call themselves n times → <strong>O(n)</strong> time.</li>
+  <li>Use recursion depth n → <strong>O(n)</strong> space.</li>
+</ul>
+
+<h4>3.4 Naive Fibonacci</h4>
+<p>Definition:</p>
+<ul>
+  <li>F(0) = 1, F(1) = 1</li>
+  <li>F(n) = F(n−1) + F(n−2) for n &gt; 1</li>
+</ul>
+<p>
+The naive recursive Fibonacci repeats the same work many times (overlapping subproblems).
+</p>
+<ul>
+  <li><strong>Time:</strong> Θ(2ⁿ) (exponential)</li>
+  <li><strong>Space:</strong> O(n) (height of recursion tree)</li>
+</ul>
+
+<h4>3.5 Efficient Fibonacci – goodfib</h4>
+<p>
+A better version returns a pair <code>(F(n), F(n−1))</code>. From <code>(F(n−1), F(n−2))</code> you can compute:
+<code>(F(n), F(n−1)) = (F(n−1)+F(n−2), F(n−1))</code>.
+</p>
+<p>
+Each level does constant work and makes one recursive call.
+</p>
+<ul>
+  <li><strong>Time:</strong> O(n)</li>
+  <li><strong>Space:</strong> O(n)</li>
+</ul>
+
+<hr>
+
+<h3>4. Binary Trees (Lectures 19–21)</h3>
+
+<h4>4.1 Tree Terminology</h4>
+<p>A <strong>tree</strong> consists of nodes connected by edges. Key terms:</p>
+<ul>
+  <li><strong>Root:</strong> top node.</li>
+  <li><strong>Parent:</strong> node that has children.</li>
+  <li><strong>Child:</strong> node below a parent.</li>
+  <li><strong>Siblings:</strong> nodes with the same parent.</li>
+  <li><strong>Leaf:</strong> node with no children.</li>
+  <li><strong>Subtree:</strong> any node and all its descendants.</li>
+  <li><strong>Path:</strong> sequence of connected nodes.</li>
+  <li><strong>Height:</strong> number of levels from root to deepest leaf.</li>
+  <li><strong>Depth of node:</strong> distance from root.</li>
+  <li><strong>Size:</strong> total number of nodes.</li>
+  <li><strong>Width:</strong> maximum nodes on any level.</li>
+</ul>
+
+<h4>4.2 Binary Trees and Height</h4>
+<p>
+A <strong>binary tree</strong> is a tree where each node has at most 2 children (left and right).
+If a tree has n nodes:
+</p>
+<ul>
+  <li><strong>Minimum height:</strong> when perfectly balanced (perfect tree) → <code>n = 2^h − 1</code> → <code>h = log₂(n + 1)</code>.</li>
+  <li><strong>Maximum height:</strong> when each node has one child (like a list) → <strong>h = n</strong>.</li>
+</ul>
+
+<h4>4.3 Special Binary Trees</h4>
+<ul>
+  <li><strong>Strictly Binary (Full) Tree:</strong> every interior node has exactly 2 children.</li>
+  <li><strong>Perfect Binary Tree (PBT):</strong> strictly binary and all leaves at the same level; has <code>2^h − 1</code> nodes.</li>
+  <li><strong>Almost Complete Binary Tree (ACBT):</strong> all levels are full except possibly the last, and the last level is filled from left to right with no gaps.</li>
+</ul>
+
+<h4>4.4 Binary Tree Implementation</h4>
+<p>Each node typically stores:</p>
+<ul>
+  <li><code>data</code> – the value;</li>
+  <li><code>lc</code> – left child pointer;</li>
+  <li><code>rc</code> – right child pointer.</li>
+</ul>
+<p>
+Operations like adding/removing children (e.g., <code>addlc</code>, <code>addrc</code>, <code>dellc</code>, <code>delrc</code>) are <strong>O(1)</strong> time and space.
+</p>
+
+<h4>4.5 Tree Functions and Complexity</h4>
+<p>Most tree functions visit each node exactly once:</p>
+<ul>
+  <li><strong>height():</strong> returns tree height.</li>
+  <li><strong>nodecount():</strong> counts all nodes.</li>
+  <li><strong>leafcount():</strong> counts all leaves.</li>
+  <li><strong>isStrictlyBinary():</strong> checks if each interior node has 2 children.</li>
+  <li><strong>isPerfect():</strong> checks if <code>nodecount() == 2^height − 1</code>.</li>
+</ul>
+<p><strong>Time Complexity:</strong> O(n) (each node visited once).</p>
+<p><strong>Space Complexity:</strong> O(h) (h = tree height, due to recursion depth).</p>
+
+<h4>4.6 Checking Almost Complete – isAlmostComplete()</h4>
+<p>
+An Almost Complete Binary Tree must obey strict rules about heights and how nodes are filled. 
+isAlmostComplete uses:
+</p>
+<ul>
+  <li><code>height()</code></li>
+  <li><code>isPerfect()</code></li>
+  <li>and recursive checks on left/right subtrees.</li>
+</ul>
+<p>
+It considers whether left and right subtrees are perfect or almost complete, and whether their heights differ by at most 1 in the correct pattern.
+</p>
+<p>
+Because it repeatedly calls other O(n) functions and the height is O(log n) for ACBT:
+</p>
+<ul>
+  <li><strong>Time Complexity:</strong> O(n log n)</li>
+  <li><strong>Space Complexity:</strong> O(log n)</li>
+</ul>
+
+<h4>4.7 Tree Traversals</h4>
+<p><strong>Depth-First Traversal (DFS):</strong></p>
+<ul>
+  <li><strong>Inorder (LNR):</strong> left → node → right</li>
+  <li><strong>Preorder (NLR):</strong> node → left → right</li>
+  <li><strong>Postorder (LRN):</strong> left → right → node</li>
+</ul>
+<p>Each DFS traversal:</p>
+<ul>
+  <li><strong>Time:</strong> O(n) – each node visited once.</li>
+  <li><strong>Space:</strong> O(h) – recursion depth.</li>
+</ul>
+
+<p><strong>Breadth-First Traversal (BFS):</strong></p>
+<ul>
+  <li>Uses a queue; visits nodes level by level, from left to right.</li>
+  <li><strong>Time:</strong> O(n)</li>
+  <li><strong>Space:</strong> O(n) (queue can hold nodes from a full level).</li>
+</ul>
+
+<hr>
+
+<h3>5. Heaps and Heapsort (Lectures 22–23)</h3>
+
+<h4>5.1 What Is a Heap?</h4>
+<p>
+A <strong>heap</strong> is a special binary tree used for fast access to the largest (or smallest) element.
+For a <strong>max-heap</strong>:
+</p>
+<ul>
+  <li>The structure is an <strong>Almost Complete Binary Tree</strong>.</li>
+  <li><strong>Heap property:</strong> each parent node is ≥ its children.</li>
+</ul>
+<p>
+We store the heap in an <strong>array</strong>:
+</p>
+<ul>
+  <li>root at index 0,</li>
+  <li>left child of index i → index 2i + 1,</li>
+  <li>right child of index i → index 2i + 2,</li>
+  <li>parent of index j → index floor((j − 1) / 2).</li>
+</ul>
+
+<h4>5.2 Insert into Heap (Rise)</h4>
+<ol>
+  <li>Append new value at the <strong>end</strong> of the array (maintains complete tree shape).</li>
+  <li><strong>Rise</strong> or “bubble up”:
+    <ul>
+      <li>while the new value is greater than its parent, swap it with the parent.</li>
+    </ul>
+  </li>
+</ol>
+<p>Height of heap is about log n.</p>
+<ul>
+  <li><strong>Time:</strong> O(log n)</li>
+  <li><strong>Space:</strong> O(1) extra (in-place)</li>
+</ul>
+
+<h4>5.3 Delete from Heap (Sink)</h4>
+<p>To delete the maximum (root):</p>
+<ol>
+  <li>Replace root with the <strong>last element</strong> in the array.</li>
+  <li>Reduce heap size by 1.</li>
+  <li><strong>Sink</strong> or “bubble down”:
+    <ul>
+      <li>while this element is smaller than any of its children, swap it with the larger child.</li>
+    </ul>
+  </li>
+</ol>
+<ul>
+  <li><strong>Time:</strong> O(log n)</li>
+  <li><strong>Space:</strong> O(1) extra</li>
+</ul>
+
+<h4>5.4 Building a Heap (as per slides)</h4>
+<p>
+If the heap is built by inserting each element and then rising:
+</p>
+<ul>
+  <li>Each insert: O(log n)</li>
+  <li>n inserts: O(n log n)</li>
+</ul>
+<p>Space: O(n) for the array holding the elements.</p>
+
+<h4>5.5 Heapsort</h4>
+<p>Steps:</p>
+<ol>
+  <li>Build a max-heap from the unsorted list.</li>
+  <li>For i from 0 to n−2:
+    <ul>
+      <li>swap element at index 0 (largest) with element at index n−1−i,</li>
+      <li>reduce the considered heap size by 1,</li>
+      <li>sink the new root to restore heap property.</li>
+    </ul>
+  </li>
+</ol>
+<p><strong>Time Complexity:</strong></p>
+<ul>
+  <li>Build heap: O(n log n) (as done in slides).</li>
+  <li>n−1 delete-max operations, each O(log n): O(n log n).</li>
+  <li>Total: <strong>O(n log n)</strong></li>
+</ul>
+<p><strong>Space Complexity:</strong></p>
+<ul>
+  <li>In-place: uses the same array and a few temp variables.</li>
+  <li>Extra space: <strong>O(1)</strong>.</li>
+</ul>
+
+<hr>
+
+<h3>6. Binary Search Trees (BSTs) – Lecture 23</h3>
+
+<h4>6.1 Definition of BST</h4>
+<p>
+A <strong>Binary Search Tree</strong> (BST) is a binary tree where:
+</p>
+<ul>
+  <li>All values in the <strong>left subtree</strong> of a node are <strong>less than</strong> the node’s value.</li>
+  <li>All values in the <strong>right subtree</strong> are <strong>greater than</strong> the node’s value.</li>
+</ul>
+<p>An <strong>inorder traversal</strong> of a BST produces values in ascending order.</p>
+
+<h4>6.2 Building a BST</h4>
+<p>Given a list of values:</p>
+<ol>
+  <li>First value becomes the root.</li>
+  <li>For each next value:
+    <ul>
+      <li>compare with current node,</li>
+      <li>if smaller → go to left child,</li>
+      <li>if larger → go to right child,</li>
+      <li>continue until a <code>None</code> position is found and insert there.</li>
+    </ul>
+  </li>
+</ol>
+<p>Time per insert: O(h), where h is the tree height.</p>
+
+<h4>6.3 BST Search</h4>
+<p>To search for a target:</p>
+<ol>
+  <li>Start at root.</li>
+  <li>If node is None → not found.</li>
+  <li>If target == node.data → found.</li>
+  <li>If target &lt; node.data → move to left child.</li>
+  <li>Else → move to right child.</li>
+  <li>Repeat until found or None.</li>
+</ol>
+<ul>
+  <li><strong>Time:</strong> O(h)</li>
+  <li><strong>Space:</strong> O(h) if recursive; O(1) if purely iterative.</li>
+</ul>
+<p>Where h is the height of the BST.</p>
+<ul>
+  <li>Balanced BST: h ≈ log n → operations O(log n).</li>
+  <li>Skewed BST (e.g., sorted data): h = n → operations O(n).</li>
+</ul>
+
+<h4>6.4 BST Deletion</h4>
+<p>Deleting a node (the “victim”) has three main cases:</p>
+<ol>
+  <li><strong>Victim is a leaf:</strong> simply remove it by setting the parent’s pointer to None.</li>
+  <li><strong>Victim has one child:</strong> link the parent directly to the victim’s child.</li>
+  <li><strong>Victim has two children:</strong>
+    <ul>
+      <li>find the <strong>successor</strong> (smallest value in the right subtree),</li>
+      <li>copy successor’s value into the victim node,</li>
+      <li>delete the successor node (which will be in case 1 or 2).</li>
+    </ul>
+  </li>
+</ol>
+<p><strong>Time:</strong> O(h) (locating victim, possibly successor, and adjusting links).</p>
+<p><strong>Space:</strong> O(h) if recursive; O(1) if fully iterative.</p>
+
+<div class="section-break"></div>
+
+<h2>SECTION 2 – MIND MAP (TEXT FORM)</h2>
+
+<div class="mono-block">
+DATA STRUCTURES AND ALGORITHMS — LECTURES 13–23
+
+1. STACKS
+   • LIFO
+   • push, pop, peek, isEmpty
+   • Used for:
+     – expression evaluation (postfix)
+     – infix → postfix conversion
+     – recursion call stack
+
+2. RECURSION
+   • Function calls itself
+   • Needs base case + recursive case
+   • Examples:
+     – factorial
+     – print descending/ascending
+     – Fibonacci (naive vs goodfib)
+   • Recursion depth = stack usage (space)
+
+3. QUICKSORT
+   • Partition array around pivot
+   • Recursively sort left and right sides
+   • Best/average: O(n log n)
+   • Worst: O(n²) when pivot is bad
+   • Optimizations: better pivot choice, tail recursion removal
+
+4. BINARY TREES
+   • Nodes have up to 2 children
+   • Concepts: root, leaf, parent, child, sibling, height, depth, width, size
+   • Types:
+     – Strictly Binary (Full)
+     – Perfect Binary Tree
+     – Almost Complete Binary Tree
+   • Functions:
+     – height, nodecount, leafcount
+     – isStrictlyBinary, isPerfect, isAlmostComplete
+   • Traversals:
+     – inorder, preorder, postorder (DFS)
+     – BFS (level-order)
+
+5. HEAPS
+   • Max-heap: parent ≥ children
+   • Stored in array
+   • Operations:
+     – insert + rise → O(log n)
+     – delete root + sink → O(log n)
+   • Build heap (as per slides): O(n log n)
+   • Heapsort: O(n log n), in-place
+
+6. BINARY SEARCH TREES (BST)
+   • left subtree < node < right subtree
+   • inorder → sorted output
+   • Operations:
+     – insert, search, delete
+   • Complexity: O(h), where h is tree height
+     – Balanced → O(log n)
+     – Skewed → O(n)
+</div>
+
+<div class="section-break"></div>
+
+<h2>SECTION 3 – CHEAT SHEET</h2>
+
+<h3>Complexities (Quick View)</h3>
+<ul>
+  <li><strong>Stack ops:</strong> push/pop → O(1)</li>
+  <li><strong>Postfix eval / infix→postfix:</strong> O(n) time, O(n) space</li>
+  <li><strong>Factorial / printdec / printasc:</strong> O(n) time, O(n) space</li>
+  <li><strong>Naive Fibonacci:</strong> Θ(2ⁿ) time, O(n) space</li>
+  <li><strong>goodfib:</strong> O(n) time, O(n) space</li>
+  <li><strong>Quicksort:</strong>
+    <ul>
+      <li>Best/average: O(n log n)</li>
+      <li>Worst: O(n²)</li>
+      <li>Space: O(log n) best/avg, O(n) worst</li>
+    </ul>
+  </li>
+  <li><strong>Tree functions (height, nodecount, leafcount, isPerfect, isStrictlyBinary):</strong>
+    <ul>
+      <li>Time: O(n)</li>
+      <li>Space: O(h)</li>
+    </ul>
+  </li>
+  <li><strong>isAlmostComplete:</strong>
+    <ul>
+      <li>Time: O(n log n)</li>
+      <li>Space: O(log n)</li>
+    </ul>
+  </li>
+  <li><strong>Traversals:</strong>
+    <ul>
+      <li>DFS (in/pre/post): O(n) time, O(h) space</li>
+      <li>BFS: O(n) time, O(n) space</li>
+    </ul>
+  </li>
+  <li><strong>Heap:</strong>
+    <ul>
+      <li>Insert/delete: O(log n) time, O(1) extra space</li>
+      <li>Build heap (inserts): O(n log n) time</li>
+      <li>Heapsort: O(n log n) time, O(1) extra space</li>
+    </ul>
+  </li>
+  <li><strong>BST:</strong>
+    <ul>
+      <li>Insert/search/delete: O(h) time, O(h) space (recursive)</li>
+      <li>h ≈ log n when balanced; h = n in worst case</li>
+    </ul>
+  </li>
+</ul>
+
+</body>
+</html>
