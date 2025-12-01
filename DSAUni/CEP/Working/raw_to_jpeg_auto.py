@@ -35,7 +35,7 @@ def make_dct_matrix(n=8):
     return D
 
 D8 = make_dct_matrix(8)
-ID8 = D8.T  # inverse is transpose with the chosen normalization
+ID8 = D8.T  
 
 def dct_block(block):
     """2D DCT via matrix multiplication. block must be 8x8 float64."""
@@ -45,9 +45,7 @@ def idct_block(coeffs):
     """Inverse 2D DCT."""
     return ID8 @ coeffs @ D8
 
-# ----------------------------
-# Standard quantization tables (baseline JPEG)
-# ----------------------------
+# Standard quantiztion tables (baseline JPE
 STD_LUMA_Q = np.array([
  [16,11,10,16,24,40,51,61],
  [12,12,14,19,26,58,60,55],
@@ -89,13 +87,10 @@ def scale_quant_table(qtable, quality):
     scaled[scaled > 255] = 255
     return scaled
 
-# ----------------------------
 # Color conversions
-# ----------------------------
 def rgb_to_ycbcr(rgb):
     """
     Convert float RGB in [0,255] -> Y, Cb, Cr each in [0,255] range.
-    Uses ITU-R BT.601 coefficients common for JPEG.
     """
     R = rgb[..., 0].astype(np.float64)
     G = rgb[..., 1].astype(np.float64)
@@ -115,9 +110,7 @@ def ycbcr_to_rgb(Y, Cb, Cr):
     rgb = np.stack([R, G, B], axis=-1)
     return np.clip(rgb, 0, 255)
 
-# ----------------------------
 # Block helpers
-# ----------------------------
 def pad_to_multiple(img_channel, block=8):
     """Pad 2D array so that both dims are multiples of block using edge padding."""
     h, w = img_channel.shape
@@ -147,7 +140,7 @@ def process_channel_blocks(channel, qtable):
             coeffs = dct_block(block_shifted)
             # Quantize
             q = np.round(coeffs / qtable)
-            # Dequantize (for reconstruction)
+            # Dequantize inverse setup
             deq = q * qtable
             # IDCT
             rec = idct_block(deq) + 128.0
@@ -158,9 +151,7 @@ def process_channel_blocks(channel, qtable):
     out_cropped = out[:H0, :W0]
     return np.clip(out_cropped, 0, 255).astype(np.uint8)
 
-# ----------------------------
 # RAW reading helpers
-# ----------------------------
 def read_with_rawpy(path, output_bps=8):
     """
     Read any RAW supported by LibRaw via rawpy and return an RGB uint8 array.
@@ -200,14 +191,12 @@ def read_plain_raw(path, width, height, fmt='rgb24'):
             side = int(math.isqrt(fsize))
             width = height = side
         data = np.fromfile(path, dtype=np.uint8).reshape((height, width))
-        # convert to 3-channel gray
+        # convert to 3 channel gray
         return np.stack([data, data, data], axis=-1)
     else:
         raise ValueError("Unsupported fmt; use 'rgb24' or 'gray8'.")
 
-# ----------------------------
 # Main pipeline
-# ----------------------------
 def compress_raw_auto(input_path, output_path, scale=1.0, quality=75,
                       raw_format=None, raw_width=None, raw_height=None,
                       chroma_subsample=True):
@@ -217,7 +206,7 @@ def compress_raw_auto(input_path, output_path, scale=1.0, quality=75,
     - Optionally downscale (scale < 1.0)
     - Convert RGB -> YCbCr
     - (Optionally) subsample chroma (4:2:0)
-    - Per-channel DCT+quantize+IDCT reconstruction using scaled quant tables
+    - Per channel DCT+quantize+IDCT reconstruction using scaled quant tables
     - Convert back to RGB and save as JPEG
     """
 
@@ -229,14 +218,13 @@ def compress_raw_auto(input_path, output_path, scale=1.0, quality=75,
         print("[info] Reading plain .raw with provided format.")
         img = read_plain_raw(input_path, raw_width, raw_height, fmt=raw_format or 'rgb24')
     else:
-        # use rawpy for camera RAW formats
         print("[info] Using rawpy to decode camera RAW (this handles .dng, .cr2, .nef, .arw, ...).")
         img = read_with_rawpy(input_path, output_bps=8)  # returns HxWx3 uint8
 
     if img is None:
         raise RuntimeError("Failed to read input image.")
 
-    # Convert to float [0,255] for processing
+    # Convert to float 0,255 rnge for processing
     img = img.astype(np.float64)
 
     # 2) Optional downscale
@@ -251,7 +239,7 @@ def compress_raw_auto(input_path, output_path, scale=1.0, quality=75,
         img = np.array(pil_small).astype(np.float64)
         print(f"[info] Downscaled to {new_w}x{new_h}")
 
-    H, W, _ = img.shape
+    H, W,   _ = img.shape
     print(f"[info] Working resolution: {W}x{H}")
 
     # 3) Convert to YCbCr
@@ -264,14 +252,13 @@ def compress_raw_auto(input_path, output_path, scale=1.0, quality=75,
                 _downsample_simple(Cb)
         Cr_ds = Cr.reshape((H//2, 2, W//2, 2)).mean(axis=(1,3)) if (H%2==0 and W%2==0) else \
                 _downsample_simple(Cr)
-        # For simplicity in this educational pipeline we'll process at full resolution without fancy up/down sampling
+        # For simplicity in this pipeline we'll process at full resolution without fancy up/down sampling
         # We'll keep Cb and Cr at full resolution by simple upsample back (nearest neighbor)
-        # This keeps code simpler while still showing chroma treatment conceptually.
         Cb = np.repeat(np.repeat(Cb_ds, 2, axis=0), 2, axis=1)
         Cr = np.repeat(np.repeat(Cr_ds, 2, axis=0), 2, axis=1)
-        print("[info] Performed simple 4:2:0-style subsampling (conceptually).")
+        print("[info] Performed simple 4:2:0-style subsampling .")
 
-    # 5) Prepare quantization tables scaled by quality
+    # 5) make quantization tables scaled by quality
     qY = scale_quant_table(STD_LUMA_Q, quality).astype(np.float64)
     qC = scale_quant_table(STD_CHROMA_Q, quality).astype(np.float64)
 
@@ -300,9 +287,7 @@ def _downsample_simple(channel):
     ds = padded.reshape((h_pad//2, 2, w_pad//2, 2)).mean(axis=(1,3))
     return ds
 
-# ----------------------------
 # CLI
-# ----------------------------
 def parse_args():
     p = argparse.ArgumentParser(description="Educational universal RAW -> JPEG compressor.")
     p.add_argument("input", help="Input RAW file (.dng/.cr2/.raw etc.)")

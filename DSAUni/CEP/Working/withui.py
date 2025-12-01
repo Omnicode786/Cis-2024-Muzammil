@@ -17,7 +17,7 @@ class RawCompressorApp(ctk.CTk):
         self.geometry("900x600")
         self.resizable(False, False)
 
-        # Variables
+        # Varibles
         self.input_path = ctk.StringVar()
         self.output_path = ctk.StringVar()
         self.scale = ctk.DoubleVar(value=1.0)
@@ -45,11 +45,11 @@ class RawCompressorApp(ctk.CTk):
         ctk.CTkEntry(frame_files, textvariable=self.output_path, width=400).grid(row=1, column=1, padx=10, pady=10)
         ctk.CTkButton(frame_files, text="Browse", command=self.browse_output).grid(row=1, column=2, padx=10)
 
-        # Frame for parameters
+        # frame for parameters
         frame_params = ctk.CTkFrame(self)
         frame_params.pack(pady=15, padx=20, fill="x")
 
-        # Quality
+        # quality
         ctk.CTkLabel(frame_params, text=f"JPEG Quality ({self.quality.get()})").grid(row=0, column=0, padx=10, pady=10, sticky="w")
         self.quality_slider = ctk.CTkSlider(frame_params, from_=10, to=100, number_of_steps=90,
                                             variable=self.quality, command=lambda v: self.update_label(frame_params))

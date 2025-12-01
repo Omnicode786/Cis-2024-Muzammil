@@ -24,12 +24,12 @@ def infixToPostfix(expression):
                 output += stack.pop()
             stack.push(token)
         elif token == ')':
-            while stack.top() != '(':
+            while not stack.isEmpty() and  stack.top() != '(':
                 output += stack.pop()
             stack.pop()
         
     return output
     
 
-expr2 = "((a+b)/c)^((d-e)*f)"
-print("Infix to Postfix:", infixToPostfix(expr2))
+expr = "2+((9-3)/2+7)*4-6"
+print("Infix to Postfix:", infixToPostfix(expr))
