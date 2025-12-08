@@ -2,7 +2,7 @@
 from life import LifeGrid
 
 # Define the initial configuration of live cells.
-INIT_CONFIG = [(1, 1), (1, 2), (2, 1),(2,2),(2,3), (3, 2),(3,3)]
+INIT_CONFIG = [(0,0), (0,1), (1, 1),(1,2),(1,3), (2, 1),(2,3), (3,2)]
 
 # Set the size of the grid.
 GRID_WIDTH = 5
