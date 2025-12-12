@@ -45,8 +45,8 @@ Recent Computer Science graduate seeking a Junior Software Developer role at Tec
 
 **Education**  
 Bachelor of Science in Computer Science  
-XYZ University, Karachi – 2020–2024  
-CGPA: 3.4/4.0
+NED University, Karachi – 2020–2024  
+CGPA: 3.9/4.0
 
 **Technical Skills**  
 - **Languages:** Java, Python, C++, JavaScript  
