@@ -1,1 +1,0 @@
-python tempCodeRunnerFile.py test.dng out.jpg --scale 1.0 --quality 75

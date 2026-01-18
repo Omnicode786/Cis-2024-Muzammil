@@ -14,7 +14,7 @@ class RawCompressorApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("📸 RAW to JPEG Compressor")
-        self.geometry("900x600")
+        self.geometry("1200x800")
         self.resizable(False, False)
 
         # Varibles
