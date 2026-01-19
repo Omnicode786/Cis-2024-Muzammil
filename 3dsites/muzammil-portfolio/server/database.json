@@ -1,0 +1,473 @@
+{
+  "users": [
+    {
+      "id": "user_1768753559394",
+      "email": "progamers5656@gmail.com",
+      "password": "power king 123",
+      "name": "Hello Beast",
+      "role": "Super Admin",
+      "bio": "The Master Administrator."
+    },
+    {
+      "id": "user_1768754655583",
+      "email": "simaj@gmail.com",
+      "password": "power king 123",
+      "name": "New User",
+      "role": "Analyst",
+      "bio": "New Team Member"
+    },
+    {
+      "id": "user_1768755487737",
+      "email": "hello@gmail.com",
+      "password": "power king 123",
+      "name": "New User",
+      "role": "Analyst",
+      "bio": "New Team Member"
+    },
+    {
+      "id": "user_1768761501943",
+      "email": "muzammilalam408@gmail.com",
+      "password": "power king 123",
+      "name": "Muzammil Alam",
+      "role": "Analyst",
+      "bio": "New Team Member"
+    },
+    {
+      "id": "user_1768762272304",
+      "email": "",
+      "password": "",
+      "name": "New User",
+      "role": "Analyst",
+      "bio": "New Team Member"
+    }
+  ],
+  "userData": {
+    "user_1768753559394": {
+      "analytics": {
+        "revenue": {
+          "total": 366491,
+          "growth": "16.4",
+          "history": [
+            21,
+            27,
+            14,
+            19,
+            42,
+            316,
+            366
+          ]
+        },
+        "users": {
+          "active": 3353,
+          "growth": "7.7",
+          "distribution": {
+            "mobile": 33,
+            "desktop": 62
+          }
+        },
+        "regions": [
+          {
+            "name": "North America",
+            "value": 55
+          },
+          {
+            "name": "Europe",
+            "value": 33
+          },
+          {
+            "name": "Asia",
+            "value": 28
+          }
+        ]
+      },
+      "reports": [
+        {
+          "id": "r1768837815214",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-19",
+          "type": "FINANCIAL",
+          "status": "READY"
+        },
+        {
+          "id": "r1768763102515",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-18",
+          "type": "FINANCIAL",
+          "status": "READY"
+        },
+        {
+          "id": "r1768762579436",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-18",
+          "type": "FINANCIAL",
+          "status": "READY"
+        },
+        {
+          "id": "r1768762197734",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-18",
+          "type": "FINANCIAL",
+          "status": "READY"
+        },
+        {
+          "id": "r1768762156717",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-18",
+          "type": "FINANCIAL",
+          "status": "READY"
+        },
+        {
+          "id": "r1768762122529",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-18",
+          "type": "FINANCIAL",
+          "status": "READY"
+        },
+        {
+          "id": "r1768761977088",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-18",
+          "type": "FINANCIAL",
+          "status": "READY"
+        },
+        {
+          "id": "r1768761282052",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-18",
+          "type": "FINANCIAL",
+          "status": "READY"
+        },
+        {
+          "id": "r1768756129046",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-18",
+          "type": "FINANCIAL",
+          "status": "READY"
+        },
+        {
+          "id": "r1768756123055",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-18",
+          "type": "FINANCIAL",
+          "status": "READY"
+        },
+        {
+          "id": "r1768755284052",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-18",
+          "type": "FINANCIAL",
+          "status": "READY"
+        },
+        {
+          "id": "r1768754556645",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-18",
+          "type": "FINANCIAL",
+          "status": "READY"
+        },
+        {
+          "id": "r1",
+          "name": "Q1 Financial Overview.pdf",
+          "date": "2025-10-12",
+          "type": "FINANCE",
+          "status": "READY"
+        },
+        {
+          "id": "r2",
+          "name": "User Growth Strategy.docx",
+          "date": "2025-11-05",
+          "type": "STRATEGY",
+          "status": "DRAFT"
+        }
+      ],
+      "customers": [
+        {
+          "id": "c1768761162552",
+          "name": "Muzammil Alam",
+          "email": "progamers5656@gmail.com",
+          "ltv": 50000
+        },
+        {
+          "id": "c1768761148235",
+          "name": "hello",
+          "email": "progamers5656@gmail.com",
+          "ltv": 4
+        },
+        {
+          "id": "c1768756586430",
+          "name": "hello",
+          "email": "progamers5656@gmail.com",
+          "ltv": 0
+        },
+        {
+          "id": "c1768756038121",
+          "name": "hello",
+          "email": "progamers5656@gmail.com",
+          "ltv": 0
+        },
+        {
+          "id": "c1768754582158",
+          "name": "muzammil",
+          "email": "progamers5656@gmail.com",
+          "ltv": 0
+        },
+        {
+          "id": "c1",
+          "name": "Acme Corp",
+          "email": "contact@acme.com",
+          "ltv": 54000
+        },
+        {
+          "id": "c2",
+          "name": "Stark Ind",
+          "email": "tony@stark.com",
+          "ltv": 125000
+        }
+      ],
+      "settings": {
+        "theme": "dark",
+        "notifications": true
+      }
+    },
+    "user_1768754655583": {
+      "analytics": {
+        "revenue": {
+          "total": 50000,
+          "growth": 0,
+          "history": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            50
+          ]
+        },
+        "users": {
+          "active": 0,
+          "growth": 0,
+          "distribution": {
+            "mobile": 0,
+            "desktop": 0
+          }
+        },
+        "regions": [
+          {
+            "name": "North America",
+            "value": 0
+          },
+          {
+            "name": "Europe",
+            "value": 0
+          },
+          {
+            "name": "Asia",
+            "value": 0
+          }
+        ]
+      },
+      "reports": [
+        {
+          "id": "r1768837742922",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-19",
+          "type": "FINANCIAL",
+          "status": "READY"
+        }
+      ],
+      "customers": [
+        {
+          "id": "c1768837711048",
+          "name": "Haseeb bhai",
+          "email": "hasebb@gmail.com",
+          "ltv": 50000
+        }
+      ],
+      "settings": {
+        "theme": "dark",
+        "notifications": true
+      }
+    },
+    "user_1768755487737": {
+      "analytics": {
+        "revenue": {
+          "total": 0,
+          "growth": 0,
+          "history": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "users": {
+          "active": 0,
+          "growth": 0,
+          "distribution": {
+            "mobile": 0,
+            "desktop": 0
+          }
+        },
+        "regions": [
+          {
+            "name": "North America",
+            "value": 0
+          },
+          {
+            "name": "Europe",
+            "value": 0
+          },
+          {
+            "name": "Asia",
+            "value": 0
+          }
+        ]
+      },
+      "reports": [
+        {
+          "id": "r1768755526198",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-18",
+          "type": "FINANCIAL",
+          "status": "READY"
+        }
+      ],
+      "customers": [
+        {
+          "id": "c1768755509814",
+          "name": "kilo",
+          "email": "progamers5656@gmail.com",
+          "ltv": 0
+        }
+      ],
+      "settings": {
+        "theme": "dark",
+        "notifications": true
+      }
+    },
+    "user_1768761501943": {
+      "analytics": {
+        "revenue": {
+          "total": 150000,
+          "growth": 0,
+          "history": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            150
+          ]
+        },
+        "users": {
+          "active": 0,
+          "growth": 0,
+          "distribution": {
+            "mobile": 0,
+            "desktop": 0
+          }
+        },
+        "regions": [
+          {
+            "name": "North America",
+            "value": 0
+          },
+          {
+            "name": "Europe",
+            "value": 0
+          },
+          {
+            "name": "Asia",
+            "value": 0
+          }
+        ]
+      },
+      "reports": [
+        {
+          "id": "r1768761539116",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-18",
+          "type": "FINANCIAL",
+          "status": "READY"
+        }
+      ],
+      "customers": [
+        {
+          "id": "c1768761585168",
+          "name": "beastlabs",
+          "email": "progamers5656@gmail.com",
+          "ltv": 150000
+        }
+      ],
+      "settings": {
+        "theme": "dark",
+        "notifications": true
+      }
+    },
+    "user_1768762272304": {
+      "analytics": {
+        "revenue": {
+          "total": 0,
+          "growth": 0,
+          "history": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "users": {
+          "active": 0,
+          "growth": 0,
+          "distribution": {
+            "mobile": 0,
+            "desktop": 0
+          }
+        },
+        "regions": [
+          {
+            "name": "North America",
+            "value": 0
+          },
+          {
+            "name": "Europe",
+            "value": 0
+          },
+          {
+            "name": "Asia",
+            "value": 0
+          }
+        ]
+      },
+      "reports": [
+        {
+          "id": "r1768762505085",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-18",
+          "type": "FINANCIAL",
+          "status": "READY"
+        },
+        {
+          "id": "r1768762291416",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-01-18",
+          "type": "FINANCIAL",
+          "status": "READY"
+        }
+      ],
+      "customers": [],
+      "settings": {
+        "theme": "dark",
+        "notifications": true
+      }
+    }
+  }
+}
