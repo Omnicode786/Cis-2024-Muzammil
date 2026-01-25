@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import OpenAI from 'openai';
-
+import axios from 'axios';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -37,6 +37,14 @@ const initDB = async () => {
 const readDB = async () => {
     try {
         const data = await fs.readFile(DB_PATH, 'utf-8');
+
+//  const data = axios.get('https://jsonplaceholder.typicode.com/users')
+//   .then(function(response) {
+//     // response.data contains the API data
+//     console.log(response.data);
+//     return response.data
+//   })
+
         return JSON.parse(data);
     } catch (err) {
         return { users: [], userData: {} };
