@@ -13,7 +13,7 @@ except Exception as e:
 
 print(webpage.text.strip())
 
-soup = BeautifulSoup(webpage, 'lxml')
+soup = BeautifulSoup(webpage.text, 'lxml')
 
 content = soup.prettify()
 
@@ -33,9 +33,11 @@ jsonDump = json.dumps(results)
 
 print(jsonDump)
 
-def save_to_json(filename="Task_1.json"):
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(results, f, indent=4)
-        print(f"✅ Saved {len(results)} unique quotes to {filename}")
+
+def save_to_json(data, filename="Task_1.json"):
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=4)
+    print(f"✅ Saved {len(data)} quotes to {filename}")
+
 
 save_to_json(results)
