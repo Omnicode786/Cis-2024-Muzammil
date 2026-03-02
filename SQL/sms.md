@@ -1,11 +1,16 @@
+# School Management System - ER Diagram
+
+This document outlines the database architecture for the multi-tenant school management system. 
+
+## Entity Relationship Diagram
+
+```mermaid
 ---
 config:
   layout: elk
 ---
 erDiagram
-
     SuperAdmin ||--o{ School : manages
-
     School ||--o{ AcademicYear : defines
     School ||--o{ User : hosts
     School ||--o{ Grade : owns
@@ -24,6 +29,7 @@ erDiagram
 
     Student ||--o{ Attendance : marked_for
     AcademicYear ||--o{ Attendance : belongs_to
+    User ||--o{ Attendance : marked_by
 
     Student ||--o{ FeeInvoice : billed
     FeeStructure ||--o{ FeeInvoice : generates
@@ -109,7 +115,8 @@ erDiagram
 
     Attendance {
         string attendance_id PK
-        string student_id FK
+        string target_id FK "Can be Student or Teacher ID"
+        string marked_by FK "User ID of Principal or Teacher"
         string year_id FK
         date attendance_date
         string status
