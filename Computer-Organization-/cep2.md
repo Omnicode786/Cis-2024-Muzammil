@@ -1,5 +1,4 @@
 
-```markdown
 # CEP ISA Playbook – Ibn‑e‑Sina Processor (2026)
 
 Design your own **Instruction Set Architecture (ISA)** and datapath for the **Ibn‑e‑Sina** processor used by **Al‑Tusi**.  
