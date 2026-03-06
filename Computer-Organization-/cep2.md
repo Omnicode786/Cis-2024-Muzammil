@@ -147,7 +147,6 @@ You must support these formats:
 
 ### 4.1 Table 1 – Instruction formats
 
-```markdown
 
 ### Table 1 – Instruction Formats
 
@@ -171,7 +170,6 @@ You must support these formats:
 
 ### 5.1 Table 2 – General‑purpose registers
 
-```markdown
 
 ### Table 2 – General‑Purpose Registers
 
@@ -193,7 +191,6 @@ You must support these formats:
 
 ### 5.2 Table 3 – Special‑purpose registers
 
-```markdown
 
 ### Table 3 – Special‑Purpose Registers
 
@@ -245,7 +242,6 @@ You need **at least 16 instructions** across:
 
 ### 6.2 Table 4 – Instruction reference sheet
 
-```markdown
 
 ### Table 4 – Instruction Reference Sheet
 
@@ -293,7 +289,6 @@ Now design similar layouts for M, L/S, I, C, U, and S.
 
 ### 7.2 Table 5 – Instruction encodings
 
-```markdown
 
 ### Table 5 – Instruction Encodings
 
@@ -323,7 +318,6 @@ You only need to build hardware for a **subset** of your instructions, but at le
 
 ### 8.1 Write down your chosen subset
 
-```markdown
 **Subset for hardware implementation**
 
 - R format:   ___________________________
@@ -397,7 +391,7 @@ Common choices:
 
 ### 9.2 Table 6 – Control signal values
 
-```markdown
+
 
 ### Table 6 – Control Signal Values per Instruction
 
@@ -508,7 +502,6 @@ mindmap
 
 > Use this table like a research to‑do list. Check rows as you watch/read.
 
-```markdown
 
 ### ISA & Datapath Learning Board
 
