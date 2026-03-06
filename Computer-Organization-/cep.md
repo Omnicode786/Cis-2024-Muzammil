@@ -1,15 +1,4 @@
-<img src="https://r2cdn.perplexity.ai/pplx-full-logo-primary-dark%402x.png" style="height:64px;margin-right:32px"/>
 
-# What is this how to do it
-
-tell me all design everything how to make it
-make me a beuaifully formatted md file that supports everything has everything that i need to know in order to make this complex engineering problem
-also make a table to do research from like books and videos from youtube or anyother free source
-videos are must books or resarch papers or docs can be optional
-
-Here’s a complete Markdown guide you can drop into your notes. It explains what the CEP is, how to design the ISA step‑by‑step, and includes a research resources table and templates for all required tables.[^1]
-
-***
 
 # CEP: Ibn‑e‑Sina ISA Design – Complete Guide
 
@@ -204,7 +193,7 @@ For every format, you must:
 
 Fill this table for your design (codes and descriptions are placeholders):
 
-```markdown
+markdown
 ### Table 1 – Instruction Formats
 
 | S.No. | Instruction Format | Binary Code | Description                                  |
@@ -217,7 +206,7 @@ Fill this table for your design (codes and descriptions are placeholders):
 | 6     | Unconditional (U)  | 101        | Jumps / calls with PC‑relative offset        |
 | 7     | Stack (S)          | 110        | PUSH / POP using SP                          |
 | 8     | — (unused)         | 111        | Unused / reserved                            |
-```
+
 
 Adapt codes, names, and descriptions to your actual design and mark any unused codes clearly, as required.[^1]
 
@@ -236,7 +225,7 @@ You need a **list of programmer‑visible general‑purpose registers** with nam
 
 ### General‑purpose registers table (template)
 
-```markdown
+markdown
 ### Table 2 – General‑Purpose Registers
 
 | S.No. | Register Name | Abbrev. | Binary Code | Purpose                                                                 |
@@ -249,7 +238,7 @@ You need a **list of programmer‑visible general‑purpose registers** with nam
 | 6     | Register 5    | R5      | 101         | General operand                                                        |
 | 7     | Register 6    | R6      | 110         | Stack Pointer (SP) or general operand                                  |
 | 8     | Register 7    | R7      | 111         | Link register / return address or general operand                      |
-```
+
 
 Adapt binary codes and purposes based on your chosen register count and roles, respecting the CEP limitation on 32×32.[^1]
 
@@ -259,7 +248,7 @@ Adapt binary codes and purposes based on your chosen register count and roles, r
 
 List all special registers used by your ISA and datapath.[^1]
 
-```markdown
+markdown
 ### Table 3 – Special‑Purpose Registers
 
 | S.No. | Register Name     | Purpose                                             |
@@ -268,7 +257,7 @@ List all special registers used by your ISA and datapath.[^1]
 | 2     | Status Register   | Holds flags (Z, N, C, V) for conditional branches   |
 | 3     | Stack Pointer (SP)| Top of stack for PUSH/POP                          |
 | 4     | — (optional)      | —                                                   |
-```
+
 
 You might treat SP and SR as separate from the general register set, or implement them as specific GPRs with conventional roles.[^8][^1]
 
@@ -302,7 +291,7 @@ Use this as inspiration; adjust to match your own ISA decisions:
 
 ### Instruction reference sheet template (Table 4)
 
-```markdown
+markdown
 ### Table 4 – Instruction Reference Sheet
 
 | S.No. | Mnemonic | Opcode (bin) | Syntax                | Addr. Mode         | Format | Action / Semantics                                  |
@@ -323,7 +312,7 @@ Use this as inspiration; adjust to match your own ISA decisions:
 | 14    | POP      | 1101         | POP rd                | SP‑relative        | S      | rd ← MEM[SP]; SP ← SP + word                        |
 | 15    | CLR      | 1110         | CLR rd                | Reg direct         | R      | rd ← 0                                              |
 | 16    | NOP      | 1111         | NOP                   | —                  | R/U    | No operation                                        |
-```
+
 
 Replace with your own opcodes, formats, and semantics; ensure at least 16 instructions overall and coverage of all required categories.[^1]
 
@@ -352,7 +341,7 @@ Example for a 16‑bit 3‑address R‑format:
 
 ### Instruction encoding table (template)
 
-```markdown
+markdown
 ### Table 5 – Instruction Encodings
 
 | S.No. | Instruction Syntax      | Encoding (bit fields, MSB→LSB)                                     |
@@ -365,7 +354,7 @@ Example for a 16‑bit 3‑address R‑format:
 | 6     | J offset                | [format=101][opcode=1001][offset(9 bits, signed)]                  |
 | 7     | PUSH rs                 | [format=110][opcode=1100][rs][unused / reserved bits]              |
 | 8     | POP rd                  | [format=110][opcode=1101][rd][unused / reserved bits]              |
-```
+
 
 Use this table to prove that your field widths are sufficient for the number of registers, opcodes, and immediates you defined.[^4][^1]
 
@@ -461,7 +450,7 @@ Your **Table 6** then assigns 0/1 (or multi‑bit values) for each instruction.
 
 ## Control signal table (Table 6 template)
 
-```markdown
+markdown
 ### Table 6 – Control Signal Values per Instruction
 
 | Instruction | RegWrite | MemRead | MemWrite | MemToReg | ALUSrc | Branch | Jump | ALUOp1 | ALUOp0 | ... (more signals if needed) |
@@ -474,7 +463,7 @@ Your **Table 6** then assigns 0/1 (or multi‑bit values) for each instruction.
 | J          | 0        | 0       | 0        | X        | X      | 0      | 1    | X      | X      | ...                           |
 | PUSH       | 0/1*     | 0       | 1       | X        | 1      | 0      | 0    | 0      | 0      | ...                           |
 | POP        | 1        | 1       | 0       | 1        | 1      | 0      | 0    | 0      | 0      | ...                           |
-```
+
 
 (*Adjust signals based on your exact datapath; X = don't care.)[^3][^2]
 
@@ -515,7 +504,7 @@ Use this section as your **final “before submit” checklist**.
 
 Here’s a table of **free resources** (videos are emphasized, with some optional PDFs/slides) you can use to do deep research while designing your ISA and datapath.
 
-```markdown
+markdown
 ### Learning Resources for ISA & Datapath
 
 | Topic                             | Type     | Title / Source                                                            | Link                                                | How it helps                                                                                   |
@@ -533,7 +522,6 @@ Here’s a table of **free resources** (videos are emphasized, with some optiona
 | RISC-V single-cycle datapath     | Video    | CS61C Lecture – Single-Cycle CPU Datapath I (RISC-V)                     | https://www.youtube.com/watch?v=YAMqWaTZy8k         | Detailed RISC-V datapath; adapt ideas while keeping your ISA original.                        |
 | ISA components summary           | Article  | What is Instruction Set Architecture (ISA)? – Arm                        | https://www.arm.com/glossary/isa                    | Concise summary of ISA elements: registers, instruction formats, operations.                  |
 | ISA slides (CISC vs RISC etc.)  | Slides   | Instruction Set Architecture – Slideshare                                | https://www.slideshare.net/slideshow/instruction-set-architecture-254097280/254097280 | Good for understanding design tradeoffs and examples.                                         |
-```
 
 Sources for this table are from the search results above.[^14][^15][^16][^13][^7][^6][^10][^5][^9][^3][^2][^4][^8]
 
