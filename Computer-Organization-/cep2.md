@@ -131,7 +131,6 @@ You can also add others if needed (like register indirect or auto‑increment).
 - Extra 1 (optional): `_______________________________`
 - Extra 2 (optional): `_______________________________`
 
----
 
 ## 4. Instruction formats (high‑level structure)
 
@@ -160,11 +159,10 @@ You must support these formats:
 | 6     | Unconditional (U)  | ___               | Jumps / calls (PC‑relative offset)         |
 | 7     | Extra 1 (e.g. S)   | ___               | e.g. Stack ops with SP                     |
 | 8     | Extra 2 / Unused   | ___               | Extra format or mark as unused             |
-```
+
 
 > Put the format code in the most significant bits (top bits) of the instruction.
 
----
 
 ## 5. Registers (Tables 2 and 3)
 
@@ -184,10 +182,6 @@ You must support these formats:
 | 7     | Register 6    | R6      | ___         | May act as SP (stack pointer) or general purpose                         |
 | 8     | Register 7    | R7      | ___         | May act as link register or general purpose                              |
 | …     | (optional)    | …       | …           | Extra registers or mark codes as unused                                  |
-```
-
-
----
 
 ### 5.2 Table 3 – Special‑purpose registers
 
@@ -200,10 +194,8 @@ You must support these formats:
 | 2     | Status Register   | Flags (Z, N, C, V) for branches and compares    |
 | 3     | Stack Pointer (SP)| Top of the stack for PUSH/POP                   |
 | 4     | (optional)        | e.g. Exception PC, loop counter, etc.           |
-```
 
 
----
 
 ## 6. Instruction set (Table 4) – your “language”
 
@@ -238,7 +230,7 @@ You need **at least 16 instructions** across:
 
 - PUSH, POP using SP.
 
----
+
 
 ### 6.2 Table 4 – Instruction reference sheet
 
@@ -263,7 +255,6 @@ You need **at least 16 instructions** across:
 | 14    | POP      | ____         | POP rd                | SP‑relative      | S      | rd ← MEM[SP]; SP ← SP + w                           |
 | 15    | CLR      | ____         | CLR rd                | reg direct       | R      | rd ← 0                                              |
 | 16    | NOP      | ____         | NOP                   | —                | R/U    | Do nothing                                          |
-```
 
 You can add more rows if you want extra instructions.
 
@@ -285,7 +276,7 @@ Example for a 16‑bit R‑format (you can change):
 
 Now design similar layouts for M, L/S, I, C, U, and S.
 
----
+
 
 ### 7.2 Table 5 – Instruction encodings
 
@@ -302,7 +293,7 @@ Now design similar layouts for M, L/S, I, C, U, and S.
 | 6     | J off                   | [fmt][opcode][off(____ bits, signed)]                 |
 | 7     | PUSH rs                 | [fmt][opcode][rs][unused / reserved bits]             |
 | 8     | POP rd                  | [fmt][opcode][rd][unused / reserved bits]             |
-```
+
 
 Make sure:
 
@@ -327,7 +318,6 @@ You only need to build hardware for a **subset** of your instructions, but at le
 - C format:   ___________________________
 - U format:   ___________________________
 - Extra (S):  ___________________________
-```
 
 Your datapath, Table 6, and traces should **all match this list**.
 
@@ -355,7 +345,7 @@ Most single‑cycle or multi‑cycle designs will include:
 
 You can paste this into any Markdown viewer that supports Mermaid.
 
-```mermaid
+mermaid
 flowchart TD
     A[Start CEP] --> B[Read CEP PDF<br/>and understand rules]
     B --> C[Fix global ISA decisions<br/>(length, regs, n-address, modes)]
@@ -366,10 +356,10 @@ flowchart TD
     G --> H[Trace one instruction per format]
     H --> I[Final review & polish]
     I --> J[End CEP]
-```
 
 
----
+
+
 
 ## 9. Control signals and units (Table 6)
 
@@ -405,7 +395,6 @@ Common choices:
 | J          |    0     |    0    |    0     |    X     |   X    |   0    |  1   |   X    |   X    | PC = PC + offset |
 | PUSH       | 0 or 1   |    0    |    1     |    X     |   1    |   0    |  0   |   0    |   0    | SP update + store |
 | POP        |    1     |    1    |    0     |    1     |   1    |   0    |  0   |   0    |   0    | SP update + load |
-```
 
 “X” means “don’t care”.
 
@@ -449,13 +438,13 @@ This is just an example chart; you can replace it with your own later.
 
 ### 10.2 Example: fake study progress
 
-```text
+text
 Day 1:  1 topic done
 Day 2:  3 topics done
 Day 3:  4 topics done
 Day 4:  6 topics done
 Day 5:  7 topics done
-```
+
 
 You can turn this into a line chart in your notebook if you want.
 
@@ -463,7 +452,7 @@ You can turn this into a line chart in your notebook if you want.
 
 ## 11. Another visual: concept map (simple Mermaid mindmap)
 
-```mermaid
+mermaid
 mindmap
   root((Ibn-e-Sina ISA))
     "Global decisions"
@@ -493,10 +482,10 @@ mindmap
       "Tables 1–6"
       "Traces"
       "Diagrams"
-```
 
 
----
+
+
 
 ## 12. Study resources board (YouTube first)
 
@@ -519,10 +508,8 @@ mindmap
 | Multi‑cycle datapath     | Video  | Multi‑Cycle Datapath lecture               | https://www.youtube.com/watch?v=49zRKmEXAcE         |
 | ISA + datapath series    | Video  | CS2100 ISA Datapath lecture                | https://www.youtube.com/watch?v=sl2bnX3It2c         |
 | Industry view of ISA     | Article| Arm Glossary – ISA                         | https://www.arm.com/glossary/isa                    |
-```
 
 
----
 
 ## 13. Assumptions and reasoning (you fill this)
 
@@ -545,7 +532,6 @@ mindmap
 - Why I chose single‑cycle / multi‑cycle:
 `________________________________________________________`
 
----
 
 ## 14. Mini roadmap – how to use this file in 2–3 days
 
@@ -571,8 +557,6 @@ mindmap
 ---
 
 _End of `cep-isa-playbook.md`_
-
-```
 
 If you tell me your chosen instruction length and how many registers you want, I can fill some of the blanks for you in a new version.  ```
 
