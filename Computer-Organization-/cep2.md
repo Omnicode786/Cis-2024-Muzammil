@@ -1,11 +1,3 @@
-<img src="https://r2cdn.perplexity.ai/pplx-full-logo-primary-dark%402x.png" style="height:64px;margin-right:32px"/>
-
-# I want you to give me a downloadable md file witha ll the things as mentioned and the file shoudl have latest technology embedded like tables graphs like mermaid and more make sure they are absolutely fire make the wording easier to read
-
-Below is a ready‑to‑download Markdown file.
-Just copy everything into a file named `cep-isa-playbook.md`.
-
-***
 
 ```markdown
 # CEP ISA Playbook – Ibn‑e‑Sina Processor (2026)
