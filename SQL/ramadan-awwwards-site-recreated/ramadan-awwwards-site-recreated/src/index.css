@@ -1,0 +1,328 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+:root {
+  --theme-bg: #020617;
+  --theme-bg-soft: rgba(7, 15, 32, 0.72);
+  --theme-surface: rgba(255, 255, 255, 0.06);
+  --theme-surface-strong: rgba(7, 15, 32, 0.72);
+  --theme-border: rgba(255, 255, 255, 0.12);
+  --theme-text: #f8fafc;
+  --theme-muted: rgba(226, 232, 240, 0.72);
+  --theme-subtle: rgba(203, 213, 225, 0.52);
+  --theme-accent: #facc15;
+  --theme-accent-soft: rgba(250, 204, 21, 0.16);
+  --theme-accent-strong: #fde68a;
+  --theme-shadow: rgba(2, 6, 23, 0.45);
+  --theme-water-top: #183a59;
+  --theme-water-deep: #061321;
+  --theme-water-glow: #facc15;
+  color-scheme: dark;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--theme-bg);
+}
+
+:root[data-theme='light'] {
+  --theme-bg: #f7fbff;
+  --theme-bg-soft: rgba(247, 250, 252, 0.74);
+  --theme-surface: rgba(255, 255, 255, 0.76);
+  --theme-surface-strong: rgba(255, 255, 255, 0.86);
+  --theme-border: rgba(15, 23, 42, 0.1);
+  --theme-text: #0f172a;
+  --theme-muted: rgba(51, 65, 85, 0.82);
+  --theme-subtle: rgba(71, 85, 105, 0.62);
+  --theme-accent: #eab308;
+  --theme-accent-soft: rgba(234, 179, 8, 0.14);
+  --theme-accent-strong: #ca8a04;
+  --theme-shadow: rgba(148, 163, 184, 0.22);
+  --theme-water-top: #86b9db;
+  --theme-water-deep: #35688e;
+  --theme-water-glow: #fff3a6;
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--theme-bg);
+  color: var(--theme-text);
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: rgba(250, 204, 21, 0.22);
+  color: var(--theme-text);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--theme-bg) 92%, transparent);
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: linear-gradient(180deg, rgba(250, 204, 21, 0.88), rgba(245, 158, 11, 0.72));
+}
+
+.font-display {
+  font-family: 'Cormorant Garamond', serif;
+}
+
+.app-shell {
+  isolation: isolate;
+}
+
+.background-layer,
+.background-orbs,
+.pattern-overlay {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+}
+
+.background-layer {
+  z-index: 0;
+}
+
+.background-layer--night {
+  background:
+    radial-gradient(circle at 50% 8%, rgba(250, 204, 21, 0.1), transparent 24%),
+    radial-gradient(circle at 20% 18%, rgba(148, 163, 184, 0.15), transparent 30%),
+    radial-gradient(circle at 80% 12%, rgba(59, 130, 246, 0.12), transparent 22%),
+    linear-gradient(180deg, #020617 0%, #071224 44%, #09172b 68%, #0a1931 100%);
+}
+
+.background-layer--day {
+  background:
+    radial-gradient(circle at 50% 12%, rgba(255, 252, 219, 0.95), transparent 18%),
+    radial-gradient(circle at 15% 16%, rgba(191, 219, 254, 0.8), transparent 28%),
+    radial-gradient(circle at 88% 14%, rgba(196, 181, 253, 0.45), transparent 22%),
+    linear-gradient(180deg, #f8fcff 0%, #e5f1fb 44%, #d8e9f7 70%, #c9def0 100%);
+}
+
+.background-orbs {
+  z-index: 0;
+  filter: blur(18px);
+  opacity: 0.95;
+}
+
+.background-orbs--night {
+  background:
+    radial-gradient(circle at 10% 26%, rgba(250, 204, 21, 0.12), transparent 14%),
+    radial-gradient(circle at 78% 28%, rgba(59, 130, 246, 0.16), transparent 16%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05), transparent 18%),
+    radial-gradient(circle at 30% 72%, rgba(139, 92, 246, 0.14), transparent 18%);
+}
+
+.background-orbs--day {
+  background:
+    radial-gradient(circle at 14% 24%, rgba(255, 255, 255, 0.85), transparent 14%),
+    radial-gradient(circle at 75% 20%, rgba(219, 234, 254, 0.95), transparent 18%),
+    radial-gradient(circle at 55% 56%, rgba(255, 255, 255, 0.42), transparent 20%),
+    radial-gradient(circle at 24% 72%, rgba(253, 230, 138, 0.18), transparent 16%);
+}
+
+.pattern-overlay {
+  z-index: 1;
+}
+
+.pattern-overlay--night {
+  opacity: 0.16;
+  background-image:
+    radial-gradient(circle at 30px 30px, rgba(250, 204, 21, 0.16) 1px, transparent 0),
+    radial-gradient(circle at 75px 65px, rgba(255, 255, 255, 0.12) 1px, transparent 0),
+    radial-gradient(circle at 55px 85px, rgba(148, 163, 184, 0.06) 1px, transparent 0);
+  background-size: 110px 110px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.96), rgba(0, 0, 0, 0.18));
+}
+
+.pattern-overlay--day {
+  opacity: 0.18;
+  background-image:
+    radial-gradient(circle at 28px 30px, rgba(234, 179, 8, 0.13) 1px, transparent 0),
+    radial-gradient(circle at 78px 70px, rgba(71, 85, 105, 0.08) 1px, transparent 0),
+    linear-gradient(90deg, transparent 48%, rgba(255, 255, 255, 0.2) 50%, transparent 52%);
+  background-size: 120px 120px, 120px 120px, 220px 220px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.14));
+}
+
+.glass-panel {
+  border: 1px solid var(--theme-border);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--theme-surface) 96%, transparent), color-mix(in srgb, var(--theme-surface-strong) 88%, transparent));
+  backdrop-filter: blur(20px);
+  box-shadow: 0 24px 60px var(--theme-shadow);
+}
+
+.theme-card {
+  border: 1px solid var(--theme-border);
+  background: color-mix(in srgb, var(--theme-surface-strong) 90%, transparent);
+  box-shadow: 0 20px 48px var(--theme-shadow);
+}
+
+.theme-chip {
+  border: 1px solid color-mix(in srgb, var(--theme-border) 90%, transparent);
+  background: color-mix(in srgb, var(--theme-surface) 90%, transparent);
+}
+
+.theme-strong-text {
+  color: var(--theme-text);
+}
+
+.theme-muted-text {
+  color: var(--theme-muted);
+}
+
+.theme-subtle-text {
+  color: var(--theme-subtle);
+}
+
+.theme-accent-text {
+  color: var(--theme-accent-strong);
+}
+
+.text-gradient {
+  background: linear-gradient(180deg, color-mix(in srgb, white 88%, var(--theme-accent) 12%) 0%, var(--theme-accent) 48%, color-mix(in srgb, #fde68a 78%, white 22%) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-vignette {
+  background:
+    radial-gradient(circle at center, transparent 28%, color-mix(in srgb, var(--theme-bg) 72%, transparent) 100%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.04) 0%, color-mix(in srgb, var(--theme-bg) 90%, transparent) 100%);
+}
+
+:root[data-theme='light'] .hero-vignette {
+  background:
+    radial-gradient(circle at center, transparent 28%, rgba(255, 255, 255, 0.22) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(226, 232, 240, 0.28) 100%);
+}
+
+.section-grid {
+  display: grid;
+  gap: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .section-grid {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: start;
+  }
+}
+
+.water-shell {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: clamp(90px, 15vh, 150px);
+  z-index: 30;
+  pointer-events: none;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.water-shell__interactive {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+
+.water-shell canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.water-shell__fade,
+.water-shell__highlight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.water-shell__fade {
+  background:
+    linear-gradient(
+      to top,
+      rgba(2, 6, 23, 0.88) 0%,
+      rgba(2, 6, 23, 0.62) 24%,
+      rgba(2, 6, 23, 0.26) 52%,
+      rgba(2, 6, 23, 0.00) 100%
+    );
+}
+
+.water-shell__highlight {
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 15%,
+    rgba(255, 255, 255, 0.45) 50%,
+    rgba(255, 255, 255, 0.1) 85%,
+    transparent 100%
+  );
+  opacity: 0.75;
+}
+
+.water-shell--light .water-shell__fade {
+  background:
+    linear-gradient(
+      to top,
+      rgba(226, 238, 248, 0.92) 0%,
+      rgba(226, 238, 248, 0.68) 26%,
+      rgba(226, 238, 248, 0.30) 55%,
+      rgba(226, 238, 248, 0.00) 100%
+    );
+}
+
+.water-shell--light .water-shell__highlight {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 15%,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(255, 255, 255, 0.2) 85%,
+    transparent 100%
+  );
+}
+
+@media (max-width: 768px) {
+  .water-shell {
+    height: clamp(78px, 12vh, 110px);
+  }
+}
+
+.footer-safe-area {
+  margin-bottom: 9rem;
+}
+
+@media (min-width: 768px) {
+  .water-shell {
+    height: 12rem;
+  }
+
+  .footer-safe-area {
+    margin-bottom: 10rem;
+  }
+}

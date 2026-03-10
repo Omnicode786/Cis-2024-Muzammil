@@ -1,0 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #020617;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #020617;
+  color: #f8fafc;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(250, 204, 21, 0.22);
+  color: #f8fafc;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(2, 6, 23, 0.85);
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: linear-gradient(180deg, rgba(250, 204, 21, 0.85), rgba(217, 119, 6, 0.65));
+}
+
+.font-display {
+  font-family: 'Cormorant Garamond', serif;
+}
+
+.pattern-overlay {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  opacity: 0.12;
+  background-image:
+    radial-gradient(circle at 25px 25px, rgba(250, 204, 21, 0.18) 1px, transparent 0),
+    radial-gradient(circle at 75px 75px, rgba(248, 250, 252, 0.12) 1px, transparent 0);
+  background-size: 100px 100px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.25));
+}
+
+.glass-panel {
+  @apply border border-white/10 bg-white/5 backdrop-blur-xl;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+.text-gradient {
+  background: linear-gradient(180deg, #fefce8 0%, #facc15 45%, #fde68a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-vignette {
+  background:
+    radial-gradient(circle at center, transparent 35%, rgba(2, 6, 23, 0.75) 100%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.08) 0%, rgba(2, 6, 23, 0.9) 100%);
+}
+
+.section-grid {
+  display: grid;
+  gap: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .section-grid {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: start;
+  }
+}
+
+.water-shell {
+  background:
+    linear-gradient(180deg, rgba(2, 6, 23, 0) 0%, rgba(5, 15, 37, 0.55) 18%, rgba(2, 6, 23, 0.95) 100%),
+    radial-gradient(circle at top, rgba(250, 204, 21, 0.12), transparent 40%);
+}
