@@ -1,0 +1,138 @@
+erDiagram
+    SHOP ||--o{ SHOP_USER_MEMBERSHIP : has
+    APP_USER ||--o{ SHOP_USER_MEMBERSHIP : joins
+    ROLE ||--o{ SHOP_USER_MEMBERSHIP : assigned
+
+    SHOP ||--o{ CUSTOMER : owns
+    SHOP ||--o{ SUPPLIER : owns
+    SHOP ||--o{ CUSTOMER_BILLING_LOG : contains
+    SHOP ||--o{ PAYMENT_LOG : contains
+    SHOP ||--o{ SUPPLIER_TRANSACTION_LOG : contains
+
+    CUSTOMER ||--o{ CUSTOMER_BILLING_LOG : billed_in
+    CUSTOMER ||--o{ PAYMENT_LOG : pays
+
+    SUPPLIER ||--o{ SUPPLIER_TRANSACTION_LOG : transacts
+
+    SHOP_USER_MEMBERSHIP ||--o{ CUSTOMER : created_by
+    SHOP_USER_MEMBERSHIP ||--o{ SUPPLIER : created_by
+    SHOP_USER_MEMBERSHIP ||--o{ CUSTOMER_BILLING_LOG : created_by
+    SHOP_USER_MEMBERSHIP ||--o{ PAYMENT_LOG : created_by
+    SHOP_USER_MEMBERSHIP ||--o{ SUPPLIER_TRANSACTION_LOG : created_by
+
+    SHOP {
+        bigint shop_id PK
+        varchar shop_name
+        varchar legal_name
+        varchar shop_code UK
+        varchar phone_number
+        varchar email
+        text address
+        varchar currency_code
+        varchar timezone
+        boolean is_active
+        datetime created_at
+        datetime updated_at
+    }
+
+    APP_USER {
+        bigint app_user_id PK
+        varchar full_name
+        varchar email UK
+        varchar phone_number UK
+        varchar password_hash
+        varchar auth_provider
+        boolean is_active
+        datetime last_login_at
+        datetime created_at
+        datetime updated_at
+    }
+
+    ROLE {
+        bigint role_id PK
+        varchar role_code UK
+        varchar role_name
+        text description
+        boolean is_system_role
+        datetime created_at
+        datetime updated_at
+    }
+
+    SHOP_USER_MEMBERSHIP {
+        bigint shop_membership_id PK
+        bigint shop_id FK
+        bigint app_user_id FK
+        bigint role_id FK
+        varchar membership_status
+        boolean is_primary_contact
+        datetime invited_at
+        datetime joined_at
+        datetime created_at
+        datetime updated_at
+    }
+
+    CUSTOMER {
+        bigint customer_id PK
+        bigint shop_id FK
+        varchar customer_name
+        varchar phone_number
+        text address
+        varchar area
+        boolean is_active
+        text notes
+        bigint created_by_membership_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    SUPPLIER {
+        bigint supplier_id PK
+        bigint shop_id FK
+        varchar supplier_name
+        varchar phone_number
+        varchar payment_type
+        integer credit_days
+        text notes
+        boolean is_active
+        bigint created_by_membership_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    CUSTOMER_BILLING_LOG {
+        bigint billing_log_id PK
+        bigint shop_id FK
+        bigint customer_id FK
+        date billing_date
+        varchar billing_category
+        text description
+        numeric amount
+        char billing_month
+        bigint created_by_membership_id FK
+        datetime created_at
+    }
+
+    PAYMENT_LOG {
+        bigint payment_id PK
+        bigint shop_id FK
+        bigint customer_id FK
+        date payment_date
+        numeric amount_paid
+        varchar payment_method
+        varchar reference_no
+        text remarks
+        bigint created_by_membership_id FK
+        datetime created_at
+    }
+
+    SUPPLIER_TRANSACTION_LOG {
+        bigint supplier_txn_id PK
+        bigint shop_id FK
+        bigint supplier_id FK
+        date transaction_date
+        varchar transaction_type
+        numeric amount
+        text description
+        bigint created_by_membership_id FK
+        datetime created_at
+    }
