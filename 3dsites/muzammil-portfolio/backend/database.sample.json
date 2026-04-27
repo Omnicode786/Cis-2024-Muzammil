@@ -1,0 +1,95 @@
+{
+  "users": [
+    {
+      "id": "user_admin",
+      "email": "owner@vantage.local",
+      "password": "changeme123",
+      "name": "Workspace Owner",
+      "role": "Super Admin",
+      "bio": "Primary workspace administrator.",
+      "workspaceId": "ws_alpha",
+      "teamRole": "owner"
+    },
+    {
+      "id": "user_ops",
+      "email": "ops@vantage.local",
+      "password": "changeme123",
+      "name": "Ops Manager",
+      "role": "Operations Manager",
+      "bio": "Team operator.",
+      "workspaceId": "ws_alpha",
+      "teamRole": "manager"
+    }
+  ],
+  "workspaces": [
+    {
+      "id": "ws_alpha",
+      "name": "Alpha Workspace",
+      "ownerUserId": "user_admin",
+      "members": [
+        {
+          "userId": "user_admin",
+          "name": "Workspace Owner",
+          "email": "owner@vantage.local",
+          "role": "owner",
+          "title": "Super Admin",
+          "joinedAt": "2026-04-16",
+          "status": "active"
+        },
+        {
+          "userId": "user_ops",
+          "name": "Ops Manager",
+          "email": "ops@vantage.local",
+          "role": "manager",
+          "title": "Operations Manager",
+          "joinedAt": "2026-04-16",
+          "status": "active"
+        }
+      ]
+    }
+  ],
+  "userData": {
+    "ws_alpha": {
+      "analytics": {
+        "revenue": { "total": 366491, "growth": 16.4, "history": [112, 128, 141, 166, 218, 292, 366] },
+        "users": { "active": 3353, "growth": 7.7, "distribution": { "mobile": 54, "desktop": 46 } },
+        "regions": [
+          { "name": "North America", "value": 42 },
+          { "name": "Europe", "value": 31 },
+          { "name": "Asia", "value": 27 }
+        ],
+        "meta": {
+          "deviceDefinitions": {
+            "mobile": "Mobile users are active users whose latest tracked session came from a phone browser or mobile app.",
+            "desktop": "Desktop users are active users whose latest tracked session came from a desktop or laptop browser."
+          },
+          "deviceCounts": { "mobile": 1811, "desktop": 1542 },
+          "lastUpdated": "2026-04-16"
+        }
+      },
+      "reports": [
+        { "id": "r1", "name": "Q1 Financial Overview.pdf", "date": "2026-04-10", "type": "FINANCE", "status": "READY", "relatedCustomerIds": ["c1", "c2"], "totalValue": 142000 }
+      ],
+      "customers": [
+        { "id": "c1", "name": "Acme Corp", "email": "contact@acme.com", "ltv": 54000, "region": "North America", "segment": "Enterprise", "company": "Acme Corp", "status": "active", "ownerId": "user_admin" },
+        { "id": "c2", "name": "Stark Industries", "email": "tony@stark.com", "ltv": 125000, "region": "Europe", "segment": "Strategic", "company": "Stark Industries", "status": "active", "ownerId": "user_ops" }
+      ],
+      "inventory": [
+        { "id": "inv_1", "sku": "ERP-001", "name": "Cloud Workspace Seats", "category": "Software", "stock": 42, "reorderLevel": 12, "price": 1200, "supplier": "Vantage Cloud", "location": "Digital", "status": "healthy" }
+      ],
+      "orders": [
+        { "id": "ord_1", "customerId": "c1", "customerName": "Acme Corp", "amount": 24000, "status": "fulfilled", "date": "2026-04-08", "region": "North America", "ownerId": "user_admin", "notes": "Annual renewal" }
+      ],
+      "employees": [
+        { "id": "emp_1", "name": "Ava Reed", "email": "ava@vantage.ai", "department": "Finance", "role": "Finance Lead", "salary": 8400, "status": "active", "title": "Lead Finance Manager" }
+      ],
+      "transactions": [
+        { "id": "txn_1", "type": "income", "amount": 24000, "category": "Subscription", "date": "2026-04-08", "note": "Acme annual plan", "status": "posted" }
+      ],
+      "notifications": [
+        { "id": "note_1", "title": "Inventory attention needed", "body": "Analytics API Credits dropped below reorder level.", "level": "warning", "read": false, "date": "2026-04-16" }
+      ],
+      "settings": { "theme": "dark", "notifications": true, "compactSidebar": false, "accent": "violet", "workspaceName": "Alpha Workspace" }
+    }
+  }
+}

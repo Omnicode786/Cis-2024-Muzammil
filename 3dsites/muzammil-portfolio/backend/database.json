@@ -1,0 +1,646 @@
+{
+  "users": [
+    {
+      "id": "user_1776423675715",
+      "email": "progamers5656@gmail.com",
+      "password": "power king 123",
+      "name": "Admin User",
+      "role": "Super Admin",
+      "bio": "The Master Administrator.",
+      "workspaceId": "user_1776423675715",
+      "teamRole": "owner"
+    },
+    {
+      "id": "user_1776423901971",
+      "email": "Muzammil@gmail.com",
+      "password": "changeme123",
+      "name": "Muzammil Manager",
+      "role": "Operator",
+      "bio": "Invited to a Vantage workspace",
+      "workspaceId": "user_1776423675715",
+      "teamRole": "manager"
+    }
+  ],
+  "userData": {
+    "user_1776423675715": {
+      "analytics": {
+        "revenue": {
+          "total": 366491,
+          "growth": 25.3,
+          "history": [
+            112,
+            128,
+            141,
+            166,
+            218,
+            292,
+            366
+          ]
+        },
+        "users": {
+          "active": 3353,
+          "growth": 7.7,
+          "distribution": {
+            "mobile": 54,
+            "desktop": 46
+          }
+        },
+        "regions": [
+          {
+            "name": "North America",
+            "value": 3
+          },
+          {
+            "name": "Europe",
+            "value": 77
+          },
+          {
+            "name": "Asia",
+            "value": 20
+          }
+        ],
+        "meta": {
+          "deviceDefinitions": {
+            "mobile": "Mobile users are active users whose latest tracked session came from a phone browser or mobile app.",
+            "desktop": "Desktop users are active users whose latest tracked session came from a desktop or laptop browser."
+          },
+          "lastUpdated": "2026-04-17",
+          "deviceCounts": {
+            "mobile": 1811,
+            "desktop": 1542
+          }
+        }
+      },
+      "reports": [
+        {
+          "id": "r1776424145279242",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-04-17",
+          "type": "FINANCIAL",
+          "status": "READY",
+          "relatedCustomerIds": [
+            "c2",
+            "c3"
+          ],
+          "totalValue": 366491
+        },
+        {
+          "id": "r1776423922173895",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-04-17",
+          "type": "FINANCIAL",
+          "status": "READY",
+          "relatedCustomerIds": [
+            "c2",
+            "c3"
+          ],
+          "totalValue": 366491
+        },
+        {
+          "id": "r177642392075137",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-04-17",
+          "type": "FINANCIAL",
+          "status": "READY",
+          "relatedCustomerIds": [
+            "c2",
+            "c3"
+          ],
+          "totalValue": 366491
+        },
+        {
+          "id": "r177642391892984",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-04-17",
+          "type": "FINANCIAL",
+          "status": "READY",
+          "relatedCustomerIds": [
+            "c2",
+            "c3"
+          ],
+          "totalValue": 366491
+        },
+        {
+          "id": "r1776423917344916",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-04-17",
+          "type": "FINANCIAL",
+          "status": "READY",
+          "relatedCustomerIds": [
+            "c2",
+            "c3"
+          ],
+          "totalValue": 366491
+        },
+        {
+          "id": "r1776423915696678",
+          "name": "FINANCIAL Report 2026.pdf",
+          "date": "2026-04-17",
+          "type": "FINANCIAL",
+          "status": "READY",
+          "relatedCustomerIds": [
+            "c2",
+            "c3"
+          ],
+          "totalValue": 366491
+        },
+        {
+          "id": "r1",
+          "name": "Q1 Financial Overview.pdf",
+          "date": "2026-04-10",
+          "type": "FINANCE",
+          "status": "READY",
+          "relatedCustomerIds": [
+            "c1",
+            "c2"
+          ],
+          "totalValue": 142000
+        },
+        {
+          "id": "r2",
+          "name": "User Growth Strategy.pdf",
+          "date": "2026-04-12",
+          "type": "STRATEGY",
+          "status": "READY",
+          "relatedCustomerIds": [
+            "c3"
+          ],
+          "totalValue": 32000
+        }
+      ],
+      "customers": [
+        {
+          "id": "c1",
+          "name": "Acme Corp",
+          "email": "contact@acme.com",
+          "ltv": 5000,
+          "region": "North America",
+          "segment": "Enterprise",
+          "company": "Acme Corp",
+          "status": "active",
+          "ownerId": "user_seed"
+        },
+        {
+          "id": "c2",
+          "name": "Stark Industries",
+          "email": "tony@stark.com",
+          "ltv": 125000,
+          "region": "Europe",
+          "segment": "Strategic",
+          "company": "Stark Industries",
+          "status": "active",
+          "ownerId": "user_seed"
+        },
+        {
+          "id": "c3",
+          "name": "Nova Retail",
+          "email": "ops@novaretail.com",
+          "ltv": 32000,
+          "region": "Asia",
+          "segment": "Growth",
+          "company": "Nova Retail",
+          "status": "new",
+          "ownerId": "user_seed"
+        }
+      ],
+      "inventory": [
+        {
+          "id": "inv_1",
+          "sku": "ERP-001",
+          "name": "Cloud Workspace Seats",
+          "category": "Software",
+          "stock": 43,
+          "reorderLevel": 12,
+          "price": 1200,
+          "supplier": "Vantage Cloud",
+          "location": "Digital",
+          "status": "healthy"
+        },
+        {
+          "id": "inv_2",
+          "sku": "ERP-002",
+          "name": "Analytics API Credits",
+          "category": "Digital",
+          "stock": 16,
+          "reorderLevel": 18,
+          "price": 800,
+          "supplier": "Open Usage",
+          "location": "Region A",
+          "status": "low"
+        },
+        {
+          "id": "inv_3",
+          "sku": "ERP-003",
+          "name": "Report Render Capacity",
+          "category": "Infrastructure",
+          "stock": 28,
+          "reorderLevel": 10,
+          "price": 950,
+          "supplier": "Render Stack",
+          "location": "Cloud",
+          "status": "healthy"
+        }
+      ],
+      "orders": [
+        {
+          "id": "ord_1",
+          "customerId": "c1",
+          "customerName": "Acme Corp",
+          "amount": 24000,
+          "status": "cancelled",
+          "date": "2026-04-08",
+          "region": "North America",
+          "ownerId": "user_seed",
+          "notes": "Annual renewal"
+        },
+        {
+          "id": "ord_2",
+          "customerId": "c2",
+          "customerName": "Stark Industries",
+          "amount": 18000,
+          "status": "processing",
+          "date": "2026-04-11",
+          "region": "Europe",
+          "ownerId": "user_seed",
+          "notes": "Upgrade in progress"
+        },
+        {
+          "id": "ord_3",
+          "customerId": "c3",
+          "customerName": "Nova Retail",
+          "amount": 7200,
+          "status": "pending",
+          "date": "2026-04-15",
+          "region": "Asia",
+          "ownerId": "user_seed",
+          "notes": "Awaiting approval"
+        }
+      ],
+      "employees": [
+        {
+          "id": "emp_1",
+          "name": "Ava Reed",
+          "email": "ava@vantage.ai",
+          "department": "Finance",
+          "role": "Finance Lead",
+          "salary": 8400,
+          "status": "active",
+          "title": "Lead Finance Manager"
+        },
+        {
+          "id": "emp_2",
+          "name": "Omar Khan",
+          "email": "omar@vantage.ai",
+          "department": "Operations",
+          "role": "Ops Manager",
+          "salary": 7300,
+          "status": "leave",
+          "title": "Operations Manager"
+        },
+        {
+          "id": "emp_3",
+          "name": "Lin Wu",
+          "email": "lin@vantage.ai",
+          "department": "People",
+          "role": "HR Partner",
+          "salary": 6100,
+          "status": "leave",
+          "title": "HR Business Partner"
+        }
+      ],
+      "transactions": [
+        {
+          "id": "txn_1",
+          "type": "income",
+          "amount": 24000,
+          "category": "Subscription",
+          "date": "2026-04-08",
+          "note": "Acme annual plan",
+          "status": "posted"
+        },
+        {
+          "id": "txn_2",
+          "type": "income",
+          "amount": 18000,
+          "category": "Enterprise upgrade",
+          "date": "2026-04-11",
+          "note": "Stark upgrade",
+          "status": "posted"
+        },
+        {
+          "id": "txn_3",
+          "type": "expense",
+          "amount": 9500,
+          "category": "Infrastructure",
+          "date": "2026-04-10",
+          "note": "Compute and storage",
+          "status": "posted"
+        },
+        {
+          "id": "txn_4",
+          "type": "expense",
+          "amount": 6200,
+          "category": "Payroll",
+          "date": "2026-04-12",
+          "note": "Payroll batch partial",
+          "status": "posted"
+        }
+      ],
+      "vendors": [
+        {
+          "id": "ven_1",
+          "name": "Northstar Supply",
+          "email": "ops@northstar.com",
+          "category": "Infrastructure",
+          "rating": 4.8,
+          "status": "active",
+          "region": "North America",
+          "spend": 82000
+        },
+        {
+          "id": "ven_2",
+          "name": "Blue Orbit Systems",
+          "email": "hello@blueorbit.com",
+          "category": "Software",
+          "rating": 4.4,
+          "status": "active",
+          "region": "Europe",
+          "spend": 56000
+        },
+        {
+          "id": "ven_3",
+          "name": "Atlas Industrial",
+          "email": "team@atlasindustrial.com",
+          "category": "Hardware",
+          "rating": 4.1,
+          "status": "onboarding",
+          "region": "Asia",
+          "spend": 24000
+        }
+      ],
+      "procurement": [
+        {
+          "id": "pr_1",
+          "title": "Q2 analytics compute expansion",
+          "vendorId": "ven_1",
+          "vendorName": "Northstar Supply",
+          "amount": 18000,
+          "priority": "high",
+          "status": "approved",
+          "requestedBy": "Ava Reed",
+          "date": "2026-04-10"
+        },
+        {
+          "id": "pr_2",
+          "title": "BI dashboard license renewal",
+          "vendorId": "ven_2",
+          "vendorName": "Blue Orbit Systems",
+          "amount": 9200,
+          "priority": "medium",
+          "status": "requested",
+          "requestedBy": "Omar Khan",
+          "date": "2026-04-13"
+        }
+      ],
+      "projects": [
+        {
+          "id": "proj_1",
+          "name": "Global ERP rollout",
+          "owner": "Omar Khan",
+          "budget": 125000,
+          "progress": 68,
+          "status": "active",
+          "dueDate": "2026-06-20",
+          "health": "healthy"
+        },
+        {
+          "id": "proj_2",
+          "name": "Finance automation phase 2",
+          "owner": "Ava Reed",
+          "budget": 84000,
+          "progress": 42,
+          "status": "active",
+          "dueDate": "2026-07-15",
+          "health": "risk"
+        },
+        {
+          "id": "proj_3",
+          "name": "Vendor consolidation",
+          "owner": "Lin Wu",
+          "budget": 36000,
+          "progress": 18,
+          "status": "planning",
+          "dueDate": "2026-08-01",
+          "health": "healthy"
+        }
+      ],
+      "notifications": [
+        {
+          "id": "note_1776424196433202",
+          "title": "Teammate added",
+          "body": "Muzammil Manager joined Admin User's Workspace.",
+          "level": "success",
+          "read": false,
+          "date": "2026-04-17"
+        },
+        {
+          "id": "note_1776424145280186",
+          "title": "Report generated",
+          "body": "FINANCIAL Report 2026.pdf is ready to download.",
+          "level": "success",
+          "read": true,
+          "date": "2026-04-17"
+        },
+        {
+          "id": "note_1776423922174678",
+          "title": "Report generated",
+          "body": "FINANCIAL Report 2026.pdf is ready to download.",
+          "level": "success",
+          "read": false,
+          "date": "2026-04-17"
+        },
+        {
+          "id": "note_1776423920751422",
+          "title": "Report generated",
+          "body": "FINANCIAL Report 2026.pdf is ready to download.",
+          "level": "success",
+          "read": false,
+          "date": "2026-04-17"
+        },
+        {
+          "id": "note_1776423918929491",
+          "title": "Report generated",
+          "body": "FINANCIAL Report 2026.pdf is ready to download.",
+          "level": "success",
+          "read": false,
+          "date": "2026-04-17"
+        },
+        {
+          "id": "note_1776423917344482",
+          "title": "Report generated",
+          "body": "FINANCIAL Report 2026.pdf is ready to download.",
+          "level": "success",
+          "read": false,
+          "date": "2026-04-17"
+        },
+        {
+          "id": "note_1776423915696743",
+          "title": "Report generated",
+          "body": "FINANCIAL Report 2026.pdf is ready to download.",
+          "level": "success",
+          "read": false,
+          "date": "2026-04-17"
+        },
+        {
+          "id": "note_1776423901971428",
+          "title": "Teammate added",
+          "body": "MuzammilAlam joined Admin User's Workspace.",
+          "level": "success",
+          "read": false,
+          "date": "2026-04-17"
+        },
+        {
+          "id": "note_1",
+          "title": "Inventory attention needed",
+          "body": "Analytics API Credits dropped below reorder level.",
+          "level": "warning",
+          "read": false,
+          "date": "2026-04-16"
+        },
+        {
+          "id": "note_2",
+          "title": "Revenue milestone reached",
+          "body": "Monthly revenue crossed the operating benchmark.",
+          "level": "success",
+          "read": false,
+          "date": "2026-04-15"
+        },
+        {
+          "id": "note_3",
+          "title": "Report ready",
+          "body": "Financial executive PDF is available for download.",
+          "level": "info",
+          "read": true,
+          "date": "2026-04-14"
+        }
+      ],
+      "settings": {
+        "theme": "dark",
+        "notifications": true,
+        "compactSidebar": false,
+        "accent": "violet",
+        "workspaceName": "Admin User's Workspace"
+      }
+    },
+    "user_1776423901971": {
+      "analytics": {
+        "revenue": {
+          "total": 0,
+          "growth": 0,
+          "history": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "users": {
+          "active": 0,
+          "growth": 0,
+          "distribution": {
+            "mobile": 0,
+            "desktop": 0
+          }
+        },
+        "regions": [
+          {
+            "name": "North America",
+            "value": 0
+          },
+          {
+            "name": "Europe",
+            "value": 0
+          },
+          {
+            "name": "Asia",
+            "value": 0
+          }
+        ],
+        "meta": {
+          "deviceDefinitions": {
+            "mobile": "Mobile users are active users whose latest tracked session came from a phone browser or mobile app.",
+            "desktop": "Desktop users are active users whose latest tracked session came from a desktop or laptop browser."
+          },
+          "lastUpdated": "2026-04-17",
+          "deviceCounts": {
+            "mobile": 0,
+            "desktop": 0
+          }
+        }
+      },
+      "reports": [],
+      "customers": [],
+      "inventory": [],
+      "orders": [],
+      "employees": [],
+      "transactions": [],
+      "vendors": [],
+      "procurement": [],
+      "projects": [],
+      "notifications": [],
+      "settings": {
+        "theme": "dark",
+        "notifications": true,
+        "compactSidebar": false,
+        "accent": "violet",
+        "workspaceName": "MuzammilAlam's Workspace"
+      }
+    }
+  },
+  "workspaces": [
+    {
+      "id": "user_1776423675715",
+      "name": "Admin User's Workspace",
+      "ownerUserId": "user_1776423675715",
+      "members": [
+        {
+          "userId": "user_1776423675715",
+          "name": "Admin User",
+          "email": "progamers5656@gmail.com",
+          "role": "owner",
+          "title": "Super Admin",
+          "joinedAt": "2026-04-17",
+          "status": "active"
+        },
+        {
+          "userId": "user_1776423901971",
+          "name": "Muzammil Manager",
+          "email": "Muzammil@gmail.com",
+          "role": "manager",
+          "title": "Operator",
+          "joinedAt": "2026-04-17",
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "id": "user_1776423901971",
+      "name": "MuzammilAlam's Workspace",
+      "ownerUserId": "user_1776423901971",
+      "members": [
+        {
+          "userId": "user_1776423901971",
+          "name": "MuzammilAlam",
+          "email": "Muzammil@gmail.com",
+          "role": "owner",
+          "title": "Operator",
+          "joinedAt": "2026-04-17",
+          "status": "active"
+        }
+      ]
+    }
+  ]
+}
