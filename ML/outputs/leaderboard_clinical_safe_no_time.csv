@@ -1,0 +1,6 @@
+variant,model,cv_best_score_pr_auc,best_params
+clinical_safe_no_time,hist_gradient_boosting,0.9163187613242837,"{'model__class_weight': None, 'model__l2_regularization': np.float64(0.000229999179767719), 'model__learning_rate': np.float64(0.025412953897837882), 'model__max_iter': 165, 'model__max_leaf_nodes': 31, 'model__min_samples_leaf': 6}"
+clinical_safe_no_time,random_forest,0.9162532850032423,"{'model__bootstrap': False, 'model__class_weight': 'balanced_subsample', 'model__max_depth': None, 'model__max_features': 'log2', 'model__min_samples_leaf': 1, 'model__min_samples_split': 17, 'model__n_estimators': 752}"
+clinical_safe_no_time,extra_trees,0.8532328684960021,"{'model__bootstrap': True, 'model__class_weight': None, 'model__max_depth': None, 'model__max_features': None, 'model__min_samples_leaf': 5, 'model__min_samples_split': 11, 'model__n_estimators': 480}"
+clinical_safe_no_time,svm_rbf,0.7624092838975048,"{'model__C': np.float64(0.0547980226846292), 'model__class_weight': None, 'model__gamma': np.float64(0.3943357064995243)}"
+clinical_safe_no_time,logistic_regression,0.6170571909709917,"{'model__C': np.float64(2.165988248422518), 'model__class_weight': None, 'model__penalty': 'l1', 'model__solver': 'liblinear'}"

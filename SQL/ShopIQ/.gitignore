@@ -1,10 +1,8 @@
+.next
 node_modules
+.env
+prisma/dev.db
 dist
 coverage
-.vite
-.env
-.env.local
-frontend/.env
-backend/.env
-backend/generated
-*.log
+.DS_Store
+.next-dev-server*.log

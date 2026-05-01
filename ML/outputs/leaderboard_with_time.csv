@@ -1,0 +1,6 @@
+variant,model,cv_best_score_pr_auc,best_params
+with_time,random_forest,0.9605592669862645,"{'model__bootstrap': False, 'model__class_weight': 'balanced_subsample', 'model__max_depth': None, 'model__max_features': 'log2', 'model__min_samples_leaf': 1, 'model__min_samples_split': 17, 'model__n_estimators': 752}"
+with_time,hist_gradient_boosting,0.9543184593362627,"{'model__class_weight': None, 'model__l2_regularization': np.float64(0.00022403260998810274), 'model__learning_rate': np.float64(0.23966727207567712), 'model__max_iter': 208, 'model__max_leaf_nodes': 11, 'model__min_samples_leaf': 28}"
+with_time,extra_trees,0.9243832157105374,"{'model__bootstrap': True, 'model__class_weight': None, 'model__max_depth': None, 'model__max_features': None, 'model__min_samples_leaf': 5, 'model__min_samples_split': 11, 'model__n_estimators': 480}"
+with_time,svm_rbf,0.8461174930772252,"{'model__C': np.float64(29.146922714973684), 'model__class_weight': 'balanced', 'model__gamma': np.float64(0.025721833789052743)}"
+with_time,logistic_regression,0.7953111822216237,"{'model__C': np.float64(0.17982988826617075), 'model__class_weight': None, 'model__penalty': 'l1', 'model__solver': 'liblinear'}"
