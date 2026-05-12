@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { Gamepad2, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 
 type Entity = {
@@ -22,7 +22,8 @@ function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
 
 function beep(type: 'collect' | 'hit' | 'start', muted: boolean) {
   if (muted) return;
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  const audioWindow = window as typeof window & { webkitAudioContext?: typeof AudioContext };
+  const AudioContextClass = window.AudioContext || audioWindow.webkitAudioContext;
   if (!AudioContextClass) return;
 
   const context = new AudioContextClass();
@@ -274,7 +275,7 @@ export default function SignalBreach() {
     beep('start', mutedRef.current);
   };
 
-  const canvasPointer = (event: React.PointerEvent<HTMLCanvasElement>) => {
+  const canvasPointer = (event: PointerEvent<HTMLCanvasElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     pointerRef.current = {
       x: ((event.clientX - rect.left) / rect.width) * gameWidth,
