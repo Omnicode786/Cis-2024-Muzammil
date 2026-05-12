@@ -72,7 +72,7 @@ function Home() {
             <a href="https://pk.linkedin.com/in/muzammil-mansoor-alam-644a763b5" className="hidden h-10 w-10 place-items-center border border-cyan-300/20 text-cyan-100/70 transition-colors hover:bg-cyan-300 hover:text-black sm:grid" aria-label="LinkedIn">
               <Linkedin size={17} />
             </a>
-            <a href="mailto:muzammil.alam@example.com" className="hidden h-10 w-10 place-items-center border border-cyan-300/20 text-cyan-100/70 transition-colors hover:bg-cyan-300 hover:text-black sm:grid" aria-label="Email">
+            <a href="mailto:progamers5656@gmail.com" className="hidden h-10 w-10 place-items-center border border-cyan-300/20 text-cyan-100/70 transition-colors hover:bg-cyan-300 hover:text-black sm:grid" aria-label="Email">
               <Mail size={17} />
             </a>
             <button

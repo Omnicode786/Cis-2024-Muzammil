@@ -60,8 +60,8 @@ export default function CustomCursor() {
 
   return (
     <div ref={rootRef} className="pointer-events-none fixed inset-0 z-[9999] hidden md:block" aria-hidden="true">
-      <div ref={dotRef} className="fixed left-0 top-0 h-3 w-3 bg-portfolio-cyan mix-blend-difference" />
-      <div ref={ringRef} className="fixed left-0 top-0 h-10 w-10 border border-portfolio-red mix-blend-difference" />
+      <div ref={dotRef} className="fixed left-0 top-0 h-3 w-3 bg-system-cyan mix-blend-screen" />
+      <div ref={ringRef} className="fixed left-0 top-0 h-10 w-10 border border-system-lime mix-blend-screen" />
     </div>
   );
 }

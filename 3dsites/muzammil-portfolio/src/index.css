@@ -7,8 +7,8 @@
 
 @layer base {
   :root {
-    color: #111111;
-    background: #fff9ec;
+    color: #eaffff;
+    background: #04080c;
     font-synthesis: none;
     text-rendering: geometricPrecision;
     -webkit-font-smoothing: antialiased;
@@ -17,19 +17,15 @@
 
   html {
     scroll-behavior: smooth;
-    background: #fff9ec;
+    background: #04080c;
   }
 
   body {
     min-width: 320px;
     min-height: 100vh;
     overflow-x: hidden;
-    background:
-      linear-gradient(90deg, rgba(17, 17, 17, 0.035) 1px, transparent 1px),
-      linear-gradient(0deg, rgba(17, 17, 17, 0.03) 1px, transparent 1px),
-      #fff9ec;
-    background-size: 48px 48px;
-    color: #111111;
+    background: #04080c;
+    color: #eaffff;
     font-family: 'Satoshi', sans-serif;
   }
 
@@ -38,19 +34,59 @@
   body.has-custom-cursor button,
   body.has-custom-cursor input,
   body.has-custom-cursor textarea,
-  body.has-custom-cursor select {
+  body.has-custom-cursor select,
+  body.has-custom-cursor canvas {
     cursor: none;
   }
 
   ::selection {
-    background: #f8d34f;
-    color: #111111;
+    background: #baff5c;
+    color: #04080c;
   }
 }
 
 @layer utilities {
+  .system-glass {
+    border: 1px solid rgba(93, 255, 232, 0.18);
+    background: rgba(5, 16, 24, 0.72);
+    backdrop-filter: blur(18px);
+  }
+
+  .terminal-scanline {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .terminal-scanline::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, transparent 0%, rgba(93, 255, 232, 0.08) 50%, transparent 100%);
+    transform: translateY(-100%);
+    animation: scanline 4s linear infinite;
+  }
+
+  .magnetic-button {
+    transition: transform 180ms ease, background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+  }
+
+  .magnetic-button:hover {
+    transform: translateY(-3px);
+  }
+
   .text-outline {
     -webkit-text-stroke: 1px currentColor;
     color: transparent;
+  }
+}
+
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+
+  100% {
+    transform: translateY(100%);
   }
 }

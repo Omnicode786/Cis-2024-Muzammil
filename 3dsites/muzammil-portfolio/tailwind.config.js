@@ -11,6 +11,15 @@ export default {
                 background: "#FFFBF0", // Warm Cream White
                 primary: "#1a1a1a", // Soft Black
                 secondary: "#666666",
+                system: {
+                    void: "#04080c",
+                    panel: "#071017",
+                    text: "#eaffff",
+                    cyan: "#5dffe8",
+                    lime: "#baff5c",
+                    blue: "#7aa7ff",
+                    red: "#ff4d6d",
+                },
                 portfolio: {
                     paper: "#fff9ec",
                     ink: "#111111",
