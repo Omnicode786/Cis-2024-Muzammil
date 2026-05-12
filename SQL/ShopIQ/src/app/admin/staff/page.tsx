@@ -6,7 +6,7 @@ import { MetricCard } from "@/components/workspace/metric-card";
 import { ModuleHero, ModuleInsightPanel } from "@/components/workspace/module-hero";
 import { SectionHeader } from "@/components/workspace/section-header";
 import { getCurrentUser } from "@/lib/auth";
-import { can } from "@/lib/permissions";
+import { can, canCreateStaffRole, canManageStaffMember } from "@/lib/permissions";
 import { buildDailySeries, statusSegments } from "@/lib/chart-helpers";
 import { prisma } from "@/lib/prisma";
 import { formatDate, toPlain } from "@/lib/utils";
@@ -15,8 +15,10 @@ import { workspaceHeading, workspaceNav, workspacePath } from "@/lib/workspace";
 export default async function StaffPage() {
   const user = await getCurrentUser();
   const staffRaw = await prisma.user.findMany({ where: { shopId: user!.shopId }, orderBy: { createdAt: "desc" }, select: { id: true, name: true, email: true, role: true, status: true, designation: true, phone: true, createdAt: true } });
-  const staff = toPlain(staffRaw).map((member: any) => ({ ...member, joinedDisplay: formatDate(member.createdAt), password: "" }));
-  const roleOptions = user?.role === "MANAGER" ? [{ label: "Staff", value: "STAFF" }] : [{ label: "Admin", value: "ADMIN" }, { label: "Manager", value: "MANAGER" }, { label: "Staff", value: "STAFF" }];
+  const staff = toPlain(staffRaw).map((member: any) => ({ ...member, joinedDisplay: formatDate(member.createdAt), password: "", canManage: canManageStaffMember(user?.role, member.role, member.id, user?.id) }));
+  const roleOptions = (["ADMIN", "MANAGER", "STAFF"] as const)
+    .filter((role) => canCreateStaffRole(user?.role, role))
+    .map((role) => ({ label: role === "ADMIN" ? "Admin" : role === "MANAGER" ? "Manager" : "Staff", value: role }));
   const activeCount = staff.filter((member: any) => member.status === "ACTIVE").length;
   const activeScore = Math.round((activeCount / Math.max(staff.length, 1)) * 100);
   const roleRows = statusSegments(staff, (member: any) => member.role);
@@ -99,8 +101,8 @@ export default async function StaffPage() {
             { key: "name", label: "Name", required: true },
             { key: "email", label: "Email", type: "email", required: true },
             { key: "password", label: "Temporary password", type: "password", placeholder: "demo12345" },
-            { key: "role", label: "Role", type: "select", required: true, options: roleOptions },
-            { key: "status", label: "Status", type: "select", options: [{ label: "Active", value: "ACTIVE" }, { label: "Invited", value: "INVITED" }, { label: "Suspended", value: "SUSPENDED" }] },
+            { key: "role", label: "Role", type: "select", required: true, defaultValue: roleOptions[0]?.value || "STAFF", options: roleOptions },
+            { key: "status", label: "Status", type: "select", defaultValue: "ACTIVE", options: [{ label: "Active", value: "ACTIVE" }, { label: "Invited", value: "INVITED" }, { label: "Suspended", value: "SUSPENDED" }] },
             { key: "designation", label: "Designation" },
             { key: "phone", label: "Phone" }
           ]}
@@ -115,6 +117,8 @@ export default async function StaffPage() {
           canCreate={can(user?.role, "staff", "create")}
           canUpdate={can(user?.role, "staff", "update")}
           canDelete={can(user?.role, "staff", "delete")}
+          canUpdateRowKey="canManage"
+          canDeleteRowKey="canManage"
           createLabel="Add member"
           deleteLabel="Suspend"
           deleteVerb="Suspend"

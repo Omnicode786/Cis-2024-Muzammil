@@ -1,41 +1,101 @@
+import type { FormEvent } from 'react';
+import { ArrowUpRight, Github, Linkedin, Mail, Send } from 'lucide-react';
+
+const links = [
+  { label: 'GitHub', href: 'https://github.com/', icon: Github },
+  { label: 'LinkedIn', href: 'https://www.linkedin.com/', icon: Linkedin },
+  { label: 'Email', href: 'mailto:muzammil.alam@example.com', icon: Mail },
+];
+
 export default function Contact() {
-    return (
-        <section id="contact" className="min-h-[90vh] w-full flex flex-col items-center justify-center bg-accent-cyan border-t-2 border-black relative overflow-hidden py-20">
-            <h2 className="text-[15vw] font-black font-display text-black leading-none mix-blend-overlay opacity-20 absolute select-none top-0">
-                TALK
-            </h2>
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const name = String(form.get('name') || '');
+    const email = String(form.get('email') || '');
+    const idea = String(form.get('idea') || '');
+    const subject = encodeURIComponent(`Portfolio inquiry from ${name || 'a visitor'}`);
+    const body = encodeURIComponent(`Name: ${name}\nEmail: ${email}\n\n${idea}`);
+    window.location.href = `mailto:muzammil.alam@example.com?subject=${subject}&body=${body}`;
+  };
 
-            <div className="z-10 text-center w-full max-w-2xl px-6">
-                <h2 className="text-6xl md:text-8xl font-black font-display text-white text-stroke-black mb-12 transform -rotate-2">
-                    LET'S JAM
-                </h2>
+  return (
+    <section id="contact" className="relative overflow-hidden border-t border-black bg-portfolio-ink px-5 py-24 text-white md:px-8 md:py-32">
+      <div className="absolute inset-x-0 top-0 h-px bg-white/22" />
+      <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.9fr_1.1fr]">
+        <div>
+          <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-portfolio-cyan">Contact</p>
+          <h2 className="mt-6 font-display text-5xl font-black uppercase leading-none md:text-7xl">
+            Bring the strange idea. I will make it usable.
+          </h2>
+          <p className="mt-8 max-w-2xl text-xl font-semibold leading-relaxed text-white/68">
+            Portfolio sites, 3D landing pages, product dashboards, AI interfaces, and weird little tools that need a real sense of direction.
+          </p>
 
-                <form className="bg-white border-4 border-black shadow-pop p-8 md:p-12 transform rotate-1 hover:rotate-0 transition-transform duration-300 w-full flex flex-col gap-6">
-                    <input
-                        type="text"
-                        placeholder="NAME"
-                        className="w-full bg-accent-yellow border-2 border-black p-4 font-mono font-bold text-xl placeholder:text-black/50 focus:outline-none focus:shadow-pop-hover transition-all cursor-none"
-                    />
-                    <input
-                        type="email"
-                        placeholder="EMAIL"
-                        className="w-full bg-accent-pink border-2 border-black p-4 font-mono font-bold text-xl placeholder:text-black/50 focus:outline-none focus:shadow-pop-hover transition-all cursor-none"
-                    />
-                    <textarea
-                        rows={4}
-                        placeholder="YOUR CRAZY IDEA..."
-                        className="w-full bg-accent-mint border-2 border-black p-4 font-mono font-bold text-xl placeholder:text-black/50 focus:outline-none focus:shadow-pop-hover transition-all cursor-none resize-none"
-                    />
+          <div className="mt-10 flex flex-wrap gap-3">
+            {links.map((link) => {
+              const Icon = link.icon;
+              return (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  className="inline-flex items-center gap-3 border border-white/28 px-4 py-3 font-mono text-xs font-black uppercase tracking-[0.16em] text-white transition-colors hover:border-white hover:bg-white hover:text-black"
+                >
+                  <Icon size={17} />
+                  {link.label}
+                </a>
+              );
+            })}
+          </div>
+        </div>
 
-                    <button type="button" className="bg-black text-white font-display font-black text-3xl py-4 hover:bg-white hover:text-black border-2 border-transparent hover:border-black transition-colors shadow-pop hover:shadow-none cursor-none">
-                        SEND IT 🚀
-                    </button>
-                </form>
-            </div>
+        <form onSubmit={handleSubmit} className="grid gap-4 border border-white/22 bg-white/[0.06] p-5 backdrop-blur-md md:p-8">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="grid gap-2 font-mono text-xs font-black uppercase tracking-[0.16em] text-white/60">
+              Name
+              <input
+                name="name"
+                className="h-14 border border-white/22 bg-black/20 px-4 font-sans text-base font-semibold text-white outline-none transition-colors placeholder:text-white/28 focus:border-portfolio-signal"
+                placeholder="Muzammil"
+              />
+            </label>
+            <label className="grid gap-2 font-mono text-xs font-black uppercase tracking-[0.16em] text-white/60">
+              Email
+              <input
+                required
+                name="email"
+                type="email"
+                className="h-14 border border-white/22 bg-black/20 px-4 font-sans text-base font-semibold text-white outline-none transition-colors placeholder:text-white/28 focus:border-portfolio-signal"
+                placeholder="you@email.com"
+              />
+            </label>
+          </div>
 
-            <footer className="absolute bottom-8 font-mono font-bold text-black text-sm mix-blend-multiply">
-                © 2026 MUZAMMIL ALAM // NO BORING WEBSITES
-            </footer>
-        </section>
-    );
+          <label className="grid gap-2 font-mono text-xs font-black uppercase tracking-[0.16em] text-white/60">
+            Project
+            <textarea
+              required
+              name="idea"
+              rows={7}
+              className="resize-none border border-white/22 bg-black/20 p-4 font-sans text-base font-semibold leading-7 text-white outline-none transition-colors placeholder:text-white/28 focus:border-portfolio-signal"
+              placeholder="Tell me what you want to build..."
+            />
+          </label>
+
+          <button className="inline-flex h-14 items-center justify-center gap-3 border border-black bg-portfolio-signal px-5 font-mono text-xs font-black uppercase tracking-[0.18em] text-black shadow-[6px_6px_0_#fff] transition-transform duration-200 hover:-translate-y-1">
+            Send inquiry
+            <Send size={18} />
+          </button>
+        </form>
+      </div>
+
+      <footer className="mx-auto mt-20 flex max-w-7xl flex-col justify-between gap-4 border-t border-white/16 pt-8 font-mono text-xs font-black uppercase tracking-[0.18em] text-white/42 md:flex-row">
+        <span>2026 Muzammil Alam</span>
+        <a href="#top" className="inline-flex items-center gap-2 text-white transition-colors hover:text-portfolio-signal">
+          Back to top
+          <ArrowUpRight size={16} />
+        </a>
+      </footer>
+    </section>
+  );
 }

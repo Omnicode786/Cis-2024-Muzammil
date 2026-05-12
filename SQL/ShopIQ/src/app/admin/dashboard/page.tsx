@@ -17,6 +17,7 @@ import { SectionHeader } from "@/components/workspace/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/auth";
+import type { TimelineDatum } from "@/lib/chart-helpers";
 import { getDashboardSnapshot } from "@/lib/data";
 import { workspaceHeading, workspaceNav, workspacePath } from "@/lib/workspace";
 
@@ -41,22 +42,42 @@ function greeting() {
   return "Good evening";
 }
 
-function HeroBar({ value, index }: { value: number; index: number }) {
-  return <span style={{ height: `${value}%`, animationDelay: `${index * 34}ms` }} />;
+type HeroBarDatum = {
+  label: string;
+  value: number;
+  height: number;
+};
+
+function buildHeroBars(data: TimelineDatum[] = []): HeroBarDatum[] {
+  const points = data.slice(-12);
+  const maxValue = Math.max(...points.map((item) => Number(item.value || 0)), 0);
+
+  return points.map((item) => {
+    const value = Number(item.value || 0);
+    return {
+      label: item.label,
+      value,
+      height: maxValue ? Math.max(12, Math.round((value / maxValue) * 100)) : 8
+    };
+  });
 }
 
-function RetailPulseHero({ name, metrics }: { name?: string; metrics: any }) {
-  const bars = [44, 58, 51, 72, 63, 86, 69, 78, 56, 92, 66, 74];
+function HeroBar({ datum, index }: { datum: HeroBarDatum; index: number }) {
+  return <span title={`${datum.label}: ${money(datum.value)}`} style={{ height: `${datum.height}%`, animationDelay: `${index * 34}ms` }} />;
+}
+
+function RetailPulseHero({ name, metrics, revenueTimeline }: { name?: string; metrics: any; revenueTimeline: TimelineDatum[] }) {
+  const bars = buildHeroBars(revenueTimeline);
   const today = format(new Date(), "EEEE, dd MMM");
   const healthScore = Math.max(0, 100 - metrics.stockRiskScore);
 
   return (
     <Card className="dashboard-hero overflow-hidden">
-      <CardContent className="relative p-6 md:p-7">
+      <CardContent className="relative p-5 md:p-6">
         <div className="hero-orbit" aria-hidden="true" />
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-2xl">
-            <div className="mb-4 flex flex-wrap items-center gap-2">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="hero-badge">
                 <Sparkles className="size-3.5" />
                 Live store pulse
@@ -64,11 +85,11 @@ function RetailPulseHero({ name, metrics }: { name?: string; metrics: any }) {
               <Badge variant="secondary">{riskTone(metrics.stockRiskScore)}</Badge>
             </div>
             <p className="text-sm text-white/62">{today}</p>
-            <h2 className="mt-2 break-normal text-3xl font-semibold tracking-normal text-white md:text-4xl 2xl:text-5xl">
+            <h2 className="mt-2 break-normal text-2xl font-semibold tracking-normal text-white md:text-3xl 2xl:text-4xl">
               {greeting()}, {name || "ShopIQ operator"}.
             </h2>
-            <p className="mt-4 max-w-xl text-sm leading-7 text-white/64">
-              Your shop is organized into a live command view: sales pulse, stock exposure, dues, suppliers and customer activity, all ready for the next decision.
+            <p className="mt-3 max-w-xl text-sm leading-6 text-white/64">
+              A compact live read on revenue, stock exposure, dues and customer activity for the next operating move.
             </p>
           </div>
           <div className="hero-value-panel hero-command-panel">
@@ -82,7 +103,7 @@ function RetailPulseHero({ name, metrics }: { name?: string; metrics: any }) {
             </div>
           </div>
         </div>
-        <div className="relative z-10 mt-7 grid gap-3 md:grid-cols-3">
+        <div className="relative z-10 mt-5 grid gap-3 md:grid-cols-3">
           <div className="hero-stat">
             <DollarSign className="size-4" />
             <div>
@@ -106,7 +127,7 @@ function RetailPulseHero({ name, metrics }: { name?: string; metrics: any }) {
           </div>
         </div>
         <div className="hero-micro-chart relative z-10" aria-hidden="true">
-          {bars.map((value, index) => <HeroBar key={`${value}-${index}`} value={value} index={index} />)}
+          {bars.map((datum, index) => <HeroBar key={`${datum.label}-${index}`} datum={datum} index={index} />)}
         </div>
       </CardContent>
     </Card>
@@ -152,7 +173,7 @@ function RiskPanel({ lowStock, supplierDues }: { lowStock: any[]; supplierDues: 
 
 export default async function AdminDashboard() {
   const user = await getCurrentUser();
-  const snapshot = await getDashboardSnapshot(user!.shopId);
+  const snapshot = await getDashboardSnapshot(user!.shopId, user?.role);
 
   return (
     <AppShell nav={workspaceNav(user?.role)} heading={workspaceHeading(user?.role)} currentPath={workspacePath(user?.role, "dashboard")} user={user}>
@@ -164,7 +185,7 @@ export default async function AdminDashboard() {
       />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.42fr)_minmax(340px,0.58fr)]">
-        <RetailPulseHero name={user?.name} metrics={snapshot.metrics} />
+        <RetailPulseHero name={user?.name} metrics={snapshot.metrics} revenueTimeline={snapshot.charts.revenueTimeline} />
         <RiskPanel lowStock={snapshot.lowStock} supplierDues={snapshot.metrics.supplierDues} />
       </div>
 

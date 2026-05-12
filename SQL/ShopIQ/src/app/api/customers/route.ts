@@ -17,11 +17,15 @@ const customerSchema = z.object({
 });
 
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
-  if (!can(user.role, "customers", "read")) return forbidden();
-  const customers = await prisma.customer.findMany({ where: { shopId: user.shopId }, include: { invoices: true, payments: true }, orderBy: { updatedAt: "desc" } });
-  return NextResponse.json({ customers });
+  try {
+    const user = await getCurrentUser();
+    if (!user) return unauthorized();
+    if (!can(user.role, "customers", "read")) return forbidden();
+    const customers = await prisma.customer.findMany({ where: { shopId: user.shopId }, include: { invoices: true, payments: true }, orderBy: { updatedAt: "desc" } });
+    return NextResponse.json({ customers });
+  } catch (error) {
+    return apiError(error, "Unable to load customers.");
+  }
 }
 
 export async function POST(request: Request) {

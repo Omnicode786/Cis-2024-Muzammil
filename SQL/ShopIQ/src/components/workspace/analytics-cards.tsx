@@ -7,9 +7,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -31,6 +28,11 @@ const palette = [
   "hsl(var(--shopiq-chart-6))"
 ];
 
+const DONUT_SIZE = 240;
+const DONUT_CENTER = DONUT_SIZE / 2;
+const DONUT_RADIUS = 82;
+const DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS;
+
 function tooltipStyle() {
   return {
     border: "1px solid hsl(var(--border) / 0.72)",
@@ -50,6 +52,32 @@ function formatValue(value: number, format: ValueFormat = "compact") {
 function formatAxisValue(value: number, format: ValueFormat = "compact") {
   if (format === "money") return compactNumber(Number(value || 0));
   return formatValue(value, format);
+}
+
+function formatPercentLabel(percentValue: number, rawValue: number) {
+  if (!rawValue) return "0%";
+  if (percentValue > 0 && percentValue < 1) return "<1%";
+  return `${Math.round(percentValue)}%`;
+}
+
+function buildDonutSegments(data: SegmentDatum[], total: number) {
+  const positive = data
+    .map((item, index) => ({ ...item, value: Number(item.value || 0), sourceIndex: index }))
+    .filter((item) => item.value > 0);
+  const gap = positive.length > 1 ? 5 : 0;
+  let offset = 0;
+
+  return positive.map((item) => {
+    const rawLength = (item.value / Math.max(total, 1)) * DONUT_CIRCUMFERENCE;
+    const segment = {
+      ...item,
+      length: Math.max(rawLength - gap, 0),
+      offset,
+      percentValue: (item.value / Math.max(total, 1)) * 100
+    };
+    offset += rawLength;
+    return segment;
+  });
 }
 
 function ChartHeader({
@@ -188,6 +216,9 @@ export function DonutBreakdownCard({
   format?: ValueFormat;
 }) {
   const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0);
+  const segments = buildDonutSegments(data, total);
+  const topSegment = [...data].sort((a, b) => Number(b.value || 0) - Number(a.value || 0))[0];
+  const topPercent = topSegment ? (Number(topSegment.value || 0) / Math.max(total, 1)) * 100 : 0;
 
   return (
     <Card className="analytics-card analytics-donut-card overflow-hidden">
@@ -195,48 +226,57 @@ export function DonutBreakdownCard({
       <CardContent className="p-5 pt-0">
         <div className="analytics-donut-shell">
           <div className="analytics-donut-visual">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data}
-                  dataKey="value"
-                  nameKey="name"
-                  outerRadius={104}
-                  innerRadius={70}
-                  paddingAngle={6}
-                  cornerRadius={10}
-                  stroke="hsl(var(--card))"
-                  strokeWidth={4}
-                  isAnimationActive={false}
+            <svg className="analytics-donut-svg" viewBox={`0 0 ${DONUT_SIZE} ${DONUT_SIZE}`} role="img" aria-label={`${title}: ${centerValue}`}>
+              <title>{`${title}: ${centerValue}`}</title>
+              <circle
+                className="analytics-donut-base"
+                cx={DONUT_CENTER}
+                cy={DONUT_CENTER}
+                r={DONUT_RADIUS}
+              />
+              {segments.map((segment) => (
+                <circle
+                  key={segment.name}
+                  className="analytics-donut-slice"
+                  cx={DONUT_CENTER}
+                  cy={DONUT_CENTER}
+                  r={DONUT_RADIUS}
+                  strokeDasharray={`${segment.length} ${Math.max(DONUT_CIRCUMFERENCE - segment.length, 0)}`}
+                  strokeDashoffset={-segment.offset}
+                  style={{
+                    ["--slice-color" as string]: palette[segment.sourceIndex % palette.length],
+                    animationDelay: `${segment.sourceIndex * 70}ms`
+                  }}
                 >
-                  {data.map((_, index) => (
-                    <Cell key={index} fill={palette[index % palette.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle()} formatter={(val: number) => [formatValue(Number(val), format), "Value"]} />
-              </PieChart>
-            </ResponsiveContainer>
+                  <title>{`${segment.name}: ${formatValue(segment.value, format)} (${formatPercentLabel(segment.percentValue, segment.value)})`}</title>
+                </circle>
+              ))}
+            </svg>
             <div className="analytics-donut-center">
               <span>{centerLabel}</span>
               <strong>{centerValue}</strong>
             </div>
             <div className="analytics-donut-chip">
-              {data[0]?.name || "Mix"}
+              {topSegment?.value ? `${topSegment.name} ${formatPercentLabel(topPercent, Number(topSegment.value || 0))}` : "No data"}
             </div>
           </div>
           <div className="analytics-donut-list">
             {data.slice(0, 6).map((item, index) => {
-              const percent = Math.round((Number(item.value || 0) / Math.max(total, 1)) * 100);
+              const value = Number(item.value || 0);
+              const percent = (value / Math.max(total, 1)) * 100;
 
               return (
                 <div key={item.name} className="analytics-donut-row">
                   <div className="min-w-0">
                     <span className="analytics-legend-dot" style={{ ["--dot" as string]: palette[index % palette.length] }}>{item.name}</span>
                     <div className="analytics-donut-track">
-                      <i style={{ width: `${Math.max(percent, item.value ? 7 : 0)}%`, background: palette[index % palette.length] }} />
+                      <i style={{ width: `${Math.max(percent, value ? 7 : 0)}%`, background: palette[index % palette.length] }} />
                     </div>
                   </div>
-                  <strong>{percent}%</strong>
+                  <div className="analytics-donut-percent">
+                    <strong>{formatPercentLabel(percent, value)}</strong>
+                    <span>{formatValue(value, format)}</span>
+                  </div>
                 </div>
               );
             })}

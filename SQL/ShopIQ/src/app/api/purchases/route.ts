@@ -22,10 +22,15 @@ const purchaseSchema = z.object({
 });
 
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
-  const purchases = await prisma.purchase.findMany({ where: { shopId: user.shopId }, include: { supplier: true, items: { include: { product: true } } }, orderBy: { purchaseDate: "desc" }, take: 150 });
-  return NextResponse.json({ purchases });
+  try {
+    const user = await getCurrentUser();
+    if (!user) return unauthorized();
+    if (!can(user.role, "purchases", "read")) return forbidden();
+    const purchases = await prisma.purchase.findMany({ where: { shopId: user.shopId }, include: { supplier: true, items: { include: { product: true } } }, orderBy: { purchaseDate: "desc" }, take: 150 });
+    return NextResponse.json({ purchases });
+  } catch (e) {
+    return apiError(e, "Unable to load purchases.");
+  }
 }
 
 export async function POST(request: Request) {

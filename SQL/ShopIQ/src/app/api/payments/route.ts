@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { apiError, badRequest, forbidden, notFound, unauthorized } from "@/lib/api-response";
-import { can } from "@/lib/permissions";
+import { can, canUsePaymentDirection } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { optionalId, optionalText, positiveMoney } from "@/lib/validation";
 
@@ -81,10 +81,15 @@ async function applyPaymentEffect(tx: any, shopId: string, payment: { direction:
 }
 
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
-  const payments = await prisma.payment.findMany({ where: { shopId: user.shopId }, include, orderBy: { paidAt: "desc" }, take: 150 });
-  return NextResponse.json({ payments });
+  try {
+    const user = await getCurrentUser();
+    if (!user) return unauthorized();
+    if (!can(user.role, "payments", "read")) return forbidden();
+    const payments = await prisma.payment.findMany({ where: { shopId: user.shopId, ...(canUsePaymentDirection(user.role, "SUPPLIER_OUT") ? {} : { direction: "CUSTOMER_IN" as const }) }, include, orderBy: { paidAt: "desc" }, take: 150 });
+    return NextResponse.json({ payments });
+  } catch (e) {
+    return apiError(e, "Unable to load payments.");
+  }
 }
 
 export async function POST(request: Request) {
@@ -93,6 +98,7 @@ export async function POST(request: Request) {
     if (!user) return unauthorized();
     if (!can(user.role, "payments", "create")) return forbidden();
     const parsed = paymentSchema.parse(await request.json());
+    if (!canUsePaymentDirection(user.role, parsed.direction)) return forbidden("Your role can record customer receipts only.");
     const resolved = await resolvePaymentLinks(user.shopId, parsed);
     if (resolved.error || !resolved.payment) return badRequest(resolved.error);
     const payment = await prisma.$transaction(async (tx) => {

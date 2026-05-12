@@ -109,7 +109,7 @@ export function buildModuleSummary(module: ViewState, data: ERPWorkspaceData) {
     case 'CUSTOMERS':
       return `${base[1]} ${base[3]} CRM focus: prioritize upsell on the strongest accounts.`;
     case 'HR':
-      return `${data.employees.length} employees tracked. Team health looks ${(data.employees || []).length ? 'active' : 'uninitialized'}.`;
+      return `${(data.employees || []).length} employees tracked. Team health looks ${(data.employees || []).length ? 'active' : 'uninitialized'}.`;
     default:
       return base.join(' ');
   }

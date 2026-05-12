@@ -7,10 +7,17 @@ export function apiError(error: unknown, message = "Unable to process this reque
   if (error instanceof ZodError) {
     return NextResponse.json({ error: "Please check the highlighted fields.", issues: error.flatten() }, { status: 400 });
   }
+  if (error instanceof SyntaxError) {
+    return NextResponse.json({ error: "Invalid JSON payload." }, { status: 400 });
+  }
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === "P1001") return NextResponse.json({ error: "Database is temporarily unavailable. Please try again shortly." }, { status: 503 });
     if (error.code === "P2002") return NextResponse.json({ error: "A record with this unique value already exists." }, { status: 409 });
     if (error.code === "P2003") return NextResponse.json({ error: "This record is connected to other data and cannot be changed that way." }, { status: 409 });
     if (error.code === "P2025") return NextResponse.json({ error: "Record not found." }, { status: 404 });
+  }
+  if (error instanceof Prisma.PrismaClientInitializationError) {
+    return NextResponse.json({ error: "Database is temporarily unavailable. Please try again shortly." }, { status: 503 });
   }
   return NextResponse.json({ error: message }, { status });
 }
@@ -19,8 +26,8 @@ export function unauthorized() {
   return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 }
 
-export function forbidden() {
-  return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+export function forbidden(message = "Forbidden.") {
+  return NextResponse.json({ error: message }, { status: 403 });
 }
 
 export function badRequest(message = "Invalid request.") {

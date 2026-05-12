@@ -1,4 +1,4 @@
-import { ReactLenis } from 'lenis/react';
+import { ReactLenis, type LenisRef } from 'lenis/react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useEffect, useRef } from 'react';
@@ -10,11 +10,10 @@ interface SmoothScrollProps {
 }
 
 export default function SmoothScroll({ children }: SmoothScrollProps) {
-    const lenisRef = useRef(null);
+    const lenisRef = useRef<LenisRef>(null);
 
     useEffect(() => {
         function update(time: number) {
-            // @ts-ignore
             lenisRef.current?.lenis?.raf(time * 1000);
         }
 

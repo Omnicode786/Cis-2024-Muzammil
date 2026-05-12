@@ -17,10 +17,15 @@ const supplierSchema = z.object({
 });
 
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
-  const suppliers = await prisma.supplier.findMany({ where: { shopId: user.shopId }, include: { purchases: true, payments: true }, orderBy: { updatedAt: "desc" } });
-  return NextResponse.json({ suppliers });
+  try {
+    const user = await getCurrentUser();
+    if (!user) return unauthorized();
+    if (!can(user.role, "suppliers", "read")) return forbidden();
+    const suppliers = await prisma.supplier.findMany({ where: { shopId: user.shopId }, include: { purchases: true, payments: true }, orderBy: { updatedAt: "desc" } });
+    return NextResponse.json({ suppliers });
+  } catch (e) {
+    return apiError(e, "Unable to load suppliers.");
+  }
 }
 
 export async function POST(request: Request) {

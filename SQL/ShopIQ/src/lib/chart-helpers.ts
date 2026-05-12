@@ -1,4 +1,4 @@
-import { format, subDays } from "date-fns";
+import { endOfDay, format, startOfDay, subDays } from "date-fns";
 
 export type SegmentDatum = {
   name: string;
@@ -28,6 +28,26 @@ export function percent(part: number, total: number) {
   return Math.round((part / total) * 100);
 }
 
+function resolveSeriesWindow<T>(rows: T[], getDate: (row: T) => string | Date, days: number) {
+  const now = new Date();
+  const currentStart = startOfDay(subDays(now, days - 1));
+  const currentEnd = endOfDay(now);
+  const dates = rows
+    .map((row) => new Date(getDate(row)))
+    .filter((date) => !Number.isNaN(date.getTime()));
+
+  const hasCurrentWindowData = dates.some((date) => date >= currentStart && date <= currentEnd);
+  const anchor = hasCurrentWindowData || !dates.length
+    ? now
+    : dates.reduce((latest, date) => (date > latest ? date : latest), dates[0]);
+
+  return {
+    start: startOfDay(subDays(anchor, days - 1)),
+    end: endOfDay(anchor),
+    anchor
+  };
+}
+
 export function buildDailySeries<T>(
   rows: T[],
   getDate: (row: T) => string | Date,
@@ -35,18 +55,18 @@ export function buildDailySeries<T>(
   days = 10,
   getSecondary?: (row: T) => number
 ): TimelineDatum[] {
-  const start = subDays(new Date(), days - 1);
+  const { start, end, anchor } = resolveSeriesWindow(rows, getDate, days);
   const buckets = new Map<string, TimelineDatum>();
 
   for (let index = 0; index < days; index += 1) {
-    const date = subDays(new Date(), days - 1 - index);
+    const date = subDays(anchor, days - 1 - index);
     const key = format(date, "yyyy-MM-dd");
     buckets.set(key, { label: format(date, "dd MMM"), value: 0, secondary: getSecondary ? 0 : undefined });
   }
 
   for (const row of rows) {
     const date = new Date(getDate(row));
-    if (date < start) continue;
+    if (Number.isNaN(date.getTime()) || date < start || date > end) continue;
     const key = format(date, "yyyy-MM-dd");
     const bucket = buckets.get(key);
     if (!bucket) continue;

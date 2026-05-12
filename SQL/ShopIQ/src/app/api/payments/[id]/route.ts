@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { apiError, badRequest, forbidden, notFound, unauthorized } from "@/lib/api-response";
 import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { optionalId, optionalText, positiveMoney } from "@/lib/validation";
+import { nullableId, nullableText, positiveMoney } from "@/lib/validation";
 
 const include = { customer: true, supplier: true, invoice: true, purchase: true } as const;
 
@@ -12,13 +12,13 @@ const paymentUpdateSchema = z.object({
   direction: z.enum(["CUSTOMER_IN", "SUPPLIER_OUT"]).optional(),
   method: z.enum(["CASH", "BANK_TRANSFER", "CARD", "JAZZCASH", "EASYPAISA", "CHEQUE", "OTHER"]).optional(),
   amount: positiveMoney.optional(),
-  customerId: optionalId,
-  supplierId: optionalId,
-  invoiceId: optionalId,
-  purchaseId: optionalId,
+  customerId: nullableId,
+  supplierId: nullableId,
+  invoiceId: nullableId,
+  purchaseId: nullableId,
   paidAt: z.coerce.date().optional(),
-  reference: optionalText(120),
-  notes: optionalText(600)
+  reference: nullableText(120),
+  notes: nullableText(600)
 });
 
 function invoiceStatus(total: number, paid: number) {

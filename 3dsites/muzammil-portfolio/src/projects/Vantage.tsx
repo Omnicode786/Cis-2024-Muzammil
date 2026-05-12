@@ -101,13 +101,6 @@ function canAccess(permission: 'none' | 'view' | 'edit' | undefined, level: 'vie
   return level === 'edit' ? permission === 'edit' : permission === 'view' || permission === 'edit';
 }
 
-function getRoleBadgeTone(role?: string) {
-  if (role === 'owner' || role === 'admin') return 'bg-violet-500/10 text-violet-700 dark:text-violet-300';
-  if (role === 'manager') return 'bg-sky-500/10 text-sky-700 dark:text-sky-300';
-  if (role === 'viewer') return 'bg-slate-500/10 text-slate-700 dark:text-slate-300';
-  return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
-}
-
 function getChartBaseOptions(theme: Theme) {
   const dark = theme === 'dark';
   const gridColor = dark ? 'rgba(148,163,184,0.12)' : 'rgba(15,23,42,0.08)';
@@ -364,7 +357,8 @@ async function createBeautifulPdfReport(report: { name: string; date: string; ty
     const x = margin + index * 46;
     doc.setFillColor(248, 250, 252);
     doc.roundedRect(x, kpiY, 40, 22, 4, 4, 'F');
-    doc.setFillColor(...kpi.color);
+    const [red, green, blue] = kpi.color;
+    doc.setFillColor(red, green, blue);
     doc.roundedRect(x + 2, kpiY + 2, 2, 18, 1, 1, 'F');
     doc.setTextColor(100, 116, 139);
     doc.setFontSize(9);
@@ -1316,7 +1310,13 @@ function CustomersView({
   onUpdate: (id: string, payload: Partial<Customer>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
-  const [form, setForm] = useState({ name: '', email: '', ltv: '0', region: 'North America', status: 'active' as const });
+  const [form, setForm] = useState<{ name: string; email: string; ltv: string; region: string; status: Customer['status'] }>({
+    name: '',
+    email: '',
+    ltv: '0',
+    region: 'North America',
+    status: 'active',
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const reset = () => {

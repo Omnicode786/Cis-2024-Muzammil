@@ -21,7 +21,7 @@ function compactMoney(value: number) {
 
 export default async function StaffDashboard() {
   const user = await getCurrentUser();
-  const snapshot = await getDashboardSnapshot(user!.shopId);
+  const snapshot = await getDashboardSnapshot(user!.shopId, user?.role);
 
   return (
     <AppShell nav={STAFF_NAV} heading="Staff Workspace" currentPath="/staff/dashboard" user={user}>

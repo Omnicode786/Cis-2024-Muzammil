@@ -259,7 +259,15 @@ export function useERPData(userId?: string) {
     async updateSettings(payload: Partial<NonNullable<AnalyticsData['settings']>>) {
       if (!userId) return;
       const settings = await erpApi.updateSettings(userId, payload);
-      mergeData((current) => ({ ...current, settings: { ...(current.settings || {}), ...(settings || {}) } }));
+      mergeData((current) => ({
+        ...current,
+        settings: {
+          theme: current.settings?.theme || 'dark',
+          notifications: current.settings?.notifications ?? true,
+          ...(current.settings || {}),
+          ...(settings || {}),
+        },
+      }));
       await refresh();
     },
 

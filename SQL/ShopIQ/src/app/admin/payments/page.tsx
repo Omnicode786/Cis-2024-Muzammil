@@ -6,7 +6,7 @@ import { MetricCard } from "@/components/workspace/metric-card";
 import { ModuleHero, ModuleInsightPanel } from "@/components/workspace/module-hero";
 import { SectionHeader } from "@/components/workspace/section-header";
 import { getCurrentUser } from "@/lib/auth";
-import { can } from "@/lib/permissions";
+import { can, canReadSupplierCashflow, canUsePaymentDirection } from "@/lib/permissions";
 import { buildDailySeries, sumByGroup } from "@/lib/chart-helpers";
 import { prisma } from "@/lib/prisma";
 import { formatDate, toPlain } from "@/lib/utils";
@@ -22,12 +22,13 @@ function compactMoney(value: number) {
 
 export default async function Payments() {
   const user = await getCurrentUser();
+  const canSeeSupplierSide = canReadSupplierCashflow(user?.role);
   const [paymentsRaw, customersRaw, suppliersRaw, invoicesRaw, purchasesRaw] = await Promise.all([
-    prisma.payment.findMany({ where: { shopId: user!.shopId }, include: { customer: true, supplier: true, invoice: true, purchase: true }, orderBy: { paidAt: "desc" }, take: 150 }),
+    prisma.payment.findMany({ where: { shopId: user!.shopId, ...(canSeeSupplierSide ? {} : { direction: "CUSTOMER_IN" as const }) }, include: { customer: true, supplier: true, invoice: true, purchase: true }, orderBy: { paidAt: "desc" }, take: 150 }),
     prisma.customer.findMany({ where: { shopId: user!.shopId }, orderBy: { name: "asc" } }),
-    prisma.supplier.findMany({ where: { shopId: user!.shopId }, orderBy: { name: "asc" } }),
+    canSeeSupplierSide ? prisma.supplier.findMany({ where: { shopId: user!.shopId }, orderBy: { name: "asc" } }) : Promise.resolve([]),
     prisma.invoice.findMany({ where: { shopId: user!.shopId, status: { not: "CANCELLED" } }, orderBy: { invoiceDate: "desc" }, take: 150 }),
-    prisma.purchase.findMany({ where: { shopId: user!.shopId, status: { not: "CANCELLED" } }, orderBy: { purchaseDate: "desc" }, take: 150 })
+    canSeeSupplierSide ? prisma.purchase.findMany({ where: { shopId: user!.shopId, status: { not: "CANCELLED" } }, orderBy: { purchaseDate: "desc" }, take: 150 }) : Promise.resolve([])
   ]);
   const payments = toPlain(paymentsRaw).map((payment: any) => ({
     ...payment,
@@ -51,6 +52,21 @@ export default async function Payments() {
   );
   const methodMix = sumByGroup(payments, (payment: any) => payment.method?.replace(/_/g, " "), (payment: any) => Number(payment.amount), 7);
   const partyRank = sumByGroup(payments, (payment: any) => payment.partyName, (payment: any) => Number(payment.amount), 6);
+  const directionOptions = [
+    { label: "Customer in", value: "CUSTOMER_IN" },
+    ...(canUsePaymentDirection(user?.role, "SUPPLIER_OUT") ? [{ label: "Supplier out", value: "SUPPLIER_OUT" }] : [])
+  ];
+  const paymentFields = [
+    { key: "direction", label: "Direction", type: "select" as const, required: true, defaultValue: "CUSTOMER_IN", options: directionOptions },
+    { key: "method", label: "Method", type: "select" as const, required: true, defaultValue: "CASH", options: [{ label: "Cash", value: "CASH" }, { label: "Bank transfer", value: "BANK_TRANSFER" }, { label: "Card", value: "CARD" }, { label: "JazzCash", value: "JAZZCASH" }, { label: "EasyPaisa", value: "EASYPAISA" }, { label: "Cheque", value: "CHEQUE" }, { label: "Other", value: "OTHER" }] },
+    { key: "amount", label: "Amount", type: "number" as const, required: true },
+    { key: "customerId", label: "Customer", type: "select" as const, options: customers.map((customer: any) => ({ label: customer.name, value: customer.id })) },
+    ...(canSeeSupplierSide ? [{ key: "supplierId", label: "Supplier", type: "select" as const, options: suppliers.map((supplier: any) => ({ label: supplier.name, value: supplier.id })) }] : []),
+    { key: "invoiceId", label: "Invoice", type: "select" as const, options: invoices.map((invoice: any) => ({ label: invoice.invoiceNo, value: invoice.id })) },
+    ...(canSeeSupplierSide ? [{ key: "purchaseId", label: "Purchase", type: "select" as const, options: purchases.map((purchase: any) => ({ label: purchase.purchaseNo, value: purchase.id })) }] : []),
+    { key: "reference", label: "Reference" },
+    { key: "notes", label: "Notes", type: "textarea" as const, span: "full" as const }
+  ];
 
   return (
     <AppShell nav={workspaceNav(user?.role)} heading={workspaceHeading(user?.role)} currentPath={workspacePath(user?.role, "payments")} user={user}>
@@ -64,29 +80,29 @@ export default async function Payments() {
           badge="Cash movement"
           stats={[
             { label: "Incoming", value: money(incoming) },
-            { label: "Outgoing", value: money(outgoing) },
+            { label: canSeeSupplierSide ? "Outgoing" : "Receipt mode", value: canSeeSupplierSide ? money(outgoing) : "Customer only" },
             { label: "Records", value: payments.length }
           ]}
         />
         <ModuleInsightPanel
           title="Settlement checks"
-          description="Search by party, method, reference or amount to audit cash movement without leaving the module."
+          description={canSeeSupplierSide ? "Search by party, method, reference or amount to audit cash movement without leaving the module." : "Staff see and record customer receipts here; supplier payouts stay protected for managers and admins."}
           icon={CreditCard}
           insights={[
             { label: "Customer receipts", value: money(incoming) },
-            { label: "Supplier payouts", value: money(outgoing) },
+            { label: canSeeSupplierSide ? "Supplier payouts" : "Protected payouts", value: canSeeSupplierSide ? money(outgoing) : "Manager/admin" },
             { label: "Net movement", value: money(incoming - outgoing) }
           ]}
         />
       </div>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <MetricCard icon={CreditCard} title="Incoming" value={money(incoming)} tone="emerald" />
-        <MetricCard icon={CreditCard} title="Outgoing" value={money(outgoing)} tone="rose" />
+        <MetricCard icon={CreditCard} title={canSeeSupplierSide ? "Outgoing" : "Receipt-only mode"} value={canSeeSupplierSide ? money(outgoing) : "Customer in"} tone={canSeeSupplierSide ? "rose" : "violet"} />
       </div>
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr_0.9fr]">
         <ComparativeBarsCard
           title="Settlement rhythm"
-          description="Receipts and payouts in the same view, so cash movement is easy to read."
+          description={canSeeSupplierSide ? "Receipts and payouts in the same view, so cash movement is easy to read." : "Customer receipts across the latest operating window."}
           data={cashflowTrend}
           valueLabel="Incoming"
           secondaryLabel="Outgoing"
@@ -104,7 +120,7 @@ export default async function Payments() {
         />
         <StackedSignalCard
           title="Direction split"
-          description="Customer receipts compared with supplier payouts."
+          description={canSeeSupplierSide ? "Customer receipts compared with supplier payouts." : "This role is scoped to customer receipts."}
           data={[
             { name: "Incoming", value: incoming },
             { name: "Outgoing", value: outgoing }
@@ -125,20 +141,10 @@ export default async function Payments() {
       <div className="mt-6">
         <CrudManager
           title="Payment records"
-          description="Record receipts and payouts. Updates and deletes automatically reverse and reapply invoice, purchase and ledger effects."
+          description={canSeeSupplierSide ? "Record receipts and payouts. Updates and deletes automatically reverse and reapply invoice, purchase and ledger effects." : "Record customer receipts with invoice links. Supplier payout tools are reserved for managers and admins."}
           endpoint="/api/payments"
           rows={payments}
-          fields={[
-            { key: "direction", label: "Direction", type: "select", required: true, options: [{ label: "Customer in", value: "CUSTOMER_IN" }, { label: "Supplier out", value: "SUPPLIER_OUT" }] },
-            { key: "method", label: "Method", type: "select", required: true, options: [{ label: "Cash", value: "CASH" }, { label: "Bank transfer", value: "BANK_TRANSFER" }, { label: "Card", value: "CARD" }, { label: "JazzCash", value: "JAZZCASH" }, { label: "EasyPaisa", value: "EASYPAISA" }, { label: "Cheque", value: "CHEQUE" }, { label: "Other", value: "OTHER" }] },
-            { key: "amount", label: "Amount", type: "number", required: true },
-            { key: "customerId", label: "Customer", type: "select", options: customers.map((customer: any) => ({ label: customer.name, value: customer.id })) },
-            { key: "supplierId", label: "Supplier", type: "select", options: suppliers.map((supplier: any) => ({ label: supplier.name, value: supplier.id })) },
-            { key: "invoiceId", label: "Invoice", type: "select", options: invoices.map((invoice: any) => ({ label: invoice.invoiceNo, value: invoice.id })) },
-            { key: "purchaseId", label: "Purchase", type: "select", options: purchases.map((purchase: any) => ({ label: purchase.purchaseNo, value: purchase.id })) },
-            { key: "reference", label: "Reference" },
-            { key: "notes", label: "Notes", type: "textarea", span: "full" }
-          ]}
+          fields={paymentFields}
           columns={[
             { key: "partyName", label: "Party" },
             { key: "direction", label: "Direction" },

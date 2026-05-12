@@ -28,10 +28,15 @@ function invoiceStatus(total: number, paid: number) {
 }
 
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
-  const invoices = await prisma.invoice.findMany({ where: { shopId: user.shopId }, include: { customer: true, items: { include: { product: true } } }, orderBy: { invoiceDate: "desc" }, take: 150 });
-  return NextResponse.json({ invoices });
+  try {
+    const user = await getCurrentUser();
+    if (!user) return unauthorized();
+    if (!can(user.role, "invoices", "read")) return forbidden();
+    const invoices = await prisma.invoice.findMany({ where: { shopId: user.shopId }, include: { customer: true, items: { include: { product: true } } }, orderBy: { invoiceDate: "desc" }, take: 150 });
+    return NextResponse.json({ invoices });
+  } catch (e) {
+    return apiError(e, "Unable to load invoices.");
+  }
 }
 
 export async function POST(request: Request) {

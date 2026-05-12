@@ -26,7 +26,7 @@ function compactMoney(value: number) {
 
 export default async function Reports() {
   const user = await getCurrentUser();
-  const snapshot = await getDashboardSnapshot(user!.shopId);
+  const snapshot = await getDashboardSnapshot(user!.shopId, user?.role);
   const netDues = snapshot.metrics.customerDues - snapshot.metrics.supplierDues;
 
   return (

@@ -6,6 +6,7 @@ import { ModuleHero, ModuleInsightPanel } from "@/components/workspace/module-he
 import { SectionHeader } from "@/components/workspace/section-header";
 import { getCurrentUser } from "@/lib/auth";
 import { getDashboardSnapshot } from "@/lib/data";
+import { canReadSupplierCashflow } from "@/lib/permissions";
 import { workspaceHeading, workspaceNav, workspacePath } from "@/lib/workspace";
 
 function compactMoney(value: number) {
@@ -14,8 +15,9 @@ function compactMoney(value: number) {
 
 export default async function AssistantPage() {
   const user = await getCurrentUser();
-  const snapshot = await getDashboardSnapshot(user!.shopId);
+  const snapshot = await getDashboardSnapshot(user!.shopId, user?.role);
   const contextScore = Math.max(0, 100 - snapshot.metrics.stockRiskScore);
+  const canSeeSupplierSide = canReadSupplierCashflow(user?.role);
 
   return (
     <AppShell nav={workspaceNav(user?.role)} heading={workspaceHeading(user?.role)} currentPath={workspacePath(user?.role, "assistant")} user={user}>
@@ -28,7 +30,7 @@ export default async function AssistantPage() {
         <ModuleHero
           eyebrow="AI Copilot"
           title="Business action studio"
-          description="Ask ShopIQ about stock, dues, suppliers, invoices and operational decisions. Database writes stay preview-first."
+          description={canSeeSupplierSide ? "Ask ShopIQ about stock, dues, suppliers, invoices and operational decisions. Database writes stay preview-first." : "Ask ShopIQ about stock, customer dues, invoices and counter decisions. Database writes stay preview-first."}
           icon={Bot}
           badge="Preview safe"
           stats={[
@@ -68,11 +70,11 @@ export default async function AssistantPage() {
         />
         <StackedSignalCard
           title="Action balance"
-          description="The assistant weighs reorder, collection and payable pressure together."
+          description={canSeeSupplierSide ? "The assistant weighs reorder, collection and payable pressure together." : "The assistant weighs reorder and collection pressure for your staff scope."}
           data={[
             { name: "Reorder", value: snapshot.metrics.lowStockCount },
             { name: "Receivables", value: snapshot.metrics.customerDues },
-            { name: "Payables", value: snapshot.metrics.supplierDues }
+            ...(canSeeSupplierSide ? [{ name: "Payables", value: snapshot.metrics.supplierDues }] : [])
           ]}
           totalLabel="Decision mix"
           badge="Signals"

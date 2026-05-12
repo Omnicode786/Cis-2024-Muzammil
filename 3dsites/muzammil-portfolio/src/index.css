@@ -1,25 +1,56 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
-@import url('https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  :root {
+    color: #111111;
+    background: #fff9ec;
+    font-synthesis: none;
+    text-rendering: geometricPrecision;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background: #fff9ec;
+  }
+
   body {
-    background-color: #FFFBF0;
-    color: #1a1a1a;
-    font-family: 'Satoshi', sans-serif;
+    min-width: 320px;
+    min-height: 100vh;
     overflow-x: hidden;
-    overflow-y: auto;
-    /* Main scroll handled by R3F ScrollControls */
+    background:
+      linear-gradient(90deg, rgba(17, 17, 17, 0.035) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(17, 17, 17, 0.03) 1px, transparent 1px),
+      #fff9ec;
+    background-size: 48px 48px;
+    color: #111111;
+    font-family: 'Satoshi', sans-serif;
+  }
+
+  body.has-custom-cursor,
+  body.has-custom-cursor a,
+  body.has-custom-cursor button,
+  body.has-custom-cursor input,
+  body.has-custom-cursor textarea,
+  body.has-custom-cursor select {
     cursor: none;
+  }
+
+  ::selection {
+    background: #f8d34f;
+    color: #111111;
   }
 }
 
 @layer utilities {
   .text-outline {
-    -webkit-text-stroke: 1px #1a1a1a;
+    -webkit-text-stroke: 1px currentColor;
     color: transparent;
   }
 }

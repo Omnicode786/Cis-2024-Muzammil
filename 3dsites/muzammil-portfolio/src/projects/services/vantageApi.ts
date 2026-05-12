@@ -66,7 +66,7 @@ export const vantageApi = {
     });
   },
 
-  updateUser(userId: string, payload: Partial<User> & { userId: string }) {
+  updateUser(_userId: string, payload: Partial<User> & { userId: string }) {
     return request<User>('/api/user', {
       method: 'PUT',
       body: JSON.stringify(payload),

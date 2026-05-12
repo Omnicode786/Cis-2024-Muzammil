@@ -1,99 +1,71 @@
 import { useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import CustomCursor from '../components/ui/CustomCursor';
+import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft, ArrowUpRight } from 'lucide-react';
+
+const caseStudies = {
+  vantage: {
+    title: 'Vantage Pro',
+    subtitle: 'Enterprise ERP, analytics, reports, AI, and operations in one live demo.',
+    live: '/live/vantage',
+    tags: ['React', 'ERP', 'AI', 'Charts'],
+  },
+  spatial: {
+    title: 'Spatial OS',
+    subtitle: 'Dimensional web interface study for spatial navigation and 3D architecture.',
+    live: '/live/spatial-platform',
+    tags: ['Three.js', 'R3F', 'Spatial UI'],
+  },
+  neural: {
+    title: 'Neural Void',
+    subtitle: 'A reactive WebGL field built around motion, depth, and atmosphere.',
+    live: '/live/neural-void',
+    tags: ['WebGL', 'Particles', 'Motion'],
+  },
+} as const;
 
 export default function ProjectPage() {
-    const { id } = useParams();
+  const { id } = useParams();
+  const project = caseStudies[(id || 'vantage') as keyof typeof caseStudies] || caseStudies.vantage;
 
-    useEffect(() => {
-        window.scrollTo(0, 0);
-    }, [id]);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
 
-    return (
-        <>
-            <CustomCursor />
-            <div className="min-h-screen w-full bg-[#FFFBF0] text-primary select-none">
+  return (
+    <div className="min-h-screen bg-portfolio-paper text-portfolio-ink">
+      <nav className="fixed left-0 top-0 z-50 w-full border-b border-black/10 bg-portfolio-paper/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 md:px-8">
+          <Link to="/" className="inline-flex items-center gap-3 font-mono text-xs font-black uppercase tracking-[0.18em]">
+            <ArrowLeft size={18} />
+            Back home
+          </Link>
+          <Link to={project.live} className="inline-flex items-center gap-3 border border-black bg-portfolio-signal px-4 py-3 font-mono text-xs font-black uppercase tracking-[0.16em]">
+            Live demo
+            <ArrowUpRight size={16} />
+          </Link>
+        </div>
+      </nav>
 
-                {/* Nav / Back Button */}
-                <nav className="fixed top-0 left-0 w-full p-8 z-50 mix-blend-difference pointer-events-none">
-                    <Link to="/" className="inline-block pointer-events-auto font-mono font-bold text-xl hover:text-accent-cyan transition-colors cursor-none">
-                        ← BACK
-                    </Link>
-                </nav>
+      <main className="mx-auto max-w-7xl px-5 pb-24 pt-32 md:px-8">
+        <div className="grid min-h-[62vh] items-end gap-10 border-b border-black pb-16 lg:grid-cols-[1.1fr_0.9fr]">
+          <div>
+            <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-portfolio-blue">Case study shell</p>
+            <h1 className="mt-6 font-display text-6xl font-black uppercase leading-none md:text-8xl">{project.title}</h1>
+            <p className="mt-8 max-w-2xl text-xl font-semibold leading-relaxed text-portfolio-muted">{project.subtitle}</p>
+          </div>
 
-                {/* Header */}
-                <header className="pt-32 px-6 md:px-24">
-                    <span className="bg-accent-purple border-2 border-black px-4 py-1 font-mono font-bold text-white shadow-pop mb-6 inline-block">
-                        CASE_STUDY_0{id}
-                    </span>
-                    <h1 className="text-6xl md:text-9xl font-black font-display leading-[0.8] mb-12">
-                        PROJECT <br />
-                        <span className="text-accent-red text-stroke-black">NAME</span>
-                    </h1>
-                </header>
-
-                {/* Content Grid */}
-                <main className="px-6 md:px-24 pb-24 grid grid-cols-1 md:grid-cols-3 gap-12">
-
-                    {/* Sidebar Details */}
-                    <aside className="md:col-span-1 space-y-8 font-mono border-t-2 border-black pt-8">
-                        <div>
-                            <h3 className="font-bold text-secondary mb-2 text-xs uppercase tracking-widest">ROLE</h3>
-                            <p className="text-xl font-bold">Front-end Engineer</p>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-secondary mb-2 text-xs uppercase tracking-widest">STACK</h3>
-                            <div className="flex flex-wrap gap-2">
-                                <span className="bg-white border text-xs font-bold px-2 py-1">React</span>
-                                <span className="bg-white border text-xs font-bold px-2 py-1">WebGL</span>
-                            </div>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-secondary mb-2 text-xs uppercase tracking-widest">YEAR</h3>
-                            <p className="text-xl font-bold">2025</p>
-                        </div>
-
-                        <a href="#" className="block w-full bg-black text-white text-center py-4 font-bold border-2 border-transparent hover:bg-accent-yellow hover:text-black hover:border-black transition-colors cursor-none shadow-pop">
-                            VISIT LIVE SITE ↗
-                        </a>
-                    </aside>
-
-                    {/* Main Content */}
-                    <article className="md:col-span-2 space-y-12">
-                        <div className="w-full aspect-video bg-gray-200 border-2 border-black shadow-pop rounded-lg overflow-hidden">
-                            {/* Placeholder for project image */}
-                            <div className="w-full h-full bg-accent-cyan flex items-center justify-center font-display font-bold text-4xl opacity-50">
-                                HERO_IMAGE
-                            </div>
-                        </div>
-
-                        <div className="prose prose-lg font-sans max-w-none">
-                            <h2 className="font-display font-bold text-4xl mb-6">The Concept</h2>
-                            <p>
-                                This is where the story of the project goes. Describe the challenge, the solution, and the impact.
-                                Keep it punchy. Use <strong>bold text</strong> for emphasis. The design should be brutalist yet readable.
-                            </p>
-                            <p>
-                                We implemented a custom physics engine to handle the interactions...
-                            </p>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="aspect-square bg-accent-pink border-2 border-black rounded-lg"></div>
-                            <div className="aspect-square bg-accent-yellow border-2 border-black rounded-lg"></div>
-                        </div>
-                    </article>
-
-                </main>
-
-                <section className="bg-black py-24 text-center">
-                    <h2 className="text-white font-display font-bold text-4xl mb-8">NEXT PROJECT</h2>
-                    <Link to="/project/2" className="text-6xl md:text-8xl font-black text-transparent text-stroke-white hover:text-accent-mint transition-colors cursor-none">
-                        NEURAL VOID
-                    </Link>
-                </section>
-
+          <div className="border border-black bg-portfolio-ink p-6 text-white">
+            <p className="font-mono text-xs font-black uppercase tracking-[0.2em] text-white/52">Stack notes</p>
+            <div className="mt-8 flex flex-wrap gap-2">
+              {project.tags.map((tag) => (
+                <span key={tag} className="border border-white/28 px-3 py-2 font-mono text-xs font-black uppercase tracking-[0.14em]">
+                  {tag}
+                </span>
+              ))}
             </div>
-        </>
-    );
+          </div>
+        </div>
+      </main>
+    </div>
+  );
 }

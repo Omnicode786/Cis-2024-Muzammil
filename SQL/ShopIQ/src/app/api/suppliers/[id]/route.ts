@@ -4,16 +4,16 @@ import { getCurrentUser } from "@/lib/auth";
 import { apiError, conflict, forbidden, notFound, unauthorized } from "@/lib/api-response";
 import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { clamp, money, optionalEmail, optionalText, requiredText } from "@/lib/validation";
+import { clamp, money, nullableEmail, nullableText, requiredText } from "@/lib/validation";
 
 const supplierUpdateSchema = z.object({
   name: requiredText("Supplier name").optional(),
-  phone: optionalText(40),
-  email: optionalEmail,
-  address: optionalText(220),
+  phone: nullableText(40),
+  email: nullableEmail,
+  address: nullableText(220),
   balance: money.optional(),
   reliabilityScore: z.coerce.number().int().min(0).max(100).optional(),
-  notes: optionalText(600)
+  notes: nullableText(600)
 });
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {

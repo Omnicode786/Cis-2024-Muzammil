@@ -17,6 +17,7 @@ type Field = {
   type?: "text" | "number" | "email" | "password" | "textarea" | "select";
   placeholder?: string;
   required?: boolean;
+  defaultValue?: string | number;
   options?: Option[];
   hideOnEdit?: boolean;
   hideOnCreate?: boolean;
@@ -33,6 +34,10 @@ type Props = {
   canCreate?: boolean;
   canUpdate?: boolean;
   canDelete?: boolean;
+  canUpdateRow?: (row: any) => boolean;
+  canDeleteRow?: (row: any) => boolean;
+  canUpdateRowKey?: string;
+  canDeleteRowKey?: string;
   createLabel?: string;
   deleteLabel?: string;
   deleteVerb?: string;
@@ -48,16 +53,25 @@ function valueFor(row: any, key: string) {
 
 function defaultForm(fields: Field[], row?: any) {
   return fields.reduce<Record<string, any>>((acc, field) => {
-    acc[field.key] = row ? valueFor(row, field.key) : "";
+    acc[field.key] = row ? valueFor(row, field.key) : field.defaultValue ?? "";
     return acc;
   }, {});
 }
 
-function normalizeByFields(form: Record<string, any>, fields: Field[]) {
+function normalizeBlank(field: Field, mode: "create" | "edit") {
+  if (field.type === "number") return mode === "edit" ? undefined : 0;
+  if (field.type === "password") return undefined;
+  if (field.type === "select" && field.key.endsWith("Id")) return mode === "edit" ? null : undefined;
+  if (field.type === "select") return undefined;
+  return mode === "edit" && !field.required ? null : undefined;
+}
+
+function normalizeByFields(form: Record<string, any>, fields: Field[], mode: "create" | "edit") {
   const payload: Record<string, any> = {};
   for (const field of fields) {
     const value = form[field.key];
-    payload[field.key] = field.type === "number" ? (value === "" || value === null || value === undefined ? 0 : Number(value)) : value === "" ? undefined : value;
+    const isBlank = value === "" || value === null || value === undefined;
+    payload[field.key] = field.type === "number" ? (isBlank ? normalizeBlank(field, mode) : Number(value)) : isBlank ? normalizeBlank(field, mode) : value;
   }
   return payload;
 }
@@ -94,6 +108,10 @@ export function CrudManager({
   canCreate,
   canUpdate,
   canDelete,
+  canUpdateRow,
+  canDeleteRow,
+  canUpdateRowKey,
+  canDeleteRowKey,
   createLabel = "Add record",
   deleteLabel = "Delete",
   deleteVerb = deleteLabel,
@@ -132,12 +150,13 @@ export function CrudManager({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (mode === "closed") return;
     setLoading(true);
     setMessage(null);
     try {
       const method = mode === "edit" ? "PATCH" : "POST";
       const url = mode === "edit" ? `${endpoint}/${activeRow.id}` : endpoint;
-      const basePayload = normalizeByFields(form, activeFields);
+      const basePayload = normalizeByFields(form, activeFields, mode);
       const payload =
         submitShape === "invoice" && mode === "create"
           ? {
@@ -160,7 +179,11 @@ export function CrudManager({
             : basePayload;
       const response = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), cache: "no-store" });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Request failed.");
+      if (!response.ok) {
+        const fieldErrors = data.issues?.fieldErrors;
+        const firstIssue = fieldErrors ? Object.values(fieldErrors).flat().find(Boolean) : null;
+        throw new Error(firstIssue || data.error || "Request failed.");
+      }
       setMode("closed");
       router.refresh();
     } catch (error: any) {
@@ -276,33 +299,41 @@ export function CrudManager({
             </thead>
             <tbody>
               {filteredRows.length ? (
-                filteredRows.map((row) => (
-                  <tr key={row.id} className="border-t border-border/60 align-top">
-                    {columns.map((column) => (
-                      <td key={column.key} className={cn("px-5 py-4", column.className)}>
-                        {cellContent(column, row)}
-                      </td>
-                    ))}
-                    {canUpdate || canDelete ? (
-                      <td className="px-5 py-4">
-                        <div className="flex justify-end gap-2">
-                          {canUpdate ? (
-                            <Button size="sm" variant="outline" onClick={() => openEdit(row)} disabled={loading}>
-                              <Edit3 className="size-3.5" />
-                              Edit
-                            </Button>
-                          ) : null}
-                          {canDelete ? (
-                            <Button size="sm" variant="destructive" onClick={() => remove(row)} disabled={loading}>
-                              <Trash2 className="size-3.5" />
-                              {deleteLabel}
-                            </Button>
-                          ) : null}
-                        </div>
-                      </td>
-                    ) : null}
-                  </tr>
-                ))
+                filteredRows.map((row) => {
+                  const rowUpdateAllowed = canUpdateRow ? canUpdateRow(row) : canUpdateRowKey ? Boolean(row[canUpdateRowKey]) : true;
+                  const rowDeleteAllowed = canDeleteRow ? canDeleteRow(row) : canDeleteRowKey ? Boolean(row[canDeleteRowKey]) : true;
+                  const rowCanUpdate = Boolean(canUpdate && rowUpdateAllowed);
+                  const rowCanDelete = Boolean(canDelete && rowDeleteAllowed);
+
+                  return (
+                    <tr key={row.id} className="border-t border-border/60 align-top">
+                      {columns.map((column) => (
+                        <td key={column.key} className={cn("px-5 py-4", column.className)}>
+                          {cellContent(column, row)}
+                        </td>
+                      ))}
+                      {canUpdate || canDelete ? (
+                        <td className="px-5 py-4">
+                          <div className="flex justify-end gap-2">
+                            {rowCanUpdate ? (
+                              <Button size="sm" variant="outline" onClick={() => openEdit(row)} disabled={loading}>
+                                <Edit3 className="size-3.5" />
+                                Edit
+                              </Button>
+                            ) : null}
+                            {rowCanDelete ? (
+                              <Button size="sm" variant="destructive" onClick={() => remove(row)} disabled={loading}>
+                                <Trash2 className="size-3.5" />
+                                {deleteLabel}
+                              </Button>
+                            ) : null}
+                            {!rowCanUpdate && !rowCanDelete ? <Badge variant="outline">Protected</Badge> : null}
+                          </div>
+                        </td>
+                      ) : null}
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={columns.length + 1} className="px-4 py-12">

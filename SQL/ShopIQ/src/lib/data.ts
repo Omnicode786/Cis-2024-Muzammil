@@ -1,19 +1,22 @@
 import { format, isSameDay, subDays, startOfMonth, startOfDay } from "date-fns";
+import type { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildDailySeries, statusSegments, sumByGroup, topRows } from "@/lib/chart-helpers";
+import { canReadSupplierCashflow } from "@/lib/permissions";
 
 function n(value: any) { return Number(value || 0); }
 
-export async function getDashboardSnapshot(shopId: string) {
+export async function getDashboardSnapshot(shopId: string, role?: UserRole | string | null) {
   const today = startOfDay(new Date());
   const month = startOfMonth(new Date());
+  const includeSupplierSide = role === undefined ? true : canReadSupplierCashflow(role);
   const [products, customers, suppliers, invoices, payments, purchases, movements, activities] = await Promise.all([
     prisma.product.findMany({ where: { shopId, status: "ACTIVE" }, include: { category: true }, orderBy: { updatedAt: "desc" } }),
     prisma.customer.findMany({ where: { shopId }, orderBy: { balance: "desc" }, take: 8 }),
-    prisma.supplier.findMany({ where: { shopId }, orderBy: { balance: "desc" }, take: 8 }),
+    includeSupplierSide ? prisma.supplier.findMany({ where: { shopId }, orderBy: { balance: "desc" }, take: 8 }) : Promise.resolve([]),
     prisma.invoice.findMany({ where: { shopId }, include: { items: { include: { product: true } }, customer: true }, orderBy: { invoiceDate: "desc" }, take: 300 }),
-    prisma.payment.findMany({ where: { shopId }, orderBy: { paidAt: "desc" }, take: 150 }),
-    prisma.purchase.findMany({ where: { shopId }, orderBy: { purchaseDate: "desc" }, take: 150 }),
+    prisma.payment.findMany({ where: { shopId, ...(includeSupplierSide ? {} : { direction: "CUSTOMER_IN" as const }) }, orderBy: { paidAt: "desc" }, take: 150 }),
+    includeSupplierSide ? prisma.purchase.findMany({ where: { shopId }, orderBy: { purchaseDate: "desc" }, take: 150 }) : Promise.resolve([]),
     prisma.stockMovement.findMany({ where: { shopId }, include: { product: true }, orderBy: { movedAt: "desc" }, take: 300 }),
     prisma.activityLog.findMany({ where: { shopId }, orderBy: { createdAt: "desc" }, take: 12 })
   ]);
@@ -85,7 +88,8 @@ export async function getDashboardSnapshot(shopId: string) {
   };
 }
 
-export async function getBusinessContext(shopId: string) {
-  const snapshot = await getDashboardSnapshot(shopId);
-  return `ShopIQ live business context:\nMetrics: ${JSON.stringify(snapshot.metrics)}\nLow stock: ${snapshot.lowStock.map(p => `${p.name} (${p.stockQty}/${p.reorderLevel})`).join(", ")}\nTop customers by dues: ${snapshot.customers.map(c => `${c.name}: PKR ${c.balance}`).join(", ")}\nSupplier dues: ${snapshot.suppliers.map(s => `${s.name}: PKR ${s.balance}`).join(", ")}\nFast movers: ${snapshot.fastMoving.map(p => `${p.name}: ${p.qty}`).join(", ")}`;
+export async function getBusinessContext(shopId: string, role?: UserRole | string | null) {
+  const snapshot = await getDashboardSnapshot(shopId, role);
+  const supplierContext = canReadSupplierCashflow(role) ? `\nSupplier dues: ${snapshot.suppliers.map(s => `${s.name}: PKR ${s.balance}`).join(", ")}` : "";
+  return `ShopIQ live business context:\nMetrics: ${JSON.stringify(snapshot.metrics)}\nLow stock: ${snapshot.lowStock.map(p => `${p.name} (${p.stockQty}/${p.reorderLevel})`).join(", ")}\nTop customers by dues: ${snapshot.customers.map(c => `${c.name}: PKR ${c.balance}`).join(", ")}${supplierContext}\nFast movers: ${snapshot.fastMoving.map(p => `${p.name}: ${p.qty}`).join(", ")}`;
 }
