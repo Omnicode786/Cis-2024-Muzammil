@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -215,10 +215,15 @@ export function DonutBreakdownCard({
   badge?: string;
   format?: ValueFormat;
 }) {
+  const [activeName, setActiveName] = useState<string | null>(null);
   const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0);
   const segments = buildDonutSegments(data, total);
   const topSegment = [...data].sort((a, b) => Number(b.value || 0) - Number(a.value || 0))[0];
   const topPercent = topSegment ? (Number(topSegment.value || 0) / Math.max(total, 1)) * 100 : 0;
+  const activeSegment = segments.find((segment) => segment.name === activeName) || null;
+  const featuredName = activeSegment?.name || topSegment?.name || "No data";
+  const featuredValue = activeSegment?.value ?? Number(topSegment?.value || 0);
+  const featuredPercent = activeSegment?.percentValue ?? topPercent;
 
   return (
     <Card className="analytics-card analytics-donut-card overflow-hidden">
@@ -226,7 +231,7 @@ export function DonutBreakdownCard({
       <CardContent className="p-5 pt-0">
         <div className="analytics-donut-shell">
           <div className="analytics-donut-visual">
-            <svg className="analytics-donut-svg" viewBox={`0 0 ${DONUT_SIZE} ${DONUT_SIZE}`} role="img" aria-label={`${title}: ${centerValue}`}>
+            <svg className="analytics-donut-svg" viewBox={`0 0 ${DONUT_SIZE} ${DONUT_SIZE}`} role="img" aria-label={`${title}: ${centerValue}`} onMouseLeave={() => setActiveName(null)}>
               <title>{`${title}: ${centerValue}`}</title>
               <circle
                 className="analytics-donut-base"
@@ -241,8 +246,14 @@ export function DonutBreakdownCard({
                   cx={DONUT_CENTER}
                   cy={DONUT_CENTER}
                   r={DONUT_RADIUS}
+                  tabIndex={0}
+                  aria-label={`${segment.name}: ${formatValue(segment.value, format)}, ${formatPercentLabel(segment.percentValue, segment.value)}`}
+                  data-active={activeName === segment.name || undefined}
                   strokeDasharray={`${segment.length} ${Math.max(DONUT_CIRCUMFERENCE - segment.length, 0)}`}
                   strokeDashoffset={-segment.offset}
+                  onMouseEnter={() => setActiveName(segment.name)}
+                  onFocus={() => setActiveName(segment.name)}
+                  onBlur={() => setActiveName(null)}
                   style={{
                     ["--slice-color" as string]: palette[segment.sourceIndex % palette.length],
                     animationDelay: `${segment.sourceIndex * 70}ms`
@@ -253,20 +264,38 @@ export function DonutBreakdownCard({
               ))}
             </svg>
             <div className="analytics-donut-center">
-              <span>{centerLabel}</span>
-              <strong>{centerValue}</strong>
+              <span>{activeSegment ? activeSegment.name : centerLabel}</span>
+              <strong>{activeSegment ? formatPercentLabel(activeSegment.percentValue, activeSegment.value) : centerValue}</strong>
+              {activeSegment ? <small>{formatValue(activeSegment.value, format)}</small> : null}
             </div>
             <div className="analytics-donut-chip">
-              {topSegment?.value ? `${topSegment.name} ${formatPercentLabel(topPercent, Number(topSegment.value || 0))}` : "No data"}
+              {featuredValue ? `${featuredName} ${formatPercentLabel(featuredPercent, featuredValue)}` : "No data"}
             </div>
+            {activeSegment ? (
+              <div className="analytics-donut-hover-card">
+                <span className="analytics-legend-dot" style={{ ["--dot" as string]: palette[activeSegment.sourceIndex % palette.length] }}>{activeSegment.name}</span>
+                <strong>{formatValue(activeSegment.value, format)}</strong>
+                <em>{formatPercentLabel(activeSegment.percentValue, activeSegment.value)} of total</em>
+              </div>
+            ) : null}
           </div>
           <div className="analytics-donut-list">
             {data.slice(0, 6).map((item, index) => {
               const value = Number(item.value || 0);
               const percent = (value / Math.max(total, 1)) * 100;
+              const isActive = activeName === item.name;
 
               return (
-                <div key={item.name} className="analytics-donut-row">
+                <div
+                  key={item.name}
+                  className="analytics-donut-row"
+                  data-active={isActive || undefined}
+                  tabIndex={0}
+                  onMouseEnter={() => setActiveName(item.name)}
+                  onFocus={() => setActiveName(item.name)}
+                  onMouseLeave={() => setActiveName(null)}
+                  onBlur={() => setActiveName(null)}
+                >
                   <div className="min-w-0">
                     <span className="analytics-legend-dot" style={{ ["--dot" as string]: palette[index % palette.length] }}>{item.name}</span>
                     <div className="analytics-donut-track">

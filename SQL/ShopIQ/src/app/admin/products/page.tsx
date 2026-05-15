@@ -34,11 +34,12 @@ export default async function ProductsPage() {
     saleDisplay: money(product.salePrice)
   }));
   const categories = toPlain(categoriesRaw);
-  const value = products.reduce((sum: number, product: any) => sum + product.stockQty * Number(product.costPrice), 0);
-  const low = products.filter((product: any) => product.stockQty <= product.reorderLevel);
-  const healthScore = Math.max(0, 100 - Math.round((low.length / Math.max(products.length, 1)) * 100));
-  const categoryValue = sumByGroup(products, (product: any) => product.categoryName, (product: any) => product.stockQty * Number(product.costPrice), 8);
-  const marginRows = topRows(products, (product: any) => product.name, (product: any) => Math.max(0, Number(product.salePrice) - Number(product.costPrice)) * product.stockQty, 6);
+  const activeProducts = products.filter((product: any) => product.status === "ACTIVE");
+  const value = activeProducts.reduce((sum: number, product: any) => sum + product.stockQty * Number(product.costPrice), 0);
+  const low = activeProducts.filter((product: any) => product.stockQty <= product.reorderLevel);
+  const healthScore = Math.max(0, 100 - Math.round((low.length / Math.max(activeProducts.length, 1)) * 100));
+  const categoryValue = sumByGroup(activeProducts, (product: any) => product.categoryName, (product: any) => product.stockQty * Number(product.costPrice), 8);
+  const marginRows = topRows(activeProducts, (product: any) => product.name, (product: any) => Math.max(0, Number(product.salePrice) - Number(product.costPrice)) * product.stockQty, 6);
   const statusRows = statusSegments(products, (product: any) => product.status);
   const nav = workspaceNav(user?.role);
   const currentPath = workspacePath(user?.role, "products");
@@ -54,7 +55,7 @@ export default async function ProductsPage() {
           icon={Package}
           badge="SKU operations"
           stats={[
-            { label: "Active SKUs", value: products.filter((product: any) => product.status === "ACTIVE").length },
+            { label: "Active SKUs", value: activeProducts.length },
             { label: "Inventory value", value: money(value) },
             { label: "Low stock", value: low.length }
           ]}
@@ -71,7 +72,7 @@ export default async function ProductsPage() {
         />
       </div>
       <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <MetricCard icon={Package} title="Active SKUs" value={products.filter((product: any) => product.status === "ACTIVE").length} />
+        <MetricCard icon={Package} title="Active SKUs" value={activeProducts.length} />
         <MetricCard icon={Boxes} title="Inventory value" value={money(value)} tone="violet" />
         <MetricCard icon={AlertTriangle} title="Low stock" value={low.length} tone="amber" />
       </div>

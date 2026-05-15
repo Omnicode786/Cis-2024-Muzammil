@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { apiError, badRequest, forbidden, notFound, unauthorized } from "@/lib/api-response";
-import { can } from "@/lib/permissions";
+import { can, canUsePaymentDirection } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { nullableId, nullableText, positiveMoney } from "@/lib/validation";
 
@@ -93,6 +93,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       reference: data.reference !== undefined ? data.reference : existing.reference,
       notes: data.notes !== undefined ? data.notes : existing.notes
     };
+    if (!canUsePaymentDirection(user.role, next.direction)) return forbidden("Your role can record customer receipts only.");
     const linkError = await validateLinks(user.shopId, next);
     if (linkError) return badRequest(linkError);
     const payment = await prisma.$transaction(async (tx) => {

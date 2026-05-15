@@ -1,0 +1,20 @@
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="core" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(39 30) rotate(54) scale(62)">
+      <stop stop-color="#FFFBE6"/>
+      <stop offset=".34" stop-color="#F7B15E"/>
+      <stop offset=".7" stop-color="#EF6C42"/>
+      <stop offset="1" stop-color="#B94A36"/>
+    </radialGradient>
+    <filter id="glow" x="0" y="0" width="96" height="96" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="7" stdDeviation="8" flood-color="#EF6C42" flood-opacity=".5"/>
+    </filter>
+  </defs>
+  <ellipse cx="48" cy="80" rx="25" ry="7" fill="#B94A36" opacity=".16"/>
+  <g filter="url(#glow)">
+    <path d="M48 8c12 15 27 23 30 40 4 21-11 35-30 35S14 68 18 48c3-17 18-25 30-40Z" fill="url(#core)" stroke="#FFF8DB" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M48 21c7 10 16 16 18 27 2 13-7 23-18 23s-20-10-18-23c2-11 11-17 18-27Z" fill="#FFF8DB" opacity=".86"/>
+    <path d="M48 32c4 7 9 10 10 18 1 8-4 14-10 14s-11-6-10-14c1-8 6-11 10-18Z" fill="#EF6C42"/>
+    <path d="M22 38 10 31M74 38l12-7M31 18 22 7M65 18l9-11" stroke="#F7B15E" stroke-width="5" stroke-linecap="round"/>
+  </g>
+</svg>

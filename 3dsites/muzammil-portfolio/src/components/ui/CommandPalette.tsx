@@ -17,7 +17,7 @@ const actions: PaletteAction[] = [
   { label: 'Play Signal Breach', detail: 'Custom systems game before contact', href: '#signal-breach', icon: Command },
   { label: 'GitHub', detail: 'Omnicode786', href: 'https://github.com/Omnicode786', external: true, icon: Github },
   { label: 'LinkedIn', detail: 'Muzammil Mansoor Alam', href: 'https://pk.linkedin.com/in/muzammil-mansoor-alam-644a763b5', external: true, icon: Linkedin },
-  { label: 'Email', detail: 'Start a build conversation', href: 'mailto:muzammil.alam@example.com', external: true, icon: Mail },
+  { label: 'Email', detail: 'Start a build conversation', href: 'mailto:progamers5656@gmail.com', external: true, icon: Mail },
 ];
 
 export default function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -56,18 +56,18 @@ export default function CommandPalette({ open, onOpenChange }: { open: boolean; 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[10000] bg-black/70 px-4 py-20 backdrop-blur-xl" role="dialog" aria-modal="true" aria-label="Command palette">
-      <div className="mx-auto max-w-2xl overflow-hidden border border-cyan-300/30 bg-[#061014]/95 shadow-[0_0_80px_rgba(0,229,255,0.18)]">
-        <div className="flex items-center gap-3 border-b border-cyan-300/20 px-4 py-4">
-          <Search size={18} className="text-cyan-200" />
+    <div className="fixed inset-0 z-[10000] bg-[#fff8eb]/72 px-4 py-20 backdrop-blur-2xl" role="dialog" aria-modal="true" aria-label="Command palette">
+      <div className="mx-auto max-w-2xl overflow-hidden rounded-[2rem] border border-[#8fb8aa]/28 bg-white/88 shadow-[0_34px_100px_rgba(74,96,89,0.18)]">
+        <div className="flex items-center gap-3 border-b border-[#8fb8aa]/18 px-4 py-4">
+          <Search size={18} className="text-[#43888c]" />
           <input
             autoFocus
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search systems, projects, socials..."
-            className="h-10 flex-1 bg-transparent font-mono text-sm text-cyan-50 outline-none placeholder:text-cyan-100/35"
+            className="h-10 flex-1 bg-transparent font-mono text-sm text-[#20302d] outline-none placeholder:text-[#7c8d87]/62"
           />
-          <button onClick={() => onOpenChange(false)} className="grid h-9 w-9 place-items-center border border-cyan-300/20 text-cyan-100 hover:bg-cyan-300 hover:text-black" aria-label="Close command palette">
+          <button onClick={() => onOpenChange(false)} className="grid h-9 w-9 place-items-center rounded-full border border-[#8fb8aa]/25 text-[#49665f] hover:bg-system-cyan/70 hover:text-[#20302d]" aria-label="Close command palette">
             <X size={16} />
           </button>
         </div>
@@ -79,16 +79,16 @@ export default function CommandPalette({ open, onOpenChange }: { open: boolean; 
               <button
                 key={action.label}
                 onClick={() => runAction(action)}
-                className="group grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 border border-transparent px-4 py-4 text-left transition-colors hover:border-cyan-300/35 hover:bg-cyan-300/10"
+                className="group grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 rounded-[1.25rem] border border-transparent px-4 py-4 text-left transition-colors hover:border-system-cyan/35 hover:bg-system-mist/80"
               >
-                <span className="grid h-10 w-10 place-items-center border border-cyan-300/20 text-cyan-200 group-hover:bg-cyan-300 group-hover:text-black">
+                <span className="grid h-10 w-10 place-items-center rounded-full border border-system-cyan/25 text-[#43888c] group-hover:bg-system-cyan/70 group-hover:text-[#20302d]">
                   <Icon size={18} />
                 </span>
                 <span>
-                  <span className="block font-mono text-xs font-black uppercase tracking-[0.2em] text-cyan-50">{action.label}</span>
-                  <span className="mt-1 block text-sm text-cyan-100/55">{action.detail}</span>
+                  <span className="block font-mono text-xs font-black uppercase tracking-[0.2em] text-[#20302d]">{action.label}</span>
+                  <span className="mt-1 block text-sm text-[#6c827c]">{action.detail}</span>
                 </span>
-                <ExternalLink size={16} className="text-cyan-100/35" />
+                <ExternalLink size={16} className="text-[#8aa09a]" />
               </button>
             );
           })}

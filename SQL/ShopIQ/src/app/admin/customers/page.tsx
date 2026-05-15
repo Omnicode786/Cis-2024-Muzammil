@@ -29,7 +29,7 @@ export default async function Customers() {
     balanceDisplay: money(customer.balance),
     creditLimitDisplay: money(customer.creditLimit)
   }));
-  const dues = customers.reduce((sum: number, customer: any) => sum + Number(customer.balance), 0);
+  const dues = customers.reduce((sum: number, customer: any) => sum + Math.max(Number(customer.balance), 0), 0);
   const creditLimit = customers.reduce((sum: number, customer: any) => sum + Number(customer.creditLimit), 0);
   const allPayments = customers.flatMap((customer: any) => customer.payments || []);
   const paymentTrend = buildDailySeries(allPayments, (payment: any) => payment.paidAt, (payment: any) => Number(payment.amount), 14);

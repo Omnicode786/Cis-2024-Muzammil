@@ -29,7 +29,7 @@ export default async function Suppliers() {
     reliabilityDisplay: `${supplier.reliabilityScore}%`,
     balanceDisplay: money(supplier.balance)
   }));
-  const dues = suppliers.reduce((sum: number, supplier: any) => sum + Number(supplier.balance), 0);
+  const dues = suppliers.reduce((sum: number, supplier: any) => sum + Math.max(Number(supplier.balance), 0), 0);
   const avgReliability = Math.round(suppliers.reduce((sum: number, supplier: any) => sum + Number(supplier.reliabilityScore || 0), 0) / Math.max(suppliers.length, 1));
   const allPurchases = suppliers.flatMap((supplier: any) => supplier.purchases || []);
   const purchaseTrend = buildDailySeries(allPurchases, (purchase: any) => purchase.purchaseDate, (purchase: any) => Number(purchase.total), 14);

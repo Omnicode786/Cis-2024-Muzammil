@@ -1,134 +1,139 @@
 import { useMemo, useRef } from 'react';
-import { Float } from '@react-three/drei';
+import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-type NodePoint = {
-  position: THREE.Vector3;
-  color: string;
+const modelPaths = {
+  treeDetailed: '/assets/models/kenney-tree-detailed.glb',
+  treeOak: '/assets/models/kenney-tree-oak.glb',
+  treePine: '/assets/models/kenney-tree-pine-round.glb',
+  bush: '/assets/models/kenney-bush-detailed.glb',
+  grass: '/assets/models/kenney-grass-large.glb',
+  flower: '/assets/models/kenney-flower-yellow.glb',
+  rock: '/assets/models/kenney-rock-large.glb',
+  mushroom: '/assets/models/kenney-mushroom-red-group.glb',
+  lily: '/assets/models/kenney-lily-large.glb',
+  moss: '/assets/models/kenney-hanging-moss.glb',
+} as const;
+
+type ModelKey = keyof typeof modelPaths;
+
+type ModelPlacement = {
+  model: ModelKey;
+  position: [number, number, number];
+  rotation: [number, number, number];
   scale: number;
 };
 
-function signal(index: number) {
-  const raw = Math.sin(index * 61.73) * 10000;
-  return raw - Math.floor(raw);
+const placements: ModelPlacement[] = [
+  { model: 'treeDetailed', position: [-1.55, -1.75, -1.45], rotation: [0, -0.32, 0], scale: 0.72 },
+  { model: 'treeOak', position: [1.32, -1.8, -1.75], rotation: [0, 0.38, 0], scale: 0.62 },
+  { model: 'treePine', position: [2.35, -1.92, -2.45], rotation: [0, -0.22, 0], scale: 0.48 },
+  { model: 'treePine', position: [-2.55, -1.96, -2.2], rotation: [0, 0.18, 0], scale: 0.44 },
+  { model: 'bush', position: [-0.42, -1.95, -0.86], rotation: [0, 0.68, 0], scale: 0.64 },
+  { model: 'bush', position: [2.85, -2.08, -1.25], rotation: [0, -0.45, 0], scale: 0.42 },
+  { model: 'grass', position: [-2.95, -2.04, -0.72], rotation: [0, 0.2, 0], scale: 0.7 },
+  { model: 'grass', position: [0.3, -2.04, -2.35], rotation: [0, -0.4, 0], scale: 0.58 },
+  { model: 'flower', position: [-0.98, -2.04, -0.72], rotation: [0, 0.22, 0], scale: 0.48 },
+  { model: 'flower', position: [0.95, -2.04, -0.7], rotation: [0, -0.28, 0], scale: 0.45 },
+  { model: 'rock', position: [0.0, -2.05, -1.08], rotation: [0, 0.54, 0], scale: 0.38 },
+  { model: 'mushroom', position: [1.92, -2.06, -0.78], rotation: [0, -0.25, 0], scale: 0.42 },
+  { model: 'lily', position: [-2.05, -2.05, -0.62], rotation: [0, 0.18, 0], scale: 0.44 },
+  { model: 'moss', position: [-0.05, 0.86, -1.1], rotation: [0.18, -0.25, 0.02], scale: 0.78 },
+  { model: 'moss', position: [1.8, 0.52, -1.7], rotation: [0.14, 0.38, -0.03], scale: 0.54 },
+];
+
+function polishModel(object: THREE.Object3D) {
+  object.traverse((child) => {
+    const mesh = child as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    const materialIsArray = Array.isArray(mesh.material);
+    const materials = materialIsArray ? mesh.material : [mesh.material];
+    const clonedMaterials = materials.map((material) => {
+      const cloned = material.clone();
+      const standard = cloned as THREE.MeshStandardMaterial;
+      if ('roughness' in standard) standard.roughness = Math.max(standard.roughness ?? 0.7, 0.78);
+      if ('metalness' in standard) standard.metalness = 0.02;
+      if ('emissiveIntensity' in standard) standard.emissiveIntensity = 0.035;
+      return cloned;
+    });
+
+    mesh.material = materialIsArray ? clonedMaterials : clonedMaterials[0];
+  });
+  return object;
 }
 
-function NeuralGraph() {
-  const groupRef = useRef<THREE.Group>(null);
-  const nodes = useMemo<NodePoint[]>(
-    () =>
-      Array.from({ length: 34 }, (_, index) => {
-        const layer = index % 5;
-        const band = Math.floor(index / 5);
-        return {
-          position: new THREE.Vector3((layer - 2) * 2.7 + signal(index) * 0.7, (band - 3) * 1.2 + signal(index + 1) * 0.8, -5 - signal(index + 2) * 5),
-          color: index % 3 === 0 ? '#5dffe8' : index % 3 === 1 ? '#baff5c' : '#7aa7ff',
-          scale: 0.045 + signal(index + 4) * 0.055,
-        };
-      }),
-    [],
+function ModelGrove() {
+  const groveRef = useRef<THREE.Group>(null);
+  const treeDetailed = useGLTF(modelPaths.treeDetailed).scene;
+  const treeOak = useGLTF(modelPaths.treeOak).scene;
+  const treePine = useGLTF(modelPaths.treePine).scene;
+  const bush = useGLTF(modelPaths.bush).scene;
+  const grass = useGLTF(modelPaths.grass).scene;
+  const flower = useGLTF(modelPaths.flower).scene;
+  const rock = useGLTF(modelPaths.rock).scene;
+  const mushroom = useGLTF(modelPaths.mushroom).scene;
+  const lily = useGLTF(modelPaths.lily).scene;
+  const moss = useGLTF(modelPaths.moss).scene;
+
+  const scenes = useMemo(
+    () => ({
+      treeDetailed,
+      treeOak,
+      treePine,
+      bush,
+      grass,
+      flower,
+      rock,
+      mushroom,
+      lily,
+      moss,
+    }),
+    [treeDetailed, treeOak, treePine, bush, grass, flower, rock, mushroom, lily, moss],
   );
 
-  const linePositions = useMemo(() => {
-    const positions: number[] = [];
-    nodes.forEach((node, index) => {
-      const next = nodes[(index + 5) % nodes.length];
-      const diagonal = nodes[(index + 7) % nodes.length];
-      positions.push(node.position.x, node.position.y, node.position.z, next.position.x, next.position.y, next.position.z);
-      if (index % 2 === 0) {
-        positions.push(node.position.x, node.position.y, node.position.z, diagonal.position.x, diagonal.position.y, diagonal.position.z);
-      }
-    });
-    return new Float32Array(positions);
-  }, [nodes]);
+  const models = useMemo(
+    () =>
+      placements.map((placement) => ({
+        ...placement,
+        object: polishModel(scenes[placement.model].clone(true)),
+      })),
+    [scenes],
+  );
 
   useFrame(({ clock, pointer }) => {
-    if (!groupRef.current) return;
+    if (!groveRef.current) return;
     const elapsed = clock.getElapsedTime();
-    groupRef.current.rotation.y = elapsed * 0.035 + pointer.x * 0.12;
-    groupRef.current.rotation.x = Math.sin(elapsed * 0.2) * 0.05 + pointer.y * 0.08;
+    groveRef.current.rotation.y = Math.sin(elapsed * 0.18) * 0.045 + pointer.x * 0.055;
+    groveRef.current.rotation.x = Math.sin(elapsed * 0.16) * 0.018 + pointer.y * 0.025;
+    groveRef.current.position.y = Math.sin(elapsed * 0.36) * 0.055;
   });
 
   return (
-    <group ref={groupRef} position={[4.4, 0.2, -2.4]}>
-      <lineSegments>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[linePositions, 3]} />
-        </bufferGeometry>
-        <lineBasicMaterial color="#5dffe8" transparent opacity={0.2} />
-      </lineSegments>
-
-      {nodes.map((node, index) => (
-        <mesh key={index} position={node.position} scale={node.scale}>
-          <sphereGeometry args={[1, 16, 16]} />
-          <meshStandardMaterial color={node.color} emissive={node.color} emissiveIntensity={1.4} roughness={0.2} />
-        </mesh>
+    <group ref={groveRef} position={[0.48, 0.1, -0.28]}>
+      {models.map((item, index) => (
+        <primitive key={`${item.model}-${index}`} object={item.object} position={item.position} rotation={item.rotation} scale={item.scale} />
       ))}
     </group>
-  );
-}
-
-function SystemsCore() {
-  const coreRef = useRef<THREE.Group>(null);
-  const ringRef = useRef<THREE.Mesh>(null);
-  const packetRef = useRef<THREE.Mesh>(null);
-
-  useFrame(({ clock, pointer }) => {
-    const elapsed = clock.getElapsedTime();
-    if (coreRef.current) {
-      coreRef.current.rotation.y = elapsed * 0.18 + pointer.x * 0.24;
-      coreRef.current.rotation.x = Math.sin(elapsed * 0.28) * 0.12 + pointer.y * 0.1;
-    }
-
-    if (ringRef.current) {
-      ringRef.current.rotation.z = -elapsed * 0.32;
-    }
-
-    if (packetRef.current) {
-      packetRef.current.position.x = Math.sin(elapsed * 1.3) * 2.5;
-      packetRef.current.position.y = Math.cos(elapsed * 1.1) * 1.1;
-    }
-  });
-
-  return (
-    <Float speed={1.2} rotationIntensity={0.18} floatIntensity={0.32}>
-      <group ref={coreRef} position={[1.5, -0.3, -0.2]}>
-        <mesh castShadow>
-          <icosahedronGeometry args={[1.45, 2]} />
-          <meshStandardMaterial color="#0f1720" metalness={0.8} roughness={0.18} emissive="#123a4a" emissiveIntensity={0.18} />
-        </mesh>
-
-        <mesh ref={ringRef} rotation={[Math.PI / 2.35, 0, 0]}>
-          <torusGeometry args={[2.15, 0.025, 18, 220]} />
-          <meshStandardMaterial color="#5dffe8" emissive="#5dffe8" emissiveIntensity={1.5} />
-        </mesh>
-
-        <mesh rotation={[0.6, 0.3, 0.4]} scale={[0.92, 0.92, 0.92]}>
-          <torusKnotGeometry args={[1.08, 0.08, 180, 12]} />
-          <meshStandardMaterial color="#baff5c" emissive="#baff5c" emissiveIntensity={0.62} metalness={0.35} roughness={0.18} />
-        </mesh>
-
-        <mesh ref={packetRef} position={[0, 0, 1.7]} castShadow>
-          <boxGeometry args={[0.34, 0.34, 0.34]} />
-          <meshStandardMaterial color="#ff4d6d" emissive="#ff4d6d" emissiveIntensity={0.8} roughness={0.24} />
-        </mesh>
-      </group>
-    </Float>
   );
 }
 
 export default function Experience() {
   return (
     <>
-      <color attach="background" args={['#04080c']} />
-      <fog attach="fog" args={['#04080c', 13, 34]} />
-      <ambientLight intensity={0.42} />
-      <directionalLight position={[-4, 6, 8]} intensity={1.4} />
-      <pointLight position={[4, 2, 5]} intensity={2.2} color="#5dffe8" />
-      <pointLight position={[-6, -3, 4]} intensity={1.8} color="#baff5c" />
-      <NeuralGraph />
-      <SystemsCore />
+      <color attach="background" args={['#fff8eb']} />
+      <fog attach="fog" args={['#fff8eb', 9, 31]} />
+      <hemisphereLight color="#fff6d7" groundColor="#c7dec5" intensity={1.45} />
+      <ambientLight intensity={1.05} />
+      <directionalLight position={[-5, 7, 8]} intensity={1.55} color="#fff2c9" />
+      <pointLight position={[4, 3, 5]} intensity={0.75} color="#a8d58c" />
+      <pointLight position={[-5, -2, 4]} intensity={0.55} color="#8cc6bd" />
+      <ModelGrove />
     </>
   );
 }
+
+Object.values(modelPaths).forEach((path) => useGLTF.preload(path));

@@ -1,43 +1,254 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
-import { Gamepad2, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { Flame, Gamepad2, Pause, Play, RotateCcw, Shield, Volume2, VolumeX, Zap } from 'lucide-react';
 
-type Entity = {
+type SpriteKey = 'player' | 'shard' | 'block' | 'seeker' | 'shield' | 'overclock' | 'nova' | 'core';
+type SoundType = 'collect' | 'hit' | 'start' | 'dash' | 'power' | 'route' | 'level' | 'nova' | 'burn';
+
+type Player = {
   x: number;
   y: number;
   radius: number;
   vx: number;
   vy: number;
+  shield: number;
+  overclock: number;
+  dashCooldown: number;
+  invulnerable: number;
+};
+
+type Hazard = {
+  id: number;
+  kind: 'block' | 'seeker' | 'gate';
+  x: number;
+  y: number;
+  radius: number;
+  vx: number;
+  vy: number;
+  phase: number;
+  gapY?: number;
+  gapSize?: number;
+  width?: number;
+};
+
+type Pickup = {
+  id: number;
+  kind: 'shard' | 'shield' | 'overclock' | 'nova';
+  x: number;
+  y: number;
+  radius: number;
+  phase: number;
+};
+
+type FlameWave = {
+  id: number;
+  x: number;
+  y: number;
+  radius: number;
+  maxRadius: number;
+  speed: number;
+  life: number;
+  maxLife: number;
+  phase: number;
+  hitIds: Set<number>;
+};
+
+type Particle = {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  life: number;
+  maxLife: number;
+  color: string;
+};
+
+type FloatingText = {
+  x: number;
+  y: number;
+  vy: number;
+  life: number;
+  text: string;
+  color: string;
 };
 
 const gameWidth = 860;
 const gameHeight = 520;
+const bestScoreKey = 'signal-breach-best-score';
+
+const spritePaths: Record<SpriteKey, string> = {
+  player: '/assets/game/packet-runner.svg',
+  shard: '/assets/game/checksum-orb.svg',
+  block: '/assets/game/corruption-block.svg',
+  seeker: '/assets/game/seeker-sentinel.svg',
+  shield: '/assets/game/shield-orb.svg',
+  overclock: '/assets/game/overclock-orb.svg',
+  nova: '/assets/game/flame-nova.svg',
+  core: '/assets/game/server-core.svg',
+};
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+function random(min: number, max: number) {
+  return min + Math.random() * (max - min);
 }
 
 function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-function beep(type: 'collect' | 'hit' | 'start', muted: boolean) {
-  if (muted) return;
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+let sharedAudioContext: AudioContext | null = null;
+let sharedNoiseBuffer: AudioBuffer | null = null;
+
+function getAudioContext() {
+  if (typeof window === 'undefined') return null;
   const audioWindow = window as typeof window & { webkitAudioContext?: typeof AudioContext };
   const AudioContextClass = window.AudioContext || audioWindow.webkitAudioContext;
-  if (!AudioContextClass) return;
+  if (!AudioContextClass) return null;
+  sharedAudioContext ??= new AudioContextClass();
+  if (sharedAudioContext.state === 'suspended') {
+    sharedAudioContext.resume().catch(() => undefined);
+  }
+  return sharedAudioContext;
+}
 
-  const context = new AudioContextClass();
+function getNoiseBuffer(context: AudioContext) {
+  if (sharedNoiseBuffer && sharedNoiseBuffer.sampleRate === context.sampleRate) return sharedNoiseBuffer;
+  const length = context.sampleRate * 1.4;
+  const buffer = context.createBuffer(1, length, context.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < length; i += 1) {
+    data[i] = (Math.random() * 2 - 1) * (1 - i / length);
+  }
+  sharedNoiseBuffer = buffer;
+  return buffer;
+}
+
+function playTone(context: AudioContext, destination: AudioNode, frequency: number, start: number, duration: number, gainAmount: number, type: OscillatorType = 'sine', endFrequency?: number) {
   const oscillator = context.createOscillator();
   const gain = context.createGain();
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, start);
+  if (endFrequency) {
+    oscillator.frequency.exponentialRampToValueAtTime(Math.max(20, endFrequency), start + duration);
+  }
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(gainAmount, start + 0.014);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
   oscillator.connect(gain);
-  gain.connect(context.destination);
-  oscillator.type = type === 'hit' ? 'sawtooth' : 'sine';
-  oscillator.frequency.value = type === 'collect' ? 760 : type === 'start' ? 420 : 130;
-  gain.gain.setValueAtTime(0.0001, context.currentTime);
-  gain.gain.exponentialRampToValueAtTime(type === 'hit' ? 0.08 : 0.05, context.currentTime + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.18);
-  oscillator.start();
-  oscillator.stop(context.currentTime + 0.2);
+  gain.connect(destination);
+  oscillator.start(start);
+  oscillator.stop(start + duration + 0.02);
+}
+
+function playNoise(context: AudioContext, destination: AudioNode, start: number, duration: number, gainAmount: number, frequency: number, type: BiquadFilterType = 'bandpass') {
+  const source = context.createBufferSource();
+  const filter = context.createBiquadFilter();
+  const gain = context.createGain();
+  source.buffer = getNoiseBuffer(context);
+  filter.type = type;
+  filter.frequency.setValueAtTime(frequency, start);
+  filter.Q.setValueAtTime(type === 'lowpass' ? 0.7 : 8, start);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(gainAmount, start + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(destination);
+  source.start(start);
+  source.stop(start + duration + 0.03);
+}
+
+function beep(type: SoundType, muted: boolean) {
+  if (muted) return;
+  const context = getAudioContext();
+  if (!context) return;
+
+  const now = context.currentTime;
+  const master = context.createGain();
+  const compressor = context.createDynamicsCompressor();
+  master.gain.setValueAtTime(0.78, now);
+  master.connect(compressor);
+  compressor.connect(context.destination);
+
+  if (type === 'collect') {
+    [560, 720, 940].forEach((note, index) => playTone(context, master, note, now + index * 0.035, 0.17, 0.032, 'sine', note * 1.06));
+    playNoise(context, master, now, 0.08, 0.012, 2400);
+  }
+
+  if (type === 'dash') {
+    playTone(context, master, 820, now, 0.16, 0.04, 'sawtooth', 360);
+    playTone(context, master, 1240, now + 0.018, 0.12, 0.02, 'square', 620);
+    playNoise(context, master, now, 0.16, 0.03, 1700, 'highpass');
+  }
+
+  if (type === 'hit') {
+    playTone(context, master, 170, now, 0.28, 0.055, 'triangle', 70);
+    playTone(context, master, 92, now + 0.025, 0.22, 0.04, 'sawtooth', 48);
+    playNoise(context, master, now, 0.22, 0.04, 360, 'lowpass');
+  }
+
+  if (type === 'start') {
+    [260, 360, 460, 620].forEach((note, index) => playTone(context, master, note, now + index * 0.045, 0.18, 0.026, 'sine'));
+    playNoise(context, master, now + 0.08, 0.12, 0.012, 1200);
+  }
+
+  if (type === 'power') {
+    [420, 660, 880, 1320].forEach((note, index) => playTone(context, master, note, now + index * 0.028, 0.22, 0.03, index % 2 ? 'triangle' : 'sine', note * 1.08));
+    playNoise(context, master, now, 0.16, 0.014, 3000);
+  }
+
+  if (type === 'route') {
+    [520, 760, 1040, 1440].forEach((note, index) => playTone(context, master, note, now + index * 0.04, 0.22, 0.032, 'sine'));
+    playTone(context, master, 140, now, 0.42, 0.022, 'triangle', 95);
+  }
+
+  if (type === 'level') {
+    [460, 590, 760, 980, 1240].forEach((note, index) => playTone(context, master, note, now + index * 0.04, 0.2, 0.026, 'triangle', note * 1.04));
+    playNoise(context, master, now + 0.04, 0.18, 0.014, 1900);
+  }
+
+  if (type === 'nova') {
+    playTone(context, master, 96, now, 0.72, 0.06, 'sawtooth', 54);
+    playTone(context, master, 240, now + 0.03, 0.52, 0.04, 'triangle', 120);
+    [520, 760, 1040, 1520].forEach((note, index) => playTone(context, master, note, now + 0.08 + index * 0.045, 0.26, 0.035, 'sine', note * 1.24));
+    playNoise(context, master, now, 0.54, 0.07, 900, 'lowpass');
+    playNoise(context, master, now + 0.08, 0.42, 0.042, 2800, 'bandpass');
+  }
+
+  if (type === 'burn') {
+    playTone(context, master, 240, now, 0.16, 0.026, 'sawtooth', 120);
+    playTone(context, master, 680, now + 0.02, 0.12, 0.02, 'triangle', 420);
+    playNoise(context, master, now, 0.18, 0.035, 1300, 'bandpass');
+  }
+
+  window.setTimeout(() => master.disconnect(), 1100);
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[1.15rem] border border-[#8fb8aa]/18 bg-white/62 p-3.5">
+      <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-[#6c827c]">{label}</p>
+      <p className="mt-1.5 font-display text-2xl font-black uppercase text-[#20302d]">{value}</p>
+    </div>
+  );
 }
 
 export default function SignalBreach() {
@@ -45,31 +256,153 @@ export default function SignalBreach() {
   const frameRef = useRef<number | null>(null);
   const keysRef = useRef(new Set<string>());
   const pointerRef = useRef<{ x: number; y: number; active: boolean }>({ x: 120, y: 260, active: false });
-  const playerRef = useRef<Entity>({ x: 120, y: 260, radius: 13, vx: 0, vy: 0 });
-  const shardsRef = useRef<Entity[]>([]);
-  const firewallsRef = useRef<Entity[]>([]);
+  const spritesRef = useRef<Partial<Record<SpriteKey, HTMLImageElement>>>({});
+  const playerRef = useRef<Player>({ x: 120, y: 260, radius: 18, vx: 0, vy: 0, shield: 0, overclock: 0, dashCooldown: 0, invulnerable: 0 });
+  const hazardsRef = useRef<Hazard[]>([]);
+  const pickupsRef = useRef<Pickup[]>([]);
+  const flameWavesRef = useRef<FlameWave[]>([]);
+  const particlesRef = useRef<Particle[]>([]);
+  const floatingTextRef = useRef<FloatingText[]>([]);
+  const trailRef = useRef<{ x: number; y: number; life: number }[]>([]);
   const scoreRef = useRef(0);
+  const bestRef = useRef(0);
   const livesRef = useRef(3);
   const levelRef = useRef(1);
+  const comboRef = useRef(1);
+  const routesRef = useRef(0);
   const tickRef = useRef(0);
+  const idRef = useRef(0);
+  const hazardTimerRef = useRef(32);
+  const pickupTimerRef = useRef(24);
+  const survivalTimerRef = useRef(0);
+  const shakeRef = useRef(0);
+  const dashQueuedRef = useRef(false);
   const runningRef = useRef(false);
+  const pausedRef = useRef(false);
   const mutedRef = useRef(false);
+  const lastFrameRef = useRef(0);
+  const lastPointerDownRef = useRef(0);
 
   const [score, setScore] = useState(0);
+  const [best, setBest] = useState(0);
   const [lives, setLives] = useState(3);
   const [level, setLevel] = useState(1);
+  const [combo, setCombo] = useState(1);
+  const [routes, setRoutes] = useState(0);
   const [running, setRunning] = useState(false);
+  const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(false);
+
+  const syncHud = () => {
+    setScore(scoreRef.current);
+    setBest(bestRef.current);
+    setLives(livesRef.current);
+    setLevel(levelRef.current);
+    setCombo(comboRef.current);
+    setRoutes(routesRef.current);
+  };
+
+  const addScore = (points: number, text?: string, x?: number, y?: number) => {
+    scoreRef.current += Math.round(points);
+    if (scoreRef.current > bestRef.current) {
+      bestRef.current = scoreRef.current;
+      window.localStorage.setItem(bestScoreKey, String(bestRef.current));
+    }
+
+    const nextLevel = Math.min(40, 1 + Math.floor(scoreRef.current / 820) + Math.floor(routesRef.current / 2));
+    if (nextLevel > levelRef.current) {
+      levelRef.current = nextLevel;
+      hazardTimerRef.current = Math.min(hazardTimerRef.current, 20);
+      beep('level', mutedRef.current);
+      floatingTextRef.current.push({ x: gameWidth * 0.5, y: 92, vy: -0.55, life: 90, text: `LEVEL ${nextLevel}`, color: '#6F924C' });
+    }
+
+    if (text && x !== undefined && y !== undefined) {
+      floatingTextRef.current.push({ x, y, vy: -0.7, life: 64, text, color: '#315D2C' });
+    }
+    syncHud();
+  };
+
+  const reset = () => {
+    playerRef.current = { x: 118, y: 260, radius: 18, vx: 0, vy: 0, shield: 0, overclock: 0, dashCooldown: 0, invulnerable: 0 };
+    hazardsRef.current = [];
+    flameWavesRef.current = [];
+    pickupsRef.current = [
+      { id: idRef.current++, kind: 'shard', x: 330, y: 160, radius: 18, phase: 0 },
+      { id: idRef.current++, kind: 'shard', x: 560, y: 350, radius: 18, phase: 2 },
+      { id: idRef.current++, kind: 'overclock', x: 450, y: 250, radius: 18, phase: 4 },
+      { id: idRef.current++, kind: 'nova', x: 680, y: 180, radius: 22, phase: 5 },
+    ];
+    particlesRef.current = [];
+    floatingTextRef.current = [];
+    trailRef.current = [];
+    scoreRef.current = 0;
+    livesRef.current = 3;
+    levelRef.current = 1;
+    comboRef.current = 1;
+    routesRef.current = 0;
+    tickRef.current = 0;
+    hazardTimerRef.current = 38;
+    pickupTimerRef.current = 42;
+    survivalTimerRef.current = 0;
+    shakeRef.current = 0;
+    dashQueuedRef.current = false;
+    pausedRef.current = false;
+    setPaused(false);
+    syncHud();
+  };
+
+  const start = () => {
+    reset();
+    runningRef.current = true;
+    setRunning(true);
+    beep('start', mutedRef.current);
+  };
+
+  const togglePause = () => {
+    if (!runningRef.current) return;
+    pausedRef.current = !pausedRef.current;
+    setPaused(pausedRef.current);
+  };
 
   useEffect(() => {
     mutedRef.current = muted;
   }, [muted]);
 
   useEffect(() => {
+    const savedBest = Number(window.localStorage.getItem(bestScoreKey) || 0);
+    bestRef.current = Number.isFinite(savedBest) ? savedBest : 0;
+    setBest(bestRef.current);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (Object.entries(spritePaths) as [SpriteKey, string][]).forEach(([key, src]) => {
+      const image = new Image();
+      image.decoding = 'async';
+      image.onload = () => {
+        if (!cancelled) spritesRef.current[key] = image;
+      };
+      image.src = src;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D'].includes(event.key)) {
+      const key = event.key.toLowerCase();
+      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(key)) {
         event.preventDefault();
-        keysRef.current.add(event.key.toLowerCase());
+        keysRef.current.add(key);
+      }
+      if (key === ' ' || key === 'shift') {
+        event.preventDefault();
+        dashQueuedRef.current = true;
+      }
+      if (key === 'p') {
+        togglePause();
       }
     };
 
@@ -91,16 +424,404 @@ export default function SignalBreach() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return undefined;
 
+    const drawSprite = (key: SpriteKey, x: number, y: number, size: number, rotation = 0, alpha = 1) => {
+      const image = spritesRef.current[key];
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+      if (image?.complete && image.naturalWidth > 0) {
+        ctx.drawImage(image, -size / 2, -size / 2, size, size);
+      } else {
+        ctx.fillStyle = key === 'block' ? '#ef8a7a' : key === 'seeker' ? '#d79b5f' : key === 'shard' ? '#a8d58c' : '#65cfd7';
+        ctx.beginPath();
+        ctx.arc(0, 0, size / 2.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    };
+
+    const addBurst = (x: number, y: number, color: string, count: number, force = 1) => {
+      for (let i = 0; i < count; i += 1) {
+        const angle = random(0, Math.PI * 2);
+        const speed = random(1.2, 4.4) * force;
+        particlesRef.current.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          radius: random(2, 5),
+          life: random(24, 58),
+          maxLife: 58,
+          color,
+        });
+      }
+    };
+
+    const spawnPickup = () => {
+      if (pickupsRef.current.length >= 8) return;
+      const player = playerRef.current;
+      const roll = Math.random();
+      const kind: Pickup['kind'] = levelRef.current >= 2 && roll < 0.085 ? 'nova' : player.shield <= 0 && roll < 0.2 ? 'shield' : roll < 0.36 ? 'overclock' : 'shard';
+      pickupsRef.current.push({
+        id: idRef.current++,
+        kind,
+        x: random(190, gameWidth - 190),
+        y: random(62, gameHeight - 70),
+        radius: kind === 'shard' ? 17 : kind === 'nova' ? 24 : 20,
+        phase: random(0, Math.PI * 2),
+      });
+    };
+
+    const activateNova = (x: number, y: number) => {
+      flameWavesRef.current.push({
+        id: idRef.current++,
+        x,
+        y,
+        radius: 18,
+        maxRadius: 420,
+        speed: 13.5,
+        life: 42,
+        maxLife: 42,
+        phase: random(0, Math.PI * 2),
+        hitIds: new Set<number>(),
+      });
+      comboRef.current = Math.min(12, comboRef.current + 1.4);
+      shakeRef.current = Math.max(shakeRef.current, 18);
+      addBurst(x, y, '#EF6C42', 44, 1.65);
+      addBurst(x, y, '#F7B15E', 34, 1.25);
+      floatingTextRef.current.push({ x, y: y - 30, vy: -0.75, life: 78, text: 'FLAME NOVA', color: '#B94A36' });
+      addScore(180, 'NOVA READY', x, y + 12);
+      beep('nova', mutedRef.current);
+    };
+
+    const flameTouchesHazard = (wave: FlameWave, hazard: Hazard) => {
+      const thickness = 58;
+      if (hazard.kind === 'gate') {
+        const gapY = hazard.gapY ?? gameHeight / 2;
+        const gapSize = hazard.gapSize ?? 120;
+        const topY = clamp(wave.y, 0, gapY - gapSize / 2);
+        const bottomY = clamp(wave.y, gapY + gapSize / 2, gameHeight);
+        const topDistance = Math.hypot(hazard.x - wave.x, topY - wave.y);
+        const bottomDistance = Math.hypot(hazard.x - wave.x, bottomY - wave.y);
+        const closest = Math.min(topDistance, bottomDistance);
+        return closest <= wave.radius + (hazard.width ?? 44) && closest >= wave.radius - thickness;
+      }
+
+      const hitDistance = distance(wave, hazard);
+      return hitDistance <= wave.radius + hazard.radius && hitDistance >= wave.radius - thickness;
+    };
+
+    const updateFlameWaves = (delta: number) => {
+      flameWavesRef.current.forEach((wave) => {
+        wave.radius += wave.speed * delta;
+        wave.life -= delta;
+        let destroyed = 0;
+
+        hazardsRef.current.forEach((hazard) => {
+          if (wave.hitIds.has(hazard.id) || !flameTouchesHazard(wave, hazard)) return;
+          wave.hitIds.add(hazard.id);
+          destroyed += 1;
+          const killX = hazard.x;
+          const killY = hazard.kind === 'gate' ? wave.y : hazard.y;
+          hazard.x = -260;
+          hazard.vx = 0;
+          hazard.vy = 0;
+          addBurst(killX, killY, '#EF6C42', 22, 1.45);
+          addBurst(killX, killY, '#F7B15E', 12, 1.1);
+        });
+
+        if (destroyed > 0) {
+          comboRef.current = Math.min(14, comboRef.current + destroyed * 0.55);
+          addScore((190 + levelRef.current * 28) * destroyed * comboRef.current, `BURN x${destroyed}`, wave.x, wave.y - Math.min(120, wave.radius * 0.28));
+          shakeRef.current = Math.max(shakeRef.current, 8 + destroyed * 2);
+          beep('burn', mutedRef.current);
+        }
+      });
+
+      flameWavesRef.current = flameWavesRef.current.filter((wave) => wave.radius < wave.maxRadius && wave.life > 0);
+    };
+
+    const spawnHazard = () => {
+      const level = levelRef.current;
+      const roll = Math.random();
+      const speed = random(1.9, 2.8) + level * 0.24;
+
+      if (level >= 5 && roll < Math.min(0.34, 0.13 + level * 0.012)) {
+        hazardsRef.current.push({
+          id: idRef.current++,
+          kind: 'gate',
+          x: gameWidth + 70,
+          y: gameHeight / 2,
+          radius: 28,
+          vx: -speed * 0.78,
+          vy: 0,
+          phase: random(0, Math.PI * 2),
+          gapY: random(125, gameHeight - 125),
+          gapSize: Math.max(82, 168 - level * 5.2),
+          width: 44,
+        });
+        return;
+      }
+
+      if (level >= 3 && roll < Math.min(0.52, 0.22 + level * 0.018)) {
+        hazardsRef.current.push({
+          id: idRef.current++,
+          kind: 'seeker',
+          x: gameWidth + 46,
+          y: random(72, gameHeight - 72),
+          radius: 22,
+          vx: -speed * 0.68,
+          vy: random(-0.7, 0.7),
+          phase: random(0, Math.PI * 2),
+        });
+        return;
+      }
+
+      hazardsRef.current.push({
+        id: idRef.current++,
+        kind: 'block',
+        x: gameWidth + 44,
+        y: random(58, gameHeight - 58),
+        radius: random(21, 30),
+        vx: -speed,
+        vy: random(-0.85, 0.85),
+        phase: random(0, Math.PI * 2),
+      });
+    };
+
+    const damagePlayer = (hazard?: Hazard) => {
+      const player = playerRef.current;
+      if (player.invulnerable > 0) return;
+
+      if (player.shield > 0) {
+        player.shield = 0;
+        player.invulnerable = 54;
+        comboRef.current = Math.max(1, comboRef.current - 1);
+        shakeRef.current = 8;
+        addBurst(player.x, player.y, '#65CFD7', 18, 1.15);
+        floatingTextRef.current.push({ x: player.x, y: player.y - 22, vy: -0.7, life: 62, text: 'SHIELD SAVED', color: '#43888C' });
+        beep('power', mutedRef.current);
+        if (hazard) hazard.x = -160;
+        syncHud();
+        return;
+      }
+
+      livesRef.current -= 1;
+      comboRef.current = 1;
+      player.invulnerable = 76;
+      player.x = clamp(player.x - 48, 52, gameWidth - 150);
+      player.vx = -7;
+      shakeRef.current = 15;
+      addBurst(player.x, player.y, '#EF8A7A', 22, 1.25);
+      floatingTextRef.current.push({ x: player.x, y: player.y - 24, vy: -0.8, life: 64, text: '-1 LIFE', color: '#B96658' });
+      beep('hit', mutedRef.current);
+      if (hazard) hazard.x = -160;
+
+      if (livesRef.current <= 0) {
+        runningRef.current = false;
+        setRunning(false);
+        floatingTextRef.current.push({ x: gameWidth * 0.5, y: 118, vy: -0.3, life: 140, text: 'BREACH FAILED', color: '#B96658' });
+      }
+      syncHud();
+    };
+
+    const routePacket = () => {
+      const player = playerRef.current;
+      routesRef.current += 1;
+      comboRef.current = Math.min(12, comboRef.current + 1);
+      addScore(320 + levelRef.current * 55 + comboRef.current * 42, `ROUTE x${comboRef.current}`, gameWidth - 144, player.y);
+      player.x = 118;
+      player.y = random(120, gameHeight - 120);
+      player.vx = 0;
+      player.vy = 0;
+      player.invulnerable = 42;
+      hazardTimerRef.current = Math.min(hazardTimerRef.current, 18);
+      addBurst(gameWidth - 90, player.y, '#A8D58C', 34, 1.35);
+      beep('route', mutedRef.current);
+      syncHud();
+    };
+
+    const update = (delta: number) => {
+      const player = playerRef.current;
+      const level = levelRef.current;
+      tickRef.current += delta;
+      hazardTimerRef.current -= delta;
+      pickupTimerRef.current -= delta;
+      survivalTimerRef.current += delta;
+
+      if (hazardTimerRef.current <= 0) {
+        spawnHazard();
+        if (level >= 10 && Math.random() < 0.34) spawnHazard();
+        if (level >= 18 && Math.random() < 0.22) spawnHazard();
+        hazardTimerRef.current = Math.max(9, random(42, 74) - level * 2.65);
+      }
+
+      if (pickupTimerRef.current <= 0) {
+        spawnPickup();
+        pickupTimerRef.current = Math.max(38, random(76, 122) - level * 1.4);
+      }
+
+      if (survivalTimerRef.current > 34) {
+        survivalTimerRef.current = 0;
+        addScore(level + comboRef.current);
+      }
+
+      const left = keysRef.current.has('arrowleft') || keysRef.current.has('a');
+      const right = keysRef.current.has('arrowright') || keysRef.current.has('d');
+      const up = keysRef.current.has('arrowup') || keysRef.current.has('w');
+      const down = keysRef.current.has('arrowdown') || keysRef.current.has('s');
+      const hasKeyboardInput = left || right || up || down;
+      const maxSpeed = (player.overclock > 0 ? 5.85 : 4.45) + Math.min(level, 16) * 0.035;
+      let targetVx = (right ? maxSpeed : 0) - (left ? maxSpeed : 0);
+      let targetVy = (down ? maxSpeed : 0) - (up ? maxSpeed : 0);
+
+      if (!hasKeyboardInput && pointerRef.current.active) {
+        const dx = pointerRef.current.x - player.x;
+        const dy = pointerRef.current.y - player.y;
+        targetVx = clamp(dx * 0.072, -maxSpeed, maxSpeed);
+        targetVy = clamp(dy * 0.072, -maxSpeed, maxSpeed);
+      }
+
+      const targetLength = Math.hypot(targetVx, targetVy);
+      if (targetLength > maxSpeed) {
+        targetVx = (targetVx / targetLength) * maxSpeed;
+        targetVy = (targetVy / targetLength) * maxSpeed;
+      }
+
+      if (dashQueuedRef.current && player.dashCooldown <= 0) {
+        const dashDx = pointerRef.current.active ? pointerRef.current.x - player.x : targetVx || 1;
+        const dashDy = pointerRef.current.active ? pointerRef.current.y - player.y : targetVy;
+        const dashLength = Math.hypot(dashDx, dashDy) || 1;
+        player.vx += (dashDx / dashLength) * 13.5;
+        player.vy += (dashDy / dashLength) * 13.5;
+        player.dashCooldown = Math.max(38, 78 - Math.min(level, 16) * 1.2);
+        player.invulnerable = Math.max(player.invulnerable, 11);
+        addBurst(player.x, player.y, '#65CFD7', 15, 0.9);
+        beep('dash', mutedRef.current);
+      }
+      dashQueuedRef.current = false;
+
+      player.vx += (targetVx - player.vx) * 0.18 * delta;
+      player.vy += (targetVy - player.vy) * 0.18 * delta;
+      player.x = clamp(player.x + player.vx * delta, 32, gameWidth - 112);
+      player.y = clamp(player.y + player.vy * delta, 34, gameHeight - 34);
+      player.dashCooldown = Math.max(0, player.dashCooldown - delta);
+      player.shield = Math.max(0, player.shield - delta);
+      player.overclock = Math.max(0, player.overclock - delta);
+      player.invulnerable = Math.max(0, player.invulnerable - delta);
+
+      trailRef.current.unshift({ x: player.x, y: player.y, life: 28 });
+      trailRef.current = trailRef.current
+        .map((trail) => ({ ...trail, life: trail.life - delta }))
+        .filter((trail) => trail.life > 0)
+        .slice(0, 18);
+
+      hazardsRef.current.forEach((hazard) => {
+        if (hazard.kind === 'seeker') {
+          const dx = player.x - hazard.x;
+          const dy = player.y - hazard.y;
+          const length = Math.hypot(dx, dy) || 1;
+          const aggression = 0.026 + Math.min(level, 22) * 0.002;
+          hazard.vx += (dx / length) * aggression * delta;
+          hazard.vy += (dy / length) * aggression * delta;
+          const maxSeekerSpeed = 2.1 + Math.min(level, 20) * 0.085;
+          const speed = Math.hypot(hazard.vx, hazard.vy);
+          if (speed > maxSeekerSpeed) {
+            hazard.vx = (hazard.vx / speed) * maxSeekerSpeed;
+            hazard.vy = (hazard.vy / speed) * maxSeekerSpeed;
+          }
+        }
+
+        hazard.x += hazard.vx * delta;
+        hazard.y += (hazard.vy + Math.sin((tickRef.current + hazard.phase * 30) * 0.045) * 0.36) * delta;
+        if (hazard.kind !== 'gate') {
+          hazard.y = clamp(hazard.y, 44, gameHeight - 44);
+        }
+      });
+      updateFlameWaves(delta);
+      hazardsRef.current = hazardsRef.current.filter((hazard) => hazard.x > -150);
+
+      pickupsRef.current = pickupsRef.current.filter((pickup) => {
+        pickup.phase += 0.035 * delta;
+        if (distance(player, pickup) < player.radius + pickup.radius) {
+          if (pickup.kind === 'shard') {
+            comboRef.current = Math.min(12, comboRef.current + 0.35);
+            addScore(115 * comboRef.current, `+${Math.round(115 * comboRef.current)}`, pickup.x, pickup.y);
+            addBurst(pickup.x, pickup.y, '#A8D58C', 16);
+            beep('collect', mutedRef.current);
+          }
+          if (pickup.kind === 'shield') {
+            player.shield = 430;
+            addScore(80, 'SHIELD', pickup.x, pickup.y);
+            addBurst(pickup.x, pickup.y, '#65CFD7', 18);
+            beep('power', mutedRef.current);
+          }
+          if (pickup.kind === 'overclock') {
+            player.overclock = 360;
+            comboRef.current = Math.min(12, comboRef.current + 1);
+            addScore(120, 'OVERCLOCK', pickup.x, pickup.y);
+            addBurst(pickup.x, pickup.y, '#F3D99B', 22);
+            beep('power', mutedRef.current);
+          }
+          if (pickup.kind === 'nova') {
+            activateNova(player.x, player.y);
+          }
+          syncHud();
+          return false;
+        }
+        return true;
+      });
+
+      hazardsRef.current.forEach((hazard) => {
+        if (hazard.kind === 'gate') {
+          const gapY = hazard.gapY ?? gameHeight / 2;
+          const gapSize = hazard.gapSize ?? 120;
+          const width = hazard.width ?? 42;
+          const insideX = Math.abs(player.x - hazard.x) < width / 2 + player.radius;
+          const inGap = player.y > gapY - gapSize / 2 + player.radius && player.y < gapY + gapSize / 2 - player.radius;
+          if (insideX && !inGap) damagePlayer(hazard);
+          return;
+        }
+
+        if (distance(player, hazard) < player.radius + hazard.radius * 0.76) {
+          damagePlayer(hazard);
+        }
+      });
+
+      if (player.x > gameWidth - 126) {
+        routePacket();
+      }
+
+      particlesRef.current = particlesRef.current
+        .map((particle) => ({
+          ...particle,
+          x: particle.x + particle.vx * delta,
+          y: particle.y + particle.vy * delta,
+          vx: particle.vx * 0.985,
+          vy: particle.vy * 0.985,
+          life: particle.life - delta,
+        }))
+        .filter((particle) => particle.life > 0);
+
+      floatingTextRef.current = floatingTextRef.current
+        .map((text) => ({ ...text, y: text.y + text.vy * delta, life: text.life - delta }))
+        .filter((text) => text.life > 0);
+
+      shakeRef.current = Math.max(0, shakeRef.current - delta * 0.8);
+    };
+
     const drawGrid = () => {
-      ctx.strokeStyle = 'rgba(93,255,232,0.08)';
+      const offset = (tickRef.current * 0.55) % 42;
+      ctx.strokeStyle = 'rgba(65,128,130,0.1)';
       ctx.lineWidth = 1;
-      for (let x = 0; x <= gameWidth; x += 40) {
+      for (let x = -42 + offset; x <= gameWidth; x += 42) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
-        ctx.lineTo(x, gameHeight);
+        ctx.lineTo(x + 90, gameHeight);
         ctx.stroke();
       }
-      for (let y = 0; y <= gameHeight; y += 40) {
+      for (let y = 22; y <= gameHeight; y += 42) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(gameWidth, y);
@@ -108,172 +829,206 @@ export default function SignalBreach() {
       }
     };
 
-    const spawnShard = () => {
-      shardsRef.current.push({
-        x: 120 + ((tickRef.current * 97) % 680),
-        y: 70 + ((tickRef.current * 53) % 380),
-        radius: 8,
-        vx: 0,
-        vy: 0,
-      });
+    const drawGate = (hazard: Hazard) => {
+      const gapY = hazard.gapY ?? gameHeight / 2;
+      const gapSize = hazard.gapSize ?? 120;
+      const width = hazard.width ?? 42;
+      const topHeight = gapY - gapSize / 2;
+      const bottomY = gapY + gapSize / 2;
+      const gradient = ctx.createLinearGradient(hazard.x - width / 2, 0, hazard.x + width / 2, 0);
+      gradient.addColorStop(0, 'rgba(185,102,88,0.2)');
+      gradient.addColorStop(0.5, 'rgba(239,138,122,0.84)');
+      gradient.addColorStop(1, 'rgba(185,102,88,0.24)');
+
+      ctx.save();
+      ctx.fillStyle = gradient;
+      ctx.strokeStyle = 'rgba(185,102,88,0.66)';
+      ctx.lineWidth = 2;
+      roundRect(ctx, hazard.x - width / 2, -8, width, topHeight + 8, 14);
+      ctx.fill();
+      ctx.stroke();
+      roundRect(ctx, hazard.x - width / 2, bottomY, width, gameHeight - bottomY + 8, 14);
+      ctx.fill();
+      ctx.stroke();
+      drawSprite('block', hazard.x, topHeight + 14, 50, Math.sin(tickRef.current * 0.04) * 0.12, 0.94);
+      drawSprite('block', hazard.x, bottomY - 14, 50, -Math.sin(tickRef.current * 0.04) * 0.12, 0.94);
+      ctx.restore();
     };
 
-    const spawnFirewall = () => {
-      const speed = 1.2 + levelRef.current * 0.32;
-      firewallsRef.current.push({
-        x: gameWidth + 30,
-        y: 50 + ((tickRef.current * 71) % 420),
-        radius: 16 + ((tickRef.current * 13) % 18),
-        vx: -speed,
-        vy: Math.sin(tickRef.current) * 0.7,
-      });
+    const drawFlameWave = (wave: FlameWave) => {
+      const progress = wave.radius / wave.maxRadius;
+      const alpha = Math.max(0, wave.life / wave.maxLife);
+      const spokeCount = 34;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.translate(wave.x, wave.y);
+      ctx.shadowColor = '#EF6C42';
+      ctx.shadowBlur = 20;
+
+      const glow = ctx.createRadialGradient(0, 0, Math.max(6, wave.radius * 0.15), 0, 0, wave.radius);
+      glow.addColorStop(0, `rgba(255,248,219,${0.08 * alpha})`);
+      glow.addColorStop(0.58, `rgba(247,177,94,${0.18 * alpha})`);
+      glow.addColorStop(1, `rgba(239,108,66,${0.02 * alpha})`);
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, wave.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      for (let i = 0; i < spokeCount; i += 1) {
+        const angle = (Math.PI * 2 * i) / spokeCount + wave.phase + tickRef.current * 0.018;
+        const wobble = Math.sin(tickRef.current * 0.075 + i * 1.7) * 12;
+        const inner = Math.max(10, wave.radius - 72 + wobble * 0.3);
+        const outer = wave.radius + random(-8, 18);
+        ctx.strokeStyle = i % 3 === 0 ? `rgba(255,248,219,${0.64 * alpha})` : `rgba(239,108,66,${0.48 * alpha})`;
+        ctx.lineWidth = i % 4 === 0 ? 7 : 4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+        ctx.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = `rgba(255,248,219,${0.72 * alpha})`;
+      ctx.lineWidth = 3 + Math.sin(progress * Math.PI) * 4;
+      ctx.beginPath();
+      ctx.arc(0, 0, wave.radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = `rgba(239,108,66,${0.38 * alpha})`;
+      ctx.lineWidth = 14;
+      ctx.beginPath();
+      ctx.arc(0, 0, Math.max(10, wave.radius - 22), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
     };
 
-    const draw = () => {
-      tickRef.current += 1;
+    const drawOverlay = (title: string, subtitle: string) => {
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,248,235,0.72)';
+      ctx.fillRect(0, 0, gameWidth, gameHeight);
+      ctx.fillStyle = '#20302D';
+      ctx.textAlign = 'center';
+      ctx.font = '900 34px Space Grotesk, sans-serif';
+      ctx.fillText(title, gameWidth / 2, gameHeight / 2 - 12);
+      ctx.font = '700 13px Space Grotesk, monospace';
+      ctx.fillStyle = 'rgba(32,48,45,0.68)';
+      ctx.fillText(subtitle, gameWidth / 2, gameHeight / 2 + 22);
+      ctx.textAlign = 'left';
+      ctx.restore();
+    };
+
+    const draw = (now = performance.now()) => {
+      const delta = clamp((now - (lastFrameRef.current || now)) / 16.67, 0.65, 1.9);
+      lastFrameRef.current = now;
+      const isPlaying = runningRef.current && !pausedRef.current;
+      if (isPlaying) update(delta);
+
       ctx.clearRect(0, 0, gameWidth, gameHeight);
       const gradient = ctx.createLinearGradient(0, 0, gameWidth, gameHeight);
-      gradient.addColorStop(0, '#041018');
-      gradient.addColorStop(0.55, '#07120d');
-      gradient.addColorStop(1, '#050810');
+      gradient.addColorStop(0, '#fff8eb');
+      gradient.addColorStop(0.5, '#eef8f5');
+      gradient.addColorStop(1, '#f7fff0');
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, gameWidth, gameHeight);
       drawGrid();
 
-      ctx.fillStyle = 'rgba(186,255,92,0.08)';
-      ctx.fillRect(gameWidth - 96, 0, 96, gameHeight);
-      ctx.fillStyle = '#baff5c';
-      ctx.font = '700 11px Space Grotesk, monospace';
-      ctx.fillText('SERVER CORE', gameWidth - 86, 28);
+      const shake = shakeRef.current > 0 ? random(-shakeRef.current, shakeRef.current) : 0;
+      ctx.save();
+      ctx.translate(shake, shake * 0.45);
+
+      const coreGradient = ctx.createLinearGradient(gameWidth - 128, 0, gameWidth, 0);
+      coreGradient.addColorStop(0, 'rgba(168,213,140,0)');
+      coreGradient.addColorStop(1, 'rgba(168,213,140,0.32)');
+      ctx.fillStyle = coreGradient;
+      ctx.fillRect(gameWidth - 140, 0, 140, gameHeight);
+      drawSprite('core', gameWidth - 64, gameHeight / 2, 142, Math.sin(tickRef.current * 0.012) * 0.02);
+
+      trailRef.current.forEach((trail, index) => {
+        ctx.globalAlpha = Math.max(0, trail.life / 28) * 0.28;
+        ctx.fillStyle = playerRef.current.overclock > 0 ? '#F3D99B' : '#65CFD7';
+        ctx.beginPath();
+        ctx.arc(trail.x, trail.y, Math.max(3, 14 - index * 0.55), 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+
+      pickupsRef.current.forEach((pickup) => {
+        const bob = Math.sin(pickup.phase + tickRef.current * 0.045) * 5;
+        const key: SpriteKey = pickup.kind === 'shield' ? 'shield' : pickup.kind === 'overclock' ? 'overclock' : pickup.kind === 'nova' ? 'nova' : 'shard';
+        drawSprite(key, pickup.x, pickup.y + bob, pickup.kind === 'shard' ? 48 : pickup.kind === 'nova' ? 62 : 54, Math.sin(pickup.phase) * 0.08);
+      });
+
+      hazardsRef.current.forEach((hazard) => {
+        if (hazard.kind === 'gate') {
+          drawGate(hazard);
+          return;
+        }
+        const key: SpriteKey = hazard.kind === 'seeker' ? 'seeker' : 'block';
+        drawSprite(key, hazard.x, hazard.y, hazard.radius * 2.45, Math.sin(tickRef.current * 0.035 + hazard.phase) * 0.18);
+      });
+
+      flameWavesRef.current.forEach(drawFlameWave);
+
+      particlesRef.current.forEach((particle) => {
+        ctx.globalAlpha = Math.max(0, particle.life / particle.maxLife);
+        ctx.fillStyle = particle.color;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
 
       const player = playerRef.current;
-      if (runningRef.current) {
-        if (tickRef.current % Math.max(42, 112 - levelRef.current * 9) === 0) spawnFirewall();
-        if (tickRef.current % 96 === 0 && shardsRef.current.length < 7) spawnShard();
-
-        const left = keysRef.current.has('arrowleft') || keysRef.current.has('a');
-        const right = keysRef.current.has('arrowright') || keysRef.current.has('d');
-        const up = keysRef.current.has('arrowup') || keysRef.current.has('w');
-        const down = keysRef.current.has('arrowdown') || keysRef.current.has('s');
-
-        player.vx = (right ? 4.4 : 0) - (left ? 4.4 : 0);
-        player.vy = (down ? 4.4 : 0) - (up ? 4.4 : 0);
-
-        if (pointerRef.current.active) {
-          player.vx += (pointerRef.current.x - player.x) * 0.045;
-          player.vy += (pointerRef.current.y - player.y) * 0.045;
-        }
-
-        player.x = clamp(player.x + player.vx, 22, gameWidth - 22);
-        player.y = clamp(player.y + player.vy, 22, gameHeight - 22);
-
-        firewallsRef.current.forEach((wall) => {
-          wall.x += wall.vx;
-          wall.y += wall.vy;
-        });
-        firewallsRef.current = firewallsRef.current.filter((wall) => wall.x > -60);
-
-        shardsRef.current = shardsRef.current.filter((shard) => {
-          if (distance(player, shard) < player.radius + shard.radius + 2) {
-            scoreRef.current += 75;
-            setScore(scoreRef.current);
-            beep('collect', mutedRef.current);
-            if (scoreRef.current > levelRef.current * 450) {
-              levelRef.current += 1;
-              setLevel(levelRef.current);
-            }
-            return false;
-          }
-          return true;
-        });
-
-        firewallsRef.current.forEach((wall) => {
-          if (distance(player, wall) < player.radius + wall.radius) {
-            wall.x = -100;
-            livesRef.current -= 1;
-            setLives(livesRef.current);
-            beep('hit', mutedRef.current);
-            if (livesRef.current <= 0) {
-              runningRef.current = false;
-              setRunning(false);
-            }
-          }
-        });
-
-        if (player.x > gameWidth - 105) {
-          scoreRef.current += 125;
-          setScore(scoreRef.current);
-          player.x = 120;
-          player.y = 260;
-          beep('collect', mutedRef.current);
-        }
+      if (player.shield > 0) {
+        ctx.strokeStyle = 'rgba(101,207,215,0.62)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, 34 + Math.sin(tickRef.current * 0.12) * 3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      if (player.invulnerable <= 0 || Math.floor(tickRef.current / 5) % 2 === 0) {
+        drawSprite('player', player.x, player.y, player.overclock > 0 ? 66 : 60, Math.atan2(player.vy, player.vx || 1) * 0.08);
       }
 
-      shardsRef.current.forEach((shard) => {
-        ctx.beginPath();
-        ctx.fillStyle = '#baff5c';
-        ctx.shadowColor = '#baff5c';
-        ctx.shadowBlur = 18;
-        ctx.arc(shard.x, shard.y, shard.radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
+      floatingTextRef.current.forEach((text) => {
+        ctx.globalAlpha = Math.min(1, text.life / 18);
+        ctx.fillStyle = text.color;
+        ctx.font = '900 15px Space Grotesk, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(text.text, text.x, text.y);
       });
+      ctx.textAlign = 'left';
+      ctx.globalAlpha = 1;
 
-      firewallsRef.current.forEach((wall) => {
-        ctx.beginPath();
-        ctx.fillStyle = 'rgba(255,77,109,0.78)';
-        ctx.strokeStyle = '#ff4d6d';
-        ctx.lineWidth = 2;
-        ctx.rect(wall.x - wall.radius, wall.y - wall.radius, wall.radius * 2, wall.radius * 2);
-        ctx.fill();
-        ctx.stroke();
-      });
+      ctx.restore();
 
-      ctx.beginPath();
-      ctx.fillStyle = '#5dffe8';
-      ctx.shadowColor = '#5dffe8';
-      ctx.shadowBlur = 24;
-      ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.74)';
+      roundRect(ctx, 18, 18, 318, 52, 20);
       ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = '#ffffff';
-      ctx.stroke();
+      ctx.fillStyle = '#20302D';
+      ctx.font = '900 13px Space Grotesk, monospace';
+      ctx.fillText(`LVL ${levelRef.current}  COMBO x${comboRef.current.toFixed(1)}  DASH ${playerRef.current.dashCooldown <= 0 ? 'READY' : 'CHARGING'}`, 36, 49);
 
-      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      ctx.fillStyle = 'rgba(32,48,45,0.62)';
       ctx.font = '700 12px Space Grotesk, monospace';
-      ctx.fillText(runningRef.current ? 'route packets to the server core // avoid corrupted memory blocks' : 'press start // route the signal // survive the breach', 24, gameHeight - 24);
+      ctx.fillText('route to the core // collect orbs // dash through gaps // flame nova deletes everything it touches', 24, gameHeight - 24);
+
+      if (!runningRef.current) {
+        drawOverlay(scoreRef.current > 0 ? 'BREACH COMPLETE?' : 'SIGNAL BREACH', scoreRef.current > 0 ? 'hit start run to chase the next best score' : 'start run // WASD or drag // Space for dash');
+      } else if (pausedRef.current) {
+        drawOverlay('PAUSED', 'press P or resume run');
+      }
 
       frameRef.current = requestAnimationFrame(draw);
     };
 
+    reset();
     draw();
+
     return () => {
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
     };
   }, []);
-
-  const reset = () => {
-    playerRef.current = { x: 120, y: 260, radius: 13, vx: 0, vy: 0 };
-    shardsRef.current = [
-      { x: 320, y: 160, radius: 8, vx: 0, vy: 0 },
-      { x: 560, y: 350, radius: 8, vx: 0, vy: 0 },
-    ];
-    firewallsRef.current = [];
-    scoreRef.current = 0;
-    livesRef.current = 3;
-    levelRef.current = 1;
-    tickRef.current = 0;
-    setScore(0);
-    setLives(3);
-    setLevel(1);
-  };
-
-  const start = () => {
-    reset();
-    runningRef.current = true;
-    setRunning(true);
-    beep('start', mutedRef.current);
-  };
 
   const canvasPointer = (event: PointerEvent<HTMLCanvasElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -285,26 +1040,29 @@ export default function SignalBreach() {
   };
 
   return (
-    <section id="signal-breach" className="relative border-y border-cyan-300/15 bg-black/80 px-4 py-24 md:px-8 md:py-32">
+    <section id="signal-breach" className="relative border-y border-[#8fb8aa]/20 bg-[#f9f3e4]/82 px-4 py-24 md:px-8 md:py-32">
       <div className="mx-auto max-w-7xl">
         <div className="reveal-up mb-10 grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
-            <p className="font-mono text-xs font-black uppercase tracking-[0.24em] text-lime-300">Custom game</p>
-            <h2 className="mt-5 font-display text-4xl font-black uppercase leading-none text-white md:text-6xl">Signal Breach</h2>
+            <p className="font-mono text-xs font-black uppercase tracking-[0.24em] text-[#6f924c]">Custom game</p>
+            <h2 className="mt-5 font-display text-4xl font-black uppercase leading-none text-[#20302d] md:text-6xl">Signal Breach</h2>
           </div>
-          <p className="max-w-3xl text-lg font-semibold leading-8 text-cyan-50/65 lg:self-end">
-            Route the packet into the server core, collect green checksum shards, and avoid corrupted memory blocks. Of course a systems engineer made this.
+          <p className="max-w-3xl text-lg font-semibold leading-8 text-[#536963] lg:self-end">
+            A 2.5D packet-running arcade game: dash through corrupted gates, stack combo, grab shields, trigger Flame Nova, and route signals before the system gets feral.
           </p>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-          <div className="overflow-hidden border border-cyan-300/20 bg-[#041018] shadow-[0_0_80px_rgba(93,255,232,0.1)]">
+        <div className="grid gap-4 lg:grid-cols-[1fr_330px]">
+          <div className="overflow-hidden rounded-[2rem] border border-[#8fb8aa]/22 bg-white/72 shadow-[0_30px_90px_rgba(75,95,88,0.16)]">
             <canvas
               ref={canvasRef}
               width={gameWidth}
               height={gameHeight}
               onPointerDown={(event) => {
                 event.currentTarget.setPointerCapture(event.pointerId);
+                const now = performance.now();
+                if (now - lastPointerDownRef.current < 280) dashQueuedRef.current = true;
+                lastPointerDownRef.current = now;
                 canvasPointer(event);
               }}
               onPointerMove={canvasPointer}
@@ -316,34 +1074,52 @@ export default function SignalBreach() {
             />
           </div>
 
-          <aside className="grid content-between gap-4 border border-cyan-300/20 bg-cyan-300/[0.045] p-5">
+          <aside className="soft-card grid content-between gap-4 rounded-[2rem] p-5">
             <div>
-              <div className="mb-8 flex items-center justify-between">
-                <Gamepad2 className="text-cyan-200" size={28} />
-                <span className={`font-mono text-xs font-black uppercase tracking-[0.2em] ${running ? 'text-lime-300' : 'text-red-300'}`}>{running ? 'online' : 'standby'}</span>
+              <div className="mb-6 flex items-center justify-between">
+                <Gamepad2 className="text-[#43888c]" size={28} />
+                <span className={`font-mono text-xs font-black uppercase tracking-[0.2em] ${running && !paused ? 'text-[#5f8a3f]' : 'text-[#b96658]'}`}>{running && !paused ? 'online' : paused ? 'paused' : 'standby'}</span>
               </div>
 
-              <div className="grid gap-3">
-                <Metric label="score" value={String(score).padStart(4, '0')} />
-                <Metric label="lives" value={String(lives)} />
+              <div className="grid grid-cols-2 gap-3">
+                <Metric label="score" value={String(score).padStart(5, '0')} />
+                <Metric label="best" value={String(best).padStart(5, '0')} />
                 <Metric label="level" value={String(level)} />
+                <Metric label="lives" value={String(lives)} />
+                <Metric label="combo" value={`x${combo.toFixed(1)}`} />
+                <Metric label="routes" value={String(routes)} />
               </div>
 
-              <p className="mt-6 text-sm font-semibold leading-7 text-cyan-50/58">
-                Controls: WASD, arrow keys, or drag/touch on the canvas. Difficulty increases as your score climbs.
-              </p>
+              <div className="mt-5 grid gap-2">
+                <p className="flex items-center gap-2 rounded-[1.1rem] border border-system-lime/24 bg-[#f7fff0]/70 px-3 py-2 text-xs font-bold leading-5 text-[#536963]">
+                  <Zap size={15} className="text-[#6f924c]" />
+                  Space / double tap = dash. Dash is tiny but sacred.
+                </p>
+                <p className="flex items-center gap-2 rounded-[1.1rem] border border-system-cyan/22 bg-[#f7fffb]/70 px-3 py-2 text-xs font-bold leading-5 text-[#536963]">
+                  <Shield size={15} className="text-[#43888c]" />
+                  Shields forgive one mistake. Overclock makes greed profitable.
+                </p>
+                <p className="flex items-center gap-2 rounded-[1.1rem] border border-[#ef6c42]/20 bg-[#fff4e8]/72 px-3 py-2 text-xs font-bold leading-5 text-[#536963]">
+                  <Flame size={15} className="text-[#b94a36]" />
+                  Flame Nova fires 360 degrees and burns every enemy it touches.
+                </p>
+              </div>
             </div>
 
             <div className="grid gap-3">
-              <button onClick={start} className="inline-flex h-12 items-center justify-center gap-3 border border-lime-300/35 bg-lime-300 px-4 font-mono text-xs font-black uppercase tracking-[0.18em] text-black">
+              <button onClick={start} className="magnetic-button inline-flex h-12 items-center justify-center gap-3 rounded-full border border-system-lime/45 bg-system-lime/78 px-4 font-mono text-xs font-black uppercase tracking-[0.18em] text-[#20302d]">
                 <Play size={16} />
                 Start run
               </button>
-              <button onClick={reset} className="inline-flex h-12 items-center justify-center gap-3 border border-cyan-300/25 px-4 font-mono text-xs font-black uppercase tracking-[0.18em] text-cyan-100 hover:bg-cyan-300 hover:text-black">
+              <button onClick={togglePause} className="magnetic-button inline-flex h-12 items-center justify-center gap-3 rounded-full border border-system-cyan/35 bg-white/62 px-4 font-mono text-xs font-black uppercase tracking-[0.18em] text-[#3d767b] hover:bg-system-cyan/70 hover:text-[#20302d]">
+                <Pause size={16} />
+                {paused ? 'Resume' : 'Pause'}
+              </button>
+              <button onClick={reset} className="magnetic-button inline-flex h-12 items-center justify-center gap-3 rounded-full border border-system-cyan/35 bg-white/62 px-4 font-mono text-xs font-black uppercase tracking-[0.18em] text-[#3d767b] hover:bg-system-cyan/70 hover:text-[#20302d]">
                 <RotateCcw size={16} />
                 Restart
               </button>
-              <button onClick={() => setMuted((value) => !value)} className="inline-flex h-12 items-center justify-center gap-3 border border-cyan-300/25 px-4 font-mono text-xs font-black uppercase tracking-[0.18em] text-cyan-100 hover:bg-cyan-300 hover:text-black">
+              <button onClick={() => setMuted((value) => !value)} className="magnetic-button inline-flex h-12 items-center justify-center gap-3 rounded-full border border-system-cyan/35 bg-white/62 px-4 font-mono text-xs font-black uppercase tracking-[0.18em] text-[#3d767b] hover:bg-system-cyan/70 hover:text-[#20302d]">
                 {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
                 {muted ? 'Muted' : 'Sound on'}
               </button>
@@ -352,14 +1128,5 @@ export default function SignalBreach() {
         </div>
       </div>
     </section>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border border-cyan-300/15 bg-black/35 p-4">
-      <p className="font-mono text-[10px] font-black uppercase tracking-[0.2em] text-cyan-100/38">{label}</p>
-      <p className="mt-2 font-display text-3xl font-black uppercase text-white">{value}</p>
-    </div>
   );
 }

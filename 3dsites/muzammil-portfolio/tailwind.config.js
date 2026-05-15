@@ -4,21 +4,24 @@ export default {
         "./index.html",
         "./src/**/*.{js,ts,jsx,tsx}",
     ],
-    darkMode: 'class',
     theme: {
         extend: {
             colors: {
-                background: "#FFFBF0", // Warm Cream White
-                primary: "#1a1a1a", // Soft Black
-                secondary: "#666666",
+                background: "#fff9ed",
+                primary: "#24312f",
+                secondary: "#6d7a73",
                 system: {
-                    void: "#04080c",
-                    panel: "#071017",
-                    text: "#eaffff",
-                    cyan: "#5dffe8",
-                    lime: "#baff5c",
-                    blue: "#7aa7ff",
-                    red: "#ff4d6d",
+                    void: "#fff8eb",
+                    panel: "#ffffffcc",
+                    text: "#20302d",
+                    cyan: "#65cfd7",
+                    lime: "#a8d58c",
+                    blue: "#8fb8ff",
+                    red: "#ef8a7a",
+                    cream: "#fff2d9",
+                    sage: "#d8ead6",
+                    bark: "#8d6b45",
+                    mist: "#eef8f5",
                 },
                 portfolio: {
                     paper: "#fff9ec",

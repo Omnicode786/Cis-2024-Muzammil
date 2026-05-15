@@ -12,8 +12,8 @@ export async function getDashboardSnapshot(shopId: string, role?: UserRole | str
   const includeSupplierSide = role === undefined ? true : canReadSupplierCashflow(role);
   const [products, customers, suppliers, invoices, payments, purchases, movements, activities] = await Promise.all([
     prisma.product.findMany({ where: { shopId, status: "ACTIVE" }, include: { category: true }, orderBy: { updatedAt: "desc" } }),
-    prisma.customer.findMany({ where: { shopId }, orderBy: { balance: "desc" }, take: 8 }),
-    includeSupplierSide ? prisma.supplier.findMany({ where: { shopId }, orderBy: { balance: "desc" }, take: 8 }) : Promise.resolve([]),
+    prisma.customer.findMany({ where: { shopId }, orderBy: { balance: "desc" } }),
+    includeSupplierSide ? prisma.supplier.findMany({ where: { shopId }, orderBy: { balance: "desc" } }) : Promise.resolve([]),
     prisma.invoice.findMany({ where: { shopId }, include: { items: { include: { product: true } }, customer: true }, orderBy: { invoiceDate: "desc" }, take: 300 }),
     prisma.payment.findMany({ where: { shopId, ...(includeSupplierSide ? {} : { direction: "CUSTOMER_IN" as const }) }, orderBy: { paidAt: "desc" }, take: 150 }),
     includeSupplierSide ? prisma.purchase.findMany({ where: { shopId }, orderBy: { purchaseDate: "desc" }, take: 150 }) : Promise.resolve([]),
@@ -75,8 +75,8 @@ export async function getDashboardSnapshot(shopId: string, role?: UserRole | str
     metrics: { todaySales, monthlyRevenue, inventoryValue, lowStockCount: lowStock.length, customerDues, supplierDues, stockRiskScore, productCount: products.length, literalTodaySales, latestActiveDaySales, latestInvoiceDate, salesWindowLabel, revenueWindowLabel },
     products: products.slice(0, 8),
     lowStock: lowStock.slice(0, 10),
-    customers,
-    suppliers,
+    customers: customers.slice(0, 8),
+    suppliers: suppliers.slice(0, 8),
     invoices: invoices.slice(0, 8),
     payments,
     purchases,
