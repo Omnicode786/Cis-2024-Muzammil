@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
-import { Flame, Gamepad2, Pause, Play, RotateCcw, Shield, Volume2, VolumeX, Zap } from 'lucide-react';
+import { Flame, Gamepad2, Maximize2, Minimize2, Pause, Play, RotateCcw, Shield, Volume2, VolumeX, Zap } from 'lucide-react';
 
-type SpriteKey = 'player' | 'shard' | 'block' | 'seeker' | 'shield' | 'overclock' | 'nova' | 'core';
-type SoundType = 'collect' | 'hit' | 'start' | 'dash' | 'power' | 'route' | 'level' | 'nova' | 'burn';
+type SpriteKey = 'player' | 'shard' | 'block' | 'seeker' | 'shield' | 'overclock' | 'nova' | 'spikeBall' | 'core';
+type SoundType = 'collect' | 'hit' | 'start' | 'dash' | 'power' | 'route' | 'level' | 'nova' | 'burn' | 'bossWarning' | 'bossWin' | 'bossFail';
 
 type Player = {
   x: number;
@@ -10,6 +10,7 @@ type Player = {
   radius: number;
   vx: number;
   vy: number;
+  dashTime: number;
   shield: number;
   overclock: number;
   dashCooldown: number;
@@ -52,6 +53,21 @@ type FlameWave = {
   hitIds: Set<number>;
 };
 
+type BossChallenge = {
+  active: boolean;
+  phase: 'warning' | 'typing' | 'strike' | 'fail';
+  level: number;
+  word: string;
+  typed: string;
+  timer: number;
+  maxTimer: number;
+  strikeTimer: number;
+  spawnTimer: number;
+  pathPhase: number;
+  resolved: boolean;
+  message: string;
+};
+
 type Particle = {
   x: number;
   y: number;
@@ -75,6 +91,11 @@ type FloatingText = {
 const gameWidth = 860;
 const gameHeight = 520;
 const bestScoreKey = 'signal-breach-best-score';
+const bossWords = ['KERNEL', 'SIGNAL', 'RISC-V', 'NED', 'JAUNT', 'SYSTEM', 'VECTOR', 'TRUST'];
+
+function levelRequirement(level: number) {
+  return Math.round(1100 + level * 420 + level ** 2 * 95);
+}
 
 const spritePaths: Record<SpriteKey, string> = {
   player: '/assets/game/packet-runner.svg',
@@ -84,7 +105,28 @@ const spritePaths: Record<SpriteKey, string> = {
   shield: '/assets/game/shield-orb.svg',
   overclock: '/assets/game/overclock-orb.svg',
   nova: '/assets/game/flame-nova.svg',
+  spikeBall: '/assets/game/spike-cannonball.svg',
   core: '/assets/game/server-core.svg',
+};
+
+const sampleLayers: Partial<Record<SoundType, { src: string; volume: number; rate?: number }[]>> = {
+  collect: [{ src: '/assets/audio/game/kenney-interface/confirmation_001.ogg', volume: 0.28, rate: 1.08 }],
+  dash: [{ src: '/assets/audio/game/kenney-interface/switch_002.ogg', volume: 0.24, rate: 1.22 }],
+  hit: [{ src: '/assets/audio/game/kenney-interface/error_004.ogg', volume: 0.34, rate: 0.9 }],
+  power: [{ src: '/assets/audio/game/kenney-interface/open_003.ogg', volume: 0.3, rate: 1.08 }],
+  route: [{ src: '/assets/audio/game/kenney-interface/confirmation_003.ogg', volume: 0.34, rate: 1.04 }],
+  level: [{ src: '/assets/audio/game/kenney-interface/maximize_006.ogg', volume: 0.32, rate: 1 }],
+  nova: [
+    { src: '/assets/audio/game/kenney-interface/maximize_007.ogg', volume: 0.34, rate: 0.9 },
+    { src: '/assets/audio/game/kenney-interface/glitch_001.ogg', volume: 0.18, rate: 0.72 },
+  ],
+  burn: [{ src: '/assets/audio/game/kenney-interface/glitch_002.ogg', volume: 0.2, rate: 1.18 }],
+  bossWarning: [{ src: '/assets/audio/game/kenney-interface/glitch_003.ogg', volume: 0.26, rate: 0.8 }],
+  bossWin: [
+    { src: '/assets/audio/game/kenney-interface/confirmation_002.ogg', volume: 0.36, rate: 0.88 },
+    { src: '/assets/audio/game/kenney-interface/maximize_006.ogg', volume: 0.32, rate: 1.1 },
+  ],
+  bossFail: [{ src: '/assets/audio/game/kenney-interface/error_004.ogg', volume: 0.36, rate: 0.72 }],
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -116,6 +158,7 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: n
 
 let sharedAudioContext: AudioContext | null = null;
 let sharedNoiseBuffer: AudioBuffer | null = null;
+const sharedSampleBuffers = new Map<string, AudioBuffer>();
 
 function getAudioContext() {
   if (typeof window === 'undefined') return null;
@@ -139,6 +182,39 @@ function getNoiseBuffer(context: AudioContext) {
   }
   sharedNoiseBuffer = buffer;
   return buffer;
+}
+
+async function preloadSampleLayers() {
+  const context = getAudioContext();
+  if (!context) return;
+  const uniqueSources = [...new Set(Object.values(sampleLayers).flat().map((layer) => layer.src))];
+  await Promise.all(
+    uniqueSources.map(async (src) => {
+      if (sharedSampleBuffers.has(src)) return;
+      try {
+        const response = await fetch(src);
+        const data = await response.arrayBuffer();
+        const buffer = await context.decodeAudioData(data.slice(0));
+        sharedSampleBuffers.set(src, buffer);
+      } catch {
+        // Synthesized layers still carry the effect if a downloaded sample fails.
+      }
+    }),
+  );
+}
+
+function playSampleLayer(context: AudioContext, destination: AudioNode, src: string, start: number, volume: number, rate = 1) {
+  const buffer = sharedSampleBuffers.get(src);
+  if (!buffer) return;
+  const source = context.createBufferSource();
+  const gain = context.createGain();
+  source.buffer = buffer;
+  source.playbackRate.setValueAtTime(rate * random(0.96, 1.04), start);
+  gain.gain.setValueAtTime(volume, start);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + Math.min(0.72, buffer.duration / rate));
+  source.connect(gain);
+  gain.connect(destination);
+  source.start(start);
 }
 
 function playTone(context: AudioContext, destination: AudioNode, frequency: number, start: number, duration: number, gainAmount: number, type: OscillatorType = 'sine', endFrequency?: number) {
@@ -187,6 +263,7 @@ function beep(type: SoundType, muted: boolean) {
   master.gain.setValueAtTime(0.78, now);
   master.connect(compressor);
   compressor.connect(context.destination);
+  sampleLayers[type]?.forEach((layer, index) => playSampleLayer(context, master, layer.src, now + index * 0.018, layer.volume, layer.rate));
 
   if (type === 'collect') {
     [560, 720, 940].forEach((note, index) => playTone(context, master, note, now + index * 0.035, 0.17, 0.032, 'sine', note * 1.06));
@@ -225,6 +302,26 @@ function beep(type: SoundType, muted: boolean) {
     playNoise(context, master, now + 0.04, 0.18, 0.014, 1900);
   }
 
+  if (type === 'bossWarning') {
+    playTone(context, master, 120, now, 0.7, 0.05, 'sawtooth', 82);
+    playTone(context, master, 360, now + 0.08, 0.48, 0.03, 'triangle', 220);
+    playNoise(context, master, now, 0.44, 0.05, 760, 'bandpass');
+    playNoise(context, master, now + 0.12, 0.36, 0.035, 1800, 'highpass');
+  }
+
+  if (type === 'bossWin') {
+    playTone(context, master, 86, now, 1.1, 0.07, 'sawtooth', 62);
+    [300, 420, 560, 760, 1040, 1440].forEach((note, index) => playTone(context, master, note, now + index * 0.055, 0.34, 0.038, index % 2 ? 'triangle' : 'sine', note * 1.18));
+    playNoise(context, master, now, 0.78, 0.075, 1100, 'lowpass');
+    playNoise(context, master, now + 0.18, 0.58, 0.05, 3200, 'bandpass');
+  }
+
+  if (type === 'bossFail') {
+    playTone(context, master, 180, now, 0.46, 0.058, 'triangle', 68);
+    playTone(context, master, 70, now + 0.04, 0.52, 0.038, 'sawtooth', 42);
+    playNoise(context, master, now, 0.36, 0.05, 420, 'lowpass');
+  }
+
   if (type === 'nova') {
     playTone(context, master, 96, now, 0.72, 0.06, 'sawtooth', 54);
     playTone(context, master, 240, now + 0.03, 0.52, 0.04, 'triangle', 120);
@@ -252,15 +349,18 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 export default function SignalBreach() {
+  const gameShellRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<number | null>(null);
   const keysRef = useRef(new Set<string>());
   const pointerRef = useRef<{ x: number; y: number; active: boolean }>({ x: 120, y: 260, active: false });
   const spritesRef = useRef<Partial<Record<SpriteKey, HTMLImageElement>>>({});
-  const playerRef = useRef<Player>({ x: 120, y: 260, radius: 18, vx: 0, vy: 0, shield: 0, overclock: 0, dashCooldown: 0, invulnerable: 0 });
+  const playerRef = useRef<Player>({ x: 120, y: 260, radius: 18, vx: 0, vy: 0, dashTime: 0, shield: 0, overclock: 0, dashCooldown: 0, invulnerable: 0 });
   const hazardsRef = useRef<Hazard[]>([]);
   const pickupsRef = useRef<Pickup[]>([]);
   const flameWavesRef = useRef<FlameWave[]>([]);
+  const bossRef = useRef<BossChallenge | null>(null);
+  const bossTriggeredLevelsRef = useRef(new Set<number>());
   const particlesRef = useRef<Particle[]>([]);
   const floatingTextRef = useRef<FloatingText[]>([]);
   const trailRef = useRef<{ x: number; y: number; life: number }[]>([]);
@@ -268,6 +368,7 @@ export default function SignalBreach() {
   const bestRef = useRef(0);
   const livesRef = useRef(3);
   const levelRef = useRef(1);
+  const levelProgressRef = useRef(0);
   const comboRef = useRef(1);
   const routesRef = useRef(0);
   const tickRef = useRef(0);
@@ -275,6 +376,9 @@ export default function SignalBreach() {
   const hazardTimerRef = useRef(32);
   const pickupTimerRef = useRef(24);
   const survivalTimerRef = useRef(0);
+  const gateCooldownRef = useRef(0);
+  const spawnFreezeRef = useRef(0);
+  const postNovaGraceRef = useRef(0);
   const shakeRef = useRef(0);
   const dashQueuedRef = useRef(false);
   const runningRef = useRef(false);
@@ -292,6 +396,7 @@ export default function SignalBreach() {
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
 
   const syncHud = () => {
     setScore(scoreRef.current);
@@ -302,19 +407,62 @@ export default function SignalBreach() {
     setRoutes(routesRef.current);
   };
 
-  const addScore = (points: number, text?: string, x?: number, y?: number) => {
+  const startBossChallenge = (bossLevel: number) => {
+    if (bossTriggeredLevelsRef.current.has(bossLevel)) return;
+    bossTriggeredLevelsRef.current.add(bossLevel);
+    const word = bossWords[(Math.floor(bossLevel / 5) - 1) % bossWords.length];
+    hazardsRef.current = [];
+    pickupsRef.current = [];
+    flameWavesRef.current = [];
+    bossRef.current = {
+      active: true,
+      phase: 'warning',
+      level: bossLevel,
+      word,
+      typed: '',
+      timer: 132,
+      maxTimer: 132,
+      strikeTimer: 0,
+      spawnTimer: 24,
+      pathPhase: 0,
+      resolved: false,
+      message: 'BOSS CHECKPOINT INCOMING',
+    };
+    spawnFreezeRef.current = 999;
+    postNovaGraceRef.current = 999;
+    playerRef.current.x = 132;
+    playerRef.current.y = gameHeight / 2;
+    playerRef.current.vx = 0;
+    playerRef.current.vy = 0;
+    playerRef.current.invulnerable = 999;
+    floatingTextRef.current.push({ x: gameWidth / 2, y: 92, vy: -0.2, life: 140, text: `BOSS LEVEL ${bossLevel}`, color: '#B94A36' });
+    beep('bossWarning', mutedRef.current);
+  };
+
+  const addScore = (points: number, text?: string, x?: number, y?: number, options: { progress?: boolean } = {}) => {
     scoreRef.current += Math.round(points);
     if (scoreRef.current > bestRef.current) {
       bestRef.current = scoreRef.current;
       window.localStorage.setItem(bestScoreKey, String(bestRef.current));
     }
 
-    const nextLevel = Math.min(40, 1 + Math.floor(scoreRef.current / 820) + Math.floor(routesRef.current / 2));
-    if (nextLevel > levelRef.current) {
-      levelRef.current = nextLevel;
-      hazardTimerRef.current = Math.min(hazardTimerRef.current, 20);
-      beep('level', mutedRef.current);
-      floatingTextRef.current.push({ x: gameWidth * 0.5, y: 92, vy: -0.55, life: 90, text: `LEVEL ${nextLevel}`, color: '#6F924C' });
+    if (options.progress !== false && !bossRef.current?.active) {
+      levelProgressRef.current += Math.max(0, Math.round(points));
+      const needed = levelRequirement(levelRef.current);
+      if (levelProgressRef.current >= needed) {
+        levelProgressRef.current = Math.max(0, levelProgressRef.current - needed);
+        const nextLevel = Math.min(40, levelRef.current + 1);
+        levelRef.current = nextLevel;
+        if (nextLevel % 5 === 0) {
+          levelProgressRef.current = 0;
+        }
+        hazardTimerRef.current = Math.min(hazardTimerRef.current, 20);
+        beep('level', mutedRef.current);
+        floatingTextRef.current.push({ x: gameWidth * 0.5, y: 92, vy: -0.55, life: 90, text: `LEVEL ${nextLevel}`, color: '#6F924C' });
+        if (nextLevel > 1 && nextLevel % 5 === 0) {
+          startBossChallenge(nextLevel);
+        }
+      }
     }
 
     if (text && x !== undefined && y !== undefined) {
@@ -324,9 +472,11 @@ export default function SignalBreach() {
   };
 
   const reset = () => {
-    playerRef.current = { x: 118, y: 260, radius: 18, vx: 0, vy: 0, shield: 0, overclock: 0, dashCooldown: 0, invulnerable: 0 };
+    playerRef.current = { x: 118, y: 260, radius: 18, vx: 0, vy: 0, dashTime: 0, shield: 0, overclock: 0, dashCooldown: 0, invulnerable: 0 };
     hazardsRef.current = [];
     flameWavesRef.current = [];
+    bossRef.current = null;
+    bossTriggeredLevelsRef.current = new Set<number>();
     pickupsRef.current = [
       { id: idRef.current++, kind: 'shard', x: 330, y: 160, radius: 18, phase: 0 },
       { id: idRef.current++, kind: 'shard', x: 560, y: 350, radius: 18, phase: 2 },
@@ -339,12 +489,16 @@ export default function SignalBreach() {
     scoreRef.current = 0;
     livesRef.current = 3;
     levelRef.current = 1;
+    levelProgressRef.current = 0;
     comboRef.current = 1;
     routesRef.current = 0;
     tickRef.current = 0;
     hazardTimerRef.current = 38;
     pickupTimerRef.current = 42;
     survivalTimerRef.current = 0;
+    gateCooldownRef.current = 0;
+    spawnFreezeRef.current = 0;
+    postNovaGraceRef.current = 0;
     shakeRef.current = 0;
     dashQueuedRef.current = false;
     pausedRef.current = false;
@@ -370,6 +524,10 @@ export default function SignalBreach() {
   }, [muted]);
 
   useEffect(() => {
+    preloadSampleLayers().catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     const savedBest = Number(window.localStorage.getItem(bestScoreKey) || 0);
     bestRef.current = Number.isFinite(savedBest) ? savedBest : 0;
     setBest(bestRef.current);
@@ -391,8 +549,66 @@ export default function SignalBreach() {
   }, []);
 
   useEffect(() => {
+    const onFullscreenChange = () => setFullscreen(document.fullscreenElement === gameShellRef.current);
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    const shell = gameShellRef.current;
+    if (!shell) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => undefined);
+      return;
+    }
+    shell.requestFullscreen().catch(() => undefined);
+  };
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
+      const boss = bossRef.current;
+
+      if (boss?.active && boss.phase === 'typing') {
+        event.preventDefault();
+        if (key === 'backspace') {
+          boss.typed = boss.typed.slice(0, -1);
+          return;
+        }
+
+        if (event.key.length === 1) {
+          const nextCharacter = event.key.toUpperCase();
+          if (/^[A-Z0-9-]$/.test(nextCharacter)) {
+            boss.typed = `${boss.typed}${nextCharacter}`.slice(0, boss.word.length);
+            if (!boss.word.startsWith(boss.typed)) {
+              boss.typed = nextCharacter === boss.word[0] ? nextCharacter : '';
+              beep('hit', mutedRef.current);
+              shakeRef.current = Math.max(shakeRef.current, 6);
+              return;
+            }
+
+            beep('collect', mutedRef.current);
+            if (boss.typed === boss.word) {
+              boss.phase = 'strike';
+              boss.timer = 0;
+              boss.maxTimer = 260;
+              boss.strikeTimer = 0;
+              boss.spawnTimer = 0;
+              boss.pathPhase = 0;
+              boss.resolved = false;
+              boss.message = 'SPIKED CANNONBALL DEPLOYED';
+              livesRef.current = Math.min(9, livesRef.current + 1);
+              comboRef.current = Math.min(16, comboRef.current + 2);
+              addScore(1400 + boss.level * 120, '+1 LIFE // BOSS CLEAR', gameWidth / 2, 94, { progress: false });
+              floatingTextRef.current.push({ x: gameWidth / 2, y: 132, vy: -0.55, life: 130, text: '+1 LIFE', color: '#6F924C' });
+              beep('bossWin', mutedRef.current);
+              syncHud();
+            }
+          }
+          return;
+        }
+      }
+
       if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(key)) {
         event.preventDefault();
         keysRef.current.add(key);
@@ -487,6 +703,9 @@ export default function SignalBreach() {
         hitIds: new Set<number>(),
       });
       comboRef.current = Math.min(12, comboRef.current + 1.4);
+      spawnFreezeRef.current = Math.max(spawnFreezeRef.current, 96);
+      postNovaGraceRef.current = Math.max(postNovaGraceRef.current, 132);
+      hazardTimerRef.current = Math.max(hazardTimerRef.current, 92);
       shakeRef.current = Math.max(shakeRef.current, 18);
       addBurst(x, y, '#EF6C42', 44, 1.65);
       addBurst(x, y, '#F7B15E', 34, 1.25);
@@ -546,20 +765,25 @@ export default function SignalBreach() {
       const level = levelRef.current;
       const roll = Math.random();
       const speed = random(1.9, 2.8) + level * 0.24;
+      const gatesOnScreen = hazardsRef.current.filter((hazard) => hazard.kind === 'gate' && hazard.x > -60 && hazard.x < gameWidth + 260).length;
+      const gateChance = level >= 5 && gateCooldownRef.current <= 0 && gatesOnScreen === 0 ? Math.min(0.18, 0.07 + level * 0.005) : 0;
 
-      if (level >= 5 && roll < Math.min(0.34, 0.13 + level * 0.012)) {
+      if (roll < gateChance) {
+        const gapSize = Math.max(132, 210 - Math.min(level, 22) * 2.6);
+        const halfGap = gapSize / 2;
+        gateCooldownRef.current = Math.max(170, 255 - Math.min(level, 18) * 3);
         hazardsRef.current.push({
           id: idRef.current++,
           kind: 'gate',
           x: gameWidth + 70,
           y: gameHeight / 2,
           radius: 28,
-          vx: -speed * 0.78,
+          vx: -Math.min(speed * 0.62, 3.9),
           vy: 0,
           phase: random(0, Math.PI * 2),
-          gapY: random(125, gameHeight - 125),
-          gapSize: Math.max(82, 168 - level * 5.2),
-          width: 44,
+          gapY: random(halfGap + 38, gameHeight - halfGap - 38),
+          gapSize,
+          width: 34,
         });
         return;
       }
@@ -590,9 +814,196 @@ export default function SignalBreach() {
       });
     };
 
+    const spawnBossHorde = (boss: BossChallenge) => {
+      const lane = (hazardsRef.current.length + Math.floor(tickRef.current)) % 7;
+      const y = 70 + lane * 62 + Math.sin(tickRef.current * 0.04 + lane) * 18;
+      const kind: Hazard['kind'] = lane % 3 === 0 ? 'seeker' : 'block';
+      hazardsRef.current.push({
+        id: idRef.current++,
+        kind,
+        x: gameWidth + random(28, 180),
+        y: clamp(y, 58, gameHeight - 58),
+        radius: kind === 'seeker' ? 22 : random(24, 34),
+        vx: -random(2.6, 4.8) - boss.level * 0.08,
+        vy: random(-0.9, 0.9),
+        phase: random(0, Math.PI * 2),
+      });
+    };
+
+    const finishBossChallenge = (cleared: boolean) => {
+      const boss = bossRef.current;
+      if (!boss) return;
+      levelRef.current = Math.min(40, boss.level + 1);
+      levelProgressRef.current = 0;
+      bossRef.current = null;
+      hazardsRef.current = [];
+      flameWavesRef.current = [];
+      spawnFreezeRef.current = 92;
+      postNovaGraceRef.current = 130;
+      hazardTimerRef.current = 118;
+      pickupTimerRef.current = Math.min(pickupTimerRef.current, 42);
+      playerRef.current.x = 118;
+      playerRef.current.y = gameHeight / 2;
+      playerRef.current.vx = 0;
+      playerRef.current.vy = 0;
+      playerRef.current.invulnerable = 90;
+      floatingTextRef.current.push({
+        x: gameWidth / 2,
+        y: 118,
+        vy: -0.45,
+        life: 110,
+        text: cleared ? `LEVEL ${Math.min(40, boss.level + 1)} ONLINE` : `LEVEL ${Math.min(40, boss.level + 1)} ONLINE // NO BONUS`,
+        color: cleared ? '#6F924C' : '#B96658',
+      });
+      if (!cleared) beep('bossFail', mutedRef.current);
+      syncHud();
+    };
+
+    const updateBossChallenge = (delta: number) => {
+      const boss = bossRef.current;
+      if (!boss?.active) return false;
+
+      tickRef.current += delta;
+      boss.timer -= delta;
+      boss.spawnTimer -= delta;
+      postNovaGraceRef.current = 999;
+      spawnFreezeRef.current = 999;
+      playerRef.current.invulnerable = 999;
+
+      if (boss.phase === 'warning') {
+        playerRef.current.x += (132 - playerRef.current.x) * 0.08 * delta;
+        playerRef.current.y += (gameHeight / 2 - playerRef.current.y) * 0.08 * delta;
+        if (boss.timer <= 0) {
+          boss.phase = 'typing';
+          boss.timer = 420;
+          boss.maxTimer = 420;
+          boss.spawnTimer = 0;
+          boss.message = `TYPE ${boss.word}`;
+          beep('bossWarning', mutedRef.current);
+        }
+      }
+
+      if (boss.phase === 'typing') {
+        if (boss.spawnTimer <= 0) {
+          spawnBossHorde(boss);
+          if (boss.level >= 10 && Math.random() < 0.45) spawnBossHorde(boss);
+          boss.spawnTimer = Math.max(4, 12 - boss.level * 0.24);
+        }
+        if (boss.timer <= 0) {
+          boss.phase = 'fail';
+          boss.timer = 96;
+          boss.message = 'PROTOCOL MISSED';
+          shakeRef.current = Math.max(shakeRef.current, 12);
+          beep('bossFail', mutedRef.current);
+        }
+      }
+
+      if (boss.phase === 'strike') {
+        boss.strikeTimer += delta;
+        boss.pathPhase += delta * 0.24;
+        const progress = clamp(boss.strikeTimer / 260, 0, 1);
+        const sweepPath = [
+          { x: 132, y: gameHeight / 2 },
+          { x: gameWidth - 88, y: 76 },
+          { x: 86, y: 74 },
+          { x: gameWidth - 86, y: gameHeight - 74 },
+          { x: 84, y: gameHeight - 76 },
+          { x: gameWidth / 2, y: gameHeight / 2 },
+          { x: gameWidth - 116, y: gameHeight / 2 },
+          { x: 118, y: gameHeight / 2 },
+        ];
+        const segmentProgress = progress * (sweepPath.length - 1);
+        const segment = Math.min(sweepPath.length - 2, Math.floor(segmentProgress));
+        const local = segmentProgress - segment;
+        const eased = 1 - Math.pow(1 - local, 3);
+        const from = sweepPath[segment];
+        const to = sweepPath[segment + 1];
+        const previousX = playerRef.current.x;
+        const previousY = playerRef.current.y;
+        playerRef.current.x = from.x + (to.x - from.x) * eased + Math.sin(boss.pathPhase * 5) * 10;
+        playerRef.current.y = from.y + (to.y - from.y) * eased + Math.cos(boss.pathPhase * 4.4) * 8;
+        playerRef.current.vx = playerRef.current.x - previousX;
+        playerRef.current.vy = playerRef.current.y - previousY;
+        trailRef.current.unshift({ x: playerRef.current.x, y: playerRef.current.y, life: 36 });
+        trailRef.current = trailRef.current.map((trail) => ({ ...trail, life: trail.life - delta * 0.55 })).filter((trail) => trail.life > 0).slice(0, 34);
+        shakeRef.current = Math.max(shakeRef.current, 12 + Math.sin(progress * Math.PI) * 18);
+
+        if (!boss.resolved) {
+          boss.resolved = true;
+          while (hazardsRef.current.length < 22) {
+            spawnBossHorde(boss);
+          }
+          addBurst(playerRef.current.x, playerRef.current.y, '#FFF8DB', 36, 1.8);
+          addBurst(playerRef.current.x, playerRef.current.y, '#F7B15E', 28, 1.45);
+        }
+
+        if (boss.spawnTimer <= 0 && boss.strikeTimer < 150) {
+          spawnBossHorde(boss);
+          spawnBossHorde(boss);
+          boss.spawnTimer = 10;
+        }
+
+        let hits = 0;
+        const visibleHazards = hazardsRef.current.filter((hazard) => hazard.x > -40 && hazard.x < gameWidth + 120);
+        visibleHazards.forEach((hazard, index) => {
+          const hitDistance = hazard.kind === 'gate' ? Math.abs(hazard.x - playerRef.current.x) : distance(playerRef.current, hazard);
+          const forcedSweep = boss.strikeTimer > 20 + index * 4;
+          if (hitDistance > 116 && !forcedSweep) return;
+          hits += 1;
+          const hitX = hazard.x;
+          const hitY = hazard.kind === 'gate' ? playerRef.current.y : hazard.y;
+          hazard.x = -300;
+          addBurst(hitX, hitY, '#F7B15E', 24, 1.45);
+          addBurst(hitX, hitY, '#EF6C42', 14, 1.2);
+        });
+
+        if (hits > 0) {
+          addScore((230 + boss.level * 35) * hits, `SPIKES x${hits}`, playerRef.current.x, playerRef.current.y - 36, { progress: false });
+          beep('burn', mutedRef.current);
+        }
+        hazardsRef.current = hazardsRef.current.filter((hazard) => hazard.x > -150);
+
+        if (boss.strikeTimer >= 260) {
+          addBurst(playerRef.current.x, playerRef.current.y, '#FFF8DB', 44, 1.8);
+          addBurst(playerRef.current.x, playerRef.current.y, '#F7B15E', 42, 1.55);
+          finishBossChallenge(true);
+        }
+      }
+
+      if (boss.phase === 'fail') {
+        if (boss.timer <= 0) {
+          finishBossChallenge(false);
+        }
+      }
+
+      hazardsRef.current.forEach((hazard) => {
+        hazard.x += hazard.vx * delta;
+        hazard.y += (hazard.vy + Math.sin((tickRef.current + hazard.phase * 30) * 0.045) * 0.36) * delta;
+        if (hazard.kind !== 'gate') hazard.y = clamp(hazard.y, 44, gameHeight - 44);
+      });
+      hazardsRef.current = hazardsRef.current.filter((hazard) => hazard.x > -170);
+
+      particlesRef.current = particlesRef.current
+        .map((particle) => ({
+          ...particle,
+          x: particle.x + particle.vx * delta,
+          y: particle.y + particle.vy * delta,
+          vx: particle.vx * 0.985,
+          vy: particle.vy * 0.985,
+          life: particle.life - delta,
+        }))
+        .filter((particle) => particle.life > 0);
+
+      floatingTextRef.current = floatingTextRef.current
+        .map((text) => ({ ...text, y: text.y + text.vy * delta, life: text.life - delta }))
+        .filter((text) => text.life > 0);
+      shakeRef.current = Math.max(0, shakeRef.current - delta * 0.65);
+      return true;
+    };
+
     const damagePlayer = (hazard?: Hazard) => {
       const player = playerRef.current;
-      if (player.invulnerable > 0) return;
+      if (player.invulnerable > 0 || postNovaGraceRef.current > 0 || bossRef.current?.active) return;
 
       if (player.shield > 0) {
         player.shield = 0;
@@ -631,6 +1042,10 @@ export default function SignalBreach() {
       routesRef.current += 1;
       comboRef.current = Math.min(12, comboRef.current + 1);
       addScore(320 + levelRef.current * 55 + comboRef.current * 42, `ROUTE x${comboRef.current}`, gameWidth - 144, player.y);
+      if (bossRef.current?.active) {
+        syncHud();
+        return;
+      }
       player.x = 118;
       player.y = random(120, gameHeight - 120);
       player.vx = 0;
@@ -643,17 +1058,24 @@ export default function SignalBreach() {
     };
 
     const update = (delta: number) => {
+      if (updateBossChallenge(delta)) return;
       const player = playerRef.current;
       const level = levelRef.current;
       tickRef.current += delta;
+      gateCooldownRef.current = Math.max(0, gateCooldownRef.current - delta);
+      spawnFreezeRef.current = Math.max(0, spawnFreezeRef.current - delta);
+      postNovaGraceRef.current = Math.max(0, postNovaGraceRef.current - delta);
       hazardTimerRef.current -= delta;
       pickupTimerRef.current -= delta;
       survivalTimerRef.current += delta;
+      if (spawnFreezeRef.current > 0) {
+        hazardTimerRef.current = Math.max(hazardTimerRef.current, 34);
+      }
 
-      if (hazardTimerRef.current <= 0) {
+      if (hazardTimerRef.current <= 0 && spawnFreezeRef.current <= 0) {
         spawnHazard();
-        if (level >= 10 && Math.random() < 0.34) spawnHazard();
-        if (level >= 18 && Math.random() < 0.22) spawnHazard();
+        if (level >= 10 && Math.random() < 0.28) spawnHazard();
+        if (level >= 18 && Math.random() < 0.16) spawnHazard();
         hazardTimerRef.current = Math.max(9, random(42, 74) - level * 2.65);
       }
 
@@ -665,6 +1087,7 @@ export default function SignalBreach() {
       if (survivalTimerRef.current > 34) {
         survivalTimerRef.current = 0;
         addScore(level + comboRef.current);
+        if (bossRef.current?.active) return;
       }
 
       const left = keysRef.current.has('arrowleft') || keysRef.current.has('a');
@@ -693,29 +1116,32 @@ export default function SignalBreach() {
         const dashDx = pointerRef.current.active ? pointerRef.current.x - player.x : targetVx || 1;
         const dashDy = pointerRef.current.active ? pointerRef.current.y - player.y : targetVy;
         const dashLength = Math.hypot(dashDx, dashDy) || 1;
-        player.vx += (dashDx / dashLength) * 13.5;
-        player.vy += (dashDy / dashLength) * 13.5;
-        player.dashCooldown = Math.max(38, 78 - Math.min(level, 16) * 1.2);
-        player.invulnerable = Math.max(player.invulnerable, 11);
-        addBurst(player.x, player.y, '#65CFD7', 15, 0.9);
+        player.vx += (dashDx / dashLength) * 21;
+        player.vy += (dashDy / dashLength) * 21;
+        player.dashTime = 18;
+        player.dashCooldown = Math.max(48, 88 - Math.min(level, 16) * 1.1);
+        player.invulnerable = Math.max(player.invulnerable, 24);
+        addBurst(player.x, player.y, '#65CFD7', 24, 1.15);
         beep('dash', mutedRef.current);
       }
       dashQueuedRef.current = false;
 
-      player.vx += (targetVx - player.vx) * 0.18 * delta;
-      player.vy += (targetVy - player.vy) * 0.18 * delta;
+      const steering = player.dashTime > 0 ? 0.055 : 0.18;
+      player.vx += (targetVx - player.vx) * steering * delta;
+      player.vy += (targetVy - player.vy) * steering * delta;
       player.x = clamp(player.x + player.vx * delta, 32, gameWidth - 112);
       player.y = clamp(player.y + player.vy * delta, 34, gameHeight - 34);
+      player.dashTime = Math.max(0, player.dashTime - delta);
       player.dashCooldown = Math.max(0, player.dashCooldown - delta);
       player.shield = Math.max(0, player.shield - delta);
       player.overclock = Math.max(0, player.overclock - delta);
-      player.invulnerable = Math.max(0, player.invulnerable - delta);
+      player.invulnerable = Math.max(player.dashTime > 0 ? 1 : 0, player.invulnerable - delta);
 
       trailRef.current.unshift({ x: player.x, y: player.y, life: 28 });
       trailRef.current = trailRef.current
         .map((trail) => ({ ...trail, life: trail.life - delta }))
         .filter((trail) => trail.life > 0)
-        .slice(0, 18);
+        .slice(0, player.dashTime > 0 ? 30 : 18);
 
       hazardsRef.current.forEach((hazard) => {
         if (hazard.kind === 'seeker') {
@@ -740,6 +1166,7 @@ export default function SignalBreach() {
         }
       });
       updateFlameWaves(delta);
+      if (bossRef.current?.active) return;
       hazardsRef.current = hazardsRef.current.filter((hazard) => hazard.x > -150);
 
       pickupsRef.current = pickupsRef.current.filter((pickup) => {
@@ -772,6 +1199,7 @@ export default function SignalBreach() {
         }
         return true;
       });
+      if (bossRef.current?.active) return;
 
       hazardsRef.current.forEach((hazard) => {
         if (hazard.kind === 'gate') {
@@ -878,7 +1306,7 @@ export default function SignalBreach() {
         const angle = (Math.PI * 2 * i) / spokeCount + wave.phase + tickRef.current * 0.018;
         const wobble = Math.sin(tickRef.current * 0.075 + i * 1.7) * 12;
         const inner = Math.max(10, wave.radius - 72 + wobble * 0.3);
-        const outer = wave.radius + random(-8, 18);
+        const outer = wave.radius + Math.sin(tickRef.current * 0.06 + i * 2.1) * 13 + 6;
         ctx.strokeStyle = i % 3 === 0 ? `rgba(255,248,219,${0.64 * alpha})` : `rgba(239,108,66,${0.48 * alpha})`;
         ctx.lineWidth = i % 4 === 0 ? 7 : 4;
         ctx.lineCap = 'round';
@@ -899,6 +1327,76 @@ export default function SignalBreach() {
       ctx.beginPath();
       ctx.arc(0, 0, Math.max(10, wave.radius - 22), 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
+    };
+
+    const drawSpikedCannonball = () => {
+      const player = playerRef.current;
+      const spin = tickRef.current * 0.44;
+      ctx.save();
+      ctx.translate(player.x, player.y);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.shadowColor = 'rgba(22,35,31,0.22)';
+      ctx.shadowBlur = 10;
+      for (let ring = 0; ring < 3; ring += 1) {
+        ctx.strokeStyle = ring === 0 ? 'rgba(248,230,170,0.2)' : 'rgba(49,93,82,0.12)';
+        ctx.lineWidth = 2 + ring * 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 44 + ring * 13 + Math.sin(tickRef.current * 0.18 + ring) * 4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.rotate(spin);
+      drawSprite('spikeBall', 0, 0, 116 + Math.sin(tickRef.current * 0.2) * 6, 0);
+      ctx.restore();
+    };
+
+    const drawBossOverlay = () => {
+      const boss = bossRef.current;
+      if (!boss?.active) return;
+      const remaining = Math.max(0, boss.timer / boss.maxTimer);
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,250,240,0.88)';
+      roundRect(ctx, 96, 38, gameWidth - 192, boss.phase === 'typing' ? 118 : 90, 28);
+      ctx.fill();
+      ctx.strokeStyle = boss.phase === 'strike' ? 'rgba(247,177,94,0.72)' : 'rgba(239,108,66,0.62)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#20302D';
+      ctx.font = '900 24px Space Grotesk, sans-serif';
+      ctx.fillText(boss.phase === 'strike' ? 'SPIKED CANNONBALL CUTSCENE' : boss.message, gameWidth / 2, 74);
+      ctx.font = '800 12px Space Grotesk, monospace';
+      ctx.fillStyle = 'rgba(32,48,45,0.62)';
+      ctx.fillText(`boss level ${boss.level} // unavoidable horde protocol`, gameWidth / 2, 99);
+
+      if (boss.phase === 'typing') {
+        ctx.fillStyle = '#F7B15E';
+        ctx.font = '900 32px Space Grotesk, sans-serif';
+        ctx.fillText(boss.word, gameWidth / 2, 136);
+        ctx.fillStyle = boss.word.startsWith(boss.typed) ? '#A8D58C' : '#EF8A7A';
+        ctx.font = '900 22px Space Grotesk, monospace';
+        ctx.fillText(boss.typed || 'TYPE THE WORD', gameWidth / 2, 170);
+        ctx.fillStyle = 'rgba(255,248,219,0.22)';
+        roundRect(ctx, 182, 188, gameWidth - 364, 10, 10);
+        ctx.fill();
+        ctx.fillStyle = '#F7B15E';
+        roundRect(ctx, 182, 188, (gameWidth - 364) * remaining, 10, 10);
+        ctx.fill();
+      }
+
+      if (boss.phase === 'warning') {
+        ctx.fillStyle = '#F7B15E';
+        ctx.font = '900 28px Space Grotesk, sans-serif';
+        ctx.fillText('GET READY', gameWidth / 2, 138);
+      }
+
+      if (boss.phase === 'fail') {
+        ctx.fillStyle = '#EF8A7A';
+        ctx.font = '900 26px Space Grotesk, sans-serif';
+        ctx.fillText('NO EXTRA LIFE THIS TIME', gameWidth / 2, 134);
+      }
+      ctx.textAlign = 'left';
       ctx.restore();
     };
 
@@ -944,10 +1442,10 @@ export default function SignalBreach() {
       drawSprite('core', gameWidth - 64, gameHeight / 2, 142, Math.sin(tickRef.current * 0.012) * 0.02);
 
       trailRef.current.forEach((trail, index) => {
-        ctx.globalAlpha = Math.max(0, trail.life / 28) * 0.28;
+        ctx.globalAlpha = Math.max(0, trail.life / 28) * (playerRef.current.dashTime > 0 ? 0.42 : 0.28);
         ctx.fillStyle = playerRef.current.overclock > 0 ? '#F3D99B' : '#65CFD7';
         ctx.beginPath();
-        ctx.arc(trail.x, trail.y, Math.max(3, 14 - index * 0.55), 0, Math.PI * 2);
+        ctx.arc(trail.x, trail.y, Math.max(3, (playerRef.current.dashTime > 0 ? 18 : 14) - index * 0.55), 0, Math.PI * 2);
         ctx.fill();
       });
       ctx.globalAlpha = 1;
@@ -986,7 +1484,9 @@ export default function SignalBreach() {
         ctx.arc(player.x, player.y, 34 + Math.sin(tickRef.current * 0.12) * 3, 0, Math.PI * 2);
         ctx.stroke();
       }
-      if (player.invulnerable <= 0 || Math.floor(tickRef.current / 5) % 2 === 0) {
+      if (bossRef.current?.active && bossRef.current.phase === 'strike') {
+        drawSpikedCannonball();
+      } else if (player.invulnerable <= 0 || Math.floor(tickRef.current / 5) % 2 === 0) {
         drawSprite('player', player.x, player.y, player.overclock > 0 ? 66 : 60, Math.atan2(player.vy, player.vx || 1) * 0.08);
       }
 
@@ -1012,6 +1512,11 @@ export default function SignalBreach() {
       ctx.fillStyle = 'rgba(32,48,45,0.62)';
       ctx.font = '700 12px Space Grotesk, monospace';
       ctx.fillText('route to the core // collect orbs // dash through gaps // flame nova deletes everything it touches', 24, gameHeight - 24);
+
+      drawBossOverlay();
+      if (bossRef.current?.active && bossRef.current.phase === 'strike') {
+        drawSpikedCannonball();
+      }
 
       if (!runningRef.current) {
         drawOverlay(scoreRef.current > 0 ? 'BREACH COMPLETE?' : 'SIGNAL BREACH', scoreRef.current > 0 ? 'hit start run to chase the next best score' : 'start run // WASD or drag // Space for dash');
@@ -1052,7 +1557,10 @@ export default function SignalBreach() {
           </p>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[1fr_330px]">
+        <div
+          ref={gameShellRef}
+          className={`grid gap-4 ${fullscreen ? 'min-h-screen content-center bg-[#f9f3e4] p-4 lg:grid-cols-[1fr_340px]' : 'lg:grid-cols-[1fr_330px]'}`}
+        >
           <div className="overflow-hidden rounded-[2rem] border border-[#8fb8aa]/22 bg-white/72 shadow-[0_30px_90px_rgba(75,95,88,0.16)]">
             <canvas
               ref={canvasRef}
@@ -1103,6 +1611,9 @@ export default function SignalBreach() {
                   <Flame size={15} className="text-[#b94a36]" />
                   Flame Nova fires 360 degrees and burns every enemy it touches.
                 </p>
+                <p className="rounded-[1.1rem] border border-[#8d6b45]/18 bg-[#fff8eb]/76 px-3 py-2 text-xs font-bold leading-5 text-[#536963]">
+                  Every 5 levels: type the boss word to trigger spiked cannonball mode and earn +1 life.
+                </p>
               </div>
             </div>
 
@@ -1114,6 +1625,10 @@ export default function SignalBreach() {
               <button onClick={togglePause} className="magnetic-button inline-flex h-12 items-center justify-center gap-3 rounded-full border border-system-cyan/35 bg-white/62 px-4 font-mono text-xs font-black uppercase tracking-[0.18em] text-[#3d767b] hover:bg-system-cyan/70 hover:text-[#20302d]">
                 <Pause size={16} />
                 {paused ? 'Resume' : 'Pause'}
+              </button>
+              <button onClick={toggleFullscreen} className="magnetic-button inline-flex h-12 items-center justify-center gap-3 rounded-full border border-system-lime/35 bg-white/62 px-4 font-mono text-xs font-black uppercase tracking-[0.18em] text-[#5f8a3f] hover:bg-system-lime/70 hover:text-[#20302d]">
+                {fullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                {fullscreen ? 'Exit full' : 'Fullscreen'}
               </button>
               <button onClick={reset} className="magnetic-button inline-flex h-12 items-center justify-center gap-3 rounded-full border border-system-cyan/35 bg-white/62 px-4 font-mono text-xs font-black uppercase tracking-[0.18em] text-[#3d767b] hover:bg-system-cyan/70 hover:text-[#20302d]">
                 <RotateCcw size={16} />
