@@ -1,0 +1,26 @@
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="paper" x1="25" y1="14" x2="68" y2="82" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFBE6"/>
+      <stop offset=".5" stop-color="#FFF2D9"/>
+      <stop offset="1" stop-color="#F3D99B"/>
+    </linearGradient>
+    <radialGradient id="fireSeal" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(48 46) rotate(90) scale(29)">
+      <stop stop-color="#FFFBE6"/>
+      <stop offset=".38" stop-color="#F7B15E"/>
+      <stop offset="1" stop-color="#EF6C42"/>
+    </radialGradient>
+    <filter id="fireDrop" x="7" y="5" width="82" height="88" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#EF6C42" flood-opacity=".32"/>
+    </filter>
+  </defs>
+  <ellipse cx="48" cy="80" rx="24" ry="7" fill="#8D6B45" opacity=".14"/>
+  <g filter="url(#fireDrop)">
+    <path d="M30 13h36l7 12-5 57H28l-5-57 7-12Z" fill="url(#paper)" stroke="#8D6B45" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M32 26h32M31 70h34" stroke="#8D6B45" stroke-width="4" stroke-linecap="round" opacity=".46"/>
+    <path d="M48 27c7 9 16 15 18 26 2 14-7 24-18 24S28 67 30 53c2-11 11-17 18-26Z" fill="url(#fireSeal)" stroke="#B94A36" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M48 40c4 5 9 8 9 15 1 7-4 12-9 12s-10-5-9-12c0-7 5-10 9-15Z" fill="#FFF8DB"/>
+    <path d="M23 38 12 32M73 38l11-6M48 10V3" stroke="#EF6C42" stroke-width="5" stroke-linecap="round"/>
+    <path d="M36 20c8-4 17-4 25 1" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity=".45"/>
+  </g>
+</svg>

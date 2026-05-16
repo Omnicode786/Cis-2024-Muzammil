@@ -1,8 +1,54 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
-import { Flame, Gamepad2, Maximize2, Minimize2, Pause, Play, RotateCcw, Shield, Volume2, VolumeX, Zap } from 'lucide-react';
+import { Flame, Gamepad2, Maximize2, Minimize2, Pause, Play, RotateCcw, Shield, Sparkles, Volume2, VolumeX, Zap } from 'lucide-react';
 
-type SpriteKey = 'player' | 'shard' | 'block' | 'seeker' | 'shield' | 'overclock' | 'nova' | 'spikeBall' | 'core';
-type SoundType = 'collect' | 'hit' | 'start' | 'dash' | 'power' | 'route' | 'level' | 'nova' | 'burn' | 'bossWarning' | 'bossWin' | 'bossFail';
+type GamePhase = 1 | 2;
+type SpecialKind = 'bitstream' | 'laser' | 'kunai' | 'firewall' | 'pulse' | 'drone';
+type SpriteKey =
+  | 'player'
+  | 'shard'
+  | 'block'
+  | 'seeker'
+  | 'shield'
+  | 'repair'
+  | 'overclock'
+  | 'nova'
+  | 'spikeBall'
+  | 'core'
+  | 'phaseCore'
+  | 'phaseWraith'
+  | 'shurikenVirus'
+  | 'quantumCache'
+  | 'mysteryBox'
+  | 'bitstream'
+  | 'laserPrism'
+  | 'kunaiChip'
+  | 'firewallTalisman'
+  | 'pulseLotus'
+  | 'mirrorDrone';
+type SoundType =
+  | 'collect'
+  | 'hit'
+  | 'start'
+  | 'dash'
+  | 'power'
+  | 'route'
+  | 'level'
+  | 'nova'
+  | 'burn'
+  | 'bossWarning'
+  | 'bossWin'
+  | 'bossFail'
+  | 'special'
+  | 'weapon'
+  | 'bitWeapon'
+  | 'laserWeapon'
+  | 'kunaiWeapon'
+  | 'fireWeapon'
+  | 'pulseWeapon'
+  | 'droneWeapon'
+  | 'phase'
+  | 'phaseWeapon'
+  | 'phasePickup';
 
 type Player = {
   x: number;
@@ -19,7 +65,7 @@ type Player = {
 
 type Hazard = {
   id: number;
-  kind: 'block' | 'seeker' | 'gate';
+  kind: 'block' | 'seeker' | 'gate' | 'wraith' | 'shuriken';
   x: number;
   y: number;
   radius: number;
@@ -33,7 +79,7 @@ type Hazard = {
 
 type Pickup = {
   id: number;
-  kind: 'shard' | 'shield' | 'overclock' | 'nova';
+  kind: 'shard' | 'shield' | 'repair' | 'overclock' | 'nova' | 'cache' | 'mystery';
   x: number;
   y: number;
   radius: number;
@@ -51,6 +97,38 @@ type FlameWave = {
   maxLife: number;
   phase: number;
   hitIds: Set<number>;
+};
+
+type SpecialWeapon = {
+  kind: SpecialKind;
+  timer: number;
+  cooldown: number;
+  phase: number;
+  targetBudget: number;
+  shotsFired: number;
+};
+
+type Projectile = {
+  id: number;
+  kind: 'bit' | 'laser' | 'kunai' | 'fire' | 'pulse' | 'drone';
+  owner: SpecialKind;
+  glyph?: '0' | '1';
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  life: number;
+  maxLife: number;
+  phase: number;
+  angle: number;
+  pierce: number;
+  hitIds: Set<number>;
+};
+
+type ScoreOptions = {
+  progress?: boolean;
+  progressValue?: number;
 };
 
 type BossChallenge = {
@@ -90,11 +168,70 @@ type FloatingText = {
 
 const gameWidth = 860;
 const gameHeight = 520;
+const framesPerSecond = 60;
+const specialDurationFrames = framesPerSecond * 30;
+const phaseOneFinalBoss = 30;
+const maxLevel = 99;
 const bestScoreKey = 'signal-breach-best-score';
 const bossWords = ['KERNEL', 'SIGNAL', 'RISC-V', 'NED', 'JAUNT', 'SYSTEM', 'VECTOR', 'TRUST'];
 
+const specialCycle: SpecialKind[] = ['bitstream', 'laser', 'kunai', 'firewall'];
+const phaseTwoSpecialCycle: SpecialKind[] = ['pulse', 'drone', 'laser', 'kunai', 'firewall', 'bitstream'];
+const allSpecialKinds: SpecialKind[] = ['bitstream', 'laser', 'kunai', 'firewall', 'pulse', 'drone'];
+const specialWeaponMeta: Record<SpecialKind, { name: string; short: string; sprite: SpriteKey; color: string; budget: number; description: string }> = {
+  bitstream: {
+    name: 'Bitstream Blaster',
+    short: 'BITS',
+    sprite: 'bitstream',
+    color: '#43888C',
+    budget: 11,
+    description: 'K fires homing 0/1 packets at a limited set of threats.',
+  },
+  laser: {
+    name: 'Laser Prism',
+    short: 'LASER',
+    sprite: 'laserPrism',
+    color: '#65CFD7',
+    budget: 7,
+    description: 'K cuts short, timed lanes through corruption.',
+  },
+  kunai: {
+    name: 'Kunai Swarm',
+    short: 'KUNAI',
+    sprite: 'kunaiChip',
+    color: '#8D6B45',
+    budget: 12,
+    description: 'K launches chip-kunai spreads for close survival.',
+  },
+  firewall: {
+    name: 'Firewall Talisman',
+    short: 'FIRE',
+    sprite: 'firewallTalisman',
+    color: '#B94A36',
+    budget: 10,
+    description: 'K breathes capped flame bursts into clustered enemies.',
+  },
+  pulse: {
+    name: 'Pulse Lotus',
+    short: 'PULSE',
+    sprite: 'pulseLotus',
+    color: '#5B7FD8',
+    budget: 10,
+    description: 'Phase 2 K pulses precision petals into marked targets.',
+  },
+  drone: {
+    name: 'Mirror Drone',
+    short: 'DRONE',
+    sprite: 'mirrorDrone',
+    color: '#6F924C',
+    budget: 11,
+    description: 'Phase 2 K deploys a twin drone that covers your flank.',
+  },
+};
+
 function levelRequirement(level: number) {
-  return Math.round(1100 + level * 420 + level ** 2 * 95);
+  const phaseBoost = level > phaseOneFinalBoss ? 1.28 : 1;
+  return Math.round((990 + level * 380 + level ** 2 * 84) * phaseBoost);
 }
 
 const spritePaths: Record<SpriteKey, string> = {
@@ -103,10 +240,22 @@ const spritePaths: Record<SpriteKey, string> = {
   block: '/assets/game/corruption-block.svg',
   seeker: '/assets/game/seeker-sentinel.svg',
   shield: '/assets/game/shield-orb.svg',
+  repair: '/assets/game/repair-orb.svg',
   overclock: '/assets/game/overclock-orb.svg',
   nova: '/assets/game/flame-nova.svg',
   spikeBall: '/assets/game/spike-cannonball.svg',
   core: '/assets/game/server-core.svg',
+  phaseCore: '/assets/game/phase-core.svg',
+  phaseWraith: '/assets/game/phase-wraith.svg',
+  shurikenVirus: '/assets/game/shuriken-virus.svg',
+  quantumCache: '/assets/game/quantum-cache.svg',
+  mysteryBox: '/assets/game/mystery-box.svg',
+  bitstream: '/assets/game/binary-blaster.svg',
+  laserPrism: '/assets/game/laser-prism.svg',
+  kunaiChip: '/assets/game/kunai-chip.svg',
+  firewallTalisman: '/assets/game/firewall-talisman.svg',
+  pulseLotus: '/assets/game/pulse-lotus.svg',
+  mirrorDrone: '/assets/game/mirror-drone.svg',
 };
 
 const sampleLayers: Partial<Record<SoundType, { src: string; volume: number; rate?: number }[]>> = {
@@ -127,6 +276,23 @@ const sampleLayers: Partial<Record<SoundType, { src: string; volume: number; rat
     { src: '/assets/audio/game/kenney-interface/maximize_006.ogg', volume: 0.32, rate: 1.1 },
   ],
   bossFail: [{ src: '/assets/audio/game/kenney-interface/error_004.ogg', volume: 0.36, rate: 0.72 }],
+  special: [
+    { src: '/assets/audio/game/kenney-interface/maximize_007.ogg', volume: 0.3, rate: 1.12 },
+    { src: '/assets/audio/game/kenney-interface/confirmation_003.ogg', volume: 0.24, rate: 0.92 },
+  ],
+  weapon: [{ src: '/assets/audio/game/kenney-interface/switch_002.ogg', volume: 0.16, rate: 1.35 }],
+  phase: [
+    { src: '/assets/audio/game/kenney-interface/maximize_006.ogg', volume: 0.3, rate: 0.68 },
+    { src: '/assets/audio/game/kenney-interface/glitch_003.ogg', volume: 0.18, rate: 0.92 },
+  ],
+  phaseWeapon: [
+    { src: '/assets/audio/game/kenney-interface/glitch_002.ogg', volume: 0.18, rate: 0.58 },
+    { src: '/assets/audio/game/kenney-interface/switch_002.ogg', volume: 0.13, rate: 1.42 },
+  ],
+  phasePickup: [
+    { src: '/assets/audio/game/kenney-interface/confirmation_003.ogg', volume: 0.22, rate: 0.72 },
+    { src: '/assets/audio/game/kenney-interface/glitch_001.ogg', volume: 0.12, rate: 1.18 },
+  ],
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -252,6 +418,24 @@ function playNoise(context: AudioContext, destination: AudioNode, start: number,
   source.stop(start + duration + 0.03);
 }
 
+function playSurrealSweep(context: AudioContext, destination: AudioNode, start: number, baseFrequency: number, color = '#phase') {
+  const shimmer = context.createGain();
+  const filter = context.createBiquadFilter();
+  shimmer.gain.setValueAtTime(0.72, start);
+  filter.type = 'allpass';
+  filter.frequency.setValueAtTime(baseFrequency * 1.8, start);
+  filter.frequency.exponentialRampToValueAtTime(Math.max(90, baseFrequency * 0.42), start + 0.82);
+  shimmer.connect(filter);
+  filter.connect(destination);
+
+  [0.5, 0.75, 1, 1.48, 2.02].forEach((ratio, index) => {
+    const offset = index * 0.032;
+    const detune = index % 2 === 0 ? 1.012 : 0.988;
+    playTone(context, shimmer, baseFrequency * ratio * detune, start + offset, 0.52 - index * 0.035, 0.016, index % 2 ? 'triangle' : 'sine', baseFrequency * ratio * (color === '#phase' ? 1.42 : 0.74));
+  });
+  playNoise(context, shimmer, start + 0.02, 0.44, 0.022, baseFrequency * 5.2, 'bandpass');
+}
+
 function beep(type: SoundType, muted: boolean) {
   if (muted) return;
   const context = getAudioContext();
@@ -267,6 +451,7 @@ function beep(type: SoundType, muted: boolean) {
 
   if (type === 'collect') {
     [560, 720, 940].forEach((note, index) => playTone(context, master, note, now + index * 0.035, 0.17, 0.032, 'sine', note * 1.06));
+    playTone(context, master, 1180, now + 0.105, 0.18, 0.015, 'triangle', 1460);
     playNoise(context, master, now, 0.08, 0.012, 2400);
   }
 
@@ -295,10 +480,14 @@ function beep(type: SoundType, muted: boolean) {
   if (type === 'route') {
     [520, 760, 1040, 1440].forEach((note, index) => playTone(context, master, note, now + index * 0.04, 0.22, 0.032, 'sine'));
     playTone(context, master, 140, now, 0.42, 0.022, 'triangle', 95);
+    playTone(context, master, 2060, now + 0.12, 0.18, 0.012, 'sine', 1640);
+    playNoise(context, master, now + 0.04, 0.18, 0.012, 2600, 'bandpass');
   }
 
   if (type === 'level') {
     [460, 590, 760, 980, 1240].forEach((note, index) => playTone(context, master, note, now + index * 0.04, 0.2, 0.026, 'triangle', note * 1.04));
+    playTone(context, master, 180, now, 0.5, 0.028, 'triangle', 260);
+    playSurrealSweep(context, master, now + 0.08, 220, 'pickup');
     playNoise(context, master, now + 0.04, 0.18, 0.014, 1900);
   }
 
@@ -320,6 +509,43 @@ function beep(type: SoundType, muted: boolean) {
     playTone(context, master, 180, now, 0.46, 0.058, 'triangle', 68);
     playTone(context, master, 70, now + 0.04, 0.52, 0.038, 'sawtooth', 42);
     playNoise(context, master, now, 0.36, 0.05, 420, 'lowpass');
+  }
+
+  if (type === 'special') {
+    playTone(context, master, 220, now, 0.44, 0.046, 'triangle', 330);
+    [520, 740, 980, 1320, 1760].forEach((note, index) => playTone(context, master, note, now + 0.04 + index * 0.038, 0.28, 0.027, index % 2 ? 'sine' : 'triangle', note * 1.08));
+    playTone(context, master, 92, now, 0.58, 0.026, 'sawtooth', 146);
+    playSurrealSweep(context, master, now + 0.05, 176, 'pickup');
+    playNoise(context, master, now + 0.02, 0.32, 0.032, 2600, 'bandpass');
+  }
+
+  if (type === 'weapon') {
+    playTone(context, master, 620, now, 0.12, 0.018, 'triangle', 430);
+    playTone(context, master, 1180, now + 0.018, 0.1, 0.014, 'sine', 760);
+    playNoise(context, master, now, 0.09, 0.014, 3400, 'highpass');
+  }
+
+  if (type === 'phase') {
+    playTone(context, master, 72, now, 0.92, 0.065, 'sawtooth', 108);
+    [180, 240, 320, 430, 580, 780].forEach((note, index) => playTone(context, master, note, now + 0.08 + index * 0.05, 0.28, 0.032, index % 2 ? 'triangle' : 'sine', note * 1.12));
+    playNoise(context, master, now, 0.55, 0.06, 720, 'lowpass');
+    playNoise(context, master, now + 0.12, 0.36, 0.036, 2800, 'bandpass');
+    playSurrealSweep(context, master, now + 0.06, 136);
+  }
+
+  if (type === 'phaseWeapon') {
+    playTone(context, master, 58, now, 0.38, 0.04, 'sawtooth', 91);
+    playTone(context, master, 906, now + 0.012, 0.16, 0.018, 'triangle', 414);
+    playTone(context, master, 1320, now + 0.04, 0.12, 0.012, 'sine', 1980);
+    playSurrealSweep(context, master, now + 0.015, random(164, 230));
+    playNoise(context, master, now, 0.28, 0.026, 5200, 'bandpass');
+    playNoise(context, master, now + 0.05, 0.18, 0.016, 760, 'lowpass');
+  }
+
+  if (type === 'phasePickup') {
+    playTone(context, master, 240, now, 0.42, 0.03, 'triangle', 360);
+    [680, 910, 1210].forEach((note, index) => playTone(context, master, note, now + 0.04 + index * 0.055, 0.24, 0.018, 'sine', note * 0.72));
+    playSurrealSweep(context, master, now + 0.02, 190, 'pickup');
   }
 
   if (type === 'nova') {
@@ -359,6 +585,9 @@ export default function SignalBreach() {
   const hazardsRef = useRef<Hazard[]>([]);
   const pickupsRef = useRef<Pickup[]>([]);
   const flameWavesRef = useRef<FlameWave[]>([]);
+  const projectilesRef = useRef<Projectile[]>([]);
+  const specialWeaponRef = useRef<SpecialWeapon | null>(null);
+  const pendingSpecialRef = useRef<SpecialKind | null>(null);
   const bossRef = useRef<BossChallenge | null>(null);
   const bossTriggeredLevelsRef = useRef(new Set<number>());
   const particlesRef = useRef<Particle[]>([]);
@@ -368,6 +597,7 @@ export default function SignalBreach() {
   const bestRef = useRef(0);
   const livesRef = useRef(3);
   const levelRef = useRef(1);
+  const phaseRef = useRef<GamePhase>(1);
   const levelProgressRef = useRef(0);
   const comboRef = useRef(1);
   const routesRef = useRef(0);
@@ -376,9 +606,13 @@ export default function SignalBreach() {
   const hazardTimerRef = useRef(32);
   const pickupTimerRef = useRef(24);
   const survivalTimerRef = useRef(0);
+  const hudSyncTimerRef = useRef(0);
   const gateCooldownRef = useRef(0);
   const spawnFreezeRef = useRef(0);
   const postNovaGraceRef = useRef(0);
+  const phasePromptRef = useRef(false);
+  const phaseChoiceRef = useRef<'continue' | 'end' | null>(null);
+  const weaponActivateRequestedRef = useRef(false);
   const shakeRef = useRef(0);
   const dashQueuedRef = useRef(false);
   const runningRef = useRef(false);
@@ -391,8 +625,12 @@ export default function SignalBreach() {
   const [best, setBest] = useState(0);
   const [lives, setLives] = useState(3);
   const [level, setLevel] = useState(1);
+  const [phase, setPhase] = useState<GamePhase>(1);
   const [combo, setCombo] = useState(1);
   const [routes, setRoutes] = useState(0);
+  const [specialItem, setSpecialItem] = useState('none');
+  const [specialSeconds, setSpecialSeconds] = useState(0);
+  const [phasePrompt, setPhasePrompt] = useState(false);
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -403,8 +641,22 @@ export default function SignalBreach() {
     setBest(bestRef.current);
     setLives(livesRef.current);
     setLevel(levelRef.current);
+    setPhase(phaseRef.current);
     setCombo(comboRef.current);
     setRoutes(routesRef.current);
+    const activeSpecial = specialWeaponRef.current;
+    const pendingSpecial = pendingSpecialRef.current;
+    setSpecialItem(
+      activeSpecial
+        ? pendingSpecial
+          ? `${specialWeaponMeta[activeSpecial.kind].short}+${specialWeaponMeta[pendingSpecial].short}`
+          : specialWeaponMeta[activeSpecial.kind].short
+        : pendingSpecial
+          ? `${specialWeaponMeta[pendingSpecial].short} ready`
+          : 'none',
+    );
+    setSpecialSeconds(activeSpecial ? Math.ceil(activeSpecial.timer / framesPerSecond) : 0);
+    setPhasePrompt(phasePromptRef.current);
   };
 
   const startBossChallenge = (bossLevel: number) => {
@@ -439,7 +691,7 @@ export default function SignalBreach() {
     beep('bossWarning', mutedRef.current);
   };
 
-  const addScore = (points: number, text?: string, x?: number, y?: number, options: { progress?: boolean } = {}) => {
+  const addScore = (points: number, text?: string, x?: number, y?: number, options: ScoreOptions = {}) => {
     scoreRef.current += Math.round(points);
     if (scoreRef.current > bestRef.current) {
       bestRef.current = scoreRef.current;
@@ -447,11 +699,11 @@ export default function SignalBreach() {
     }
 
     if (options.progress !== false && !bossRef.current?.active) {
-      levelProgressRef.current += Math.max(0, Math.round(points));
+      levelProgressRef.current += Math.max(0, Math.round(options.progressValue ?? points * 4.2));
       const needed = levelRequirement(levelRef.current);
       if (levelProgressRef.current >= needed) {
         levelProgressRef.current = Math.max(0, levelProgressRef.current - needed);
-        const nextLevel = Math.min(40, levelRef.current + 1);
+        const nextLevel = Math.min(maxLevel, levelRef.current + 1);
         levelRef.current = nextLevel;
         if (nextLevel % 5 === 0) {
           levelProgressRef.current = 0;
@@ -475,6 +727,9 @@ export default function SignalBreach() {
     playerRef.current = { x: 118, y: 260, radius: 18, vx: 0, vy: 0, dashTime: 0, shield: 0, overclock: 0, dashCooldown: 0, invulnerable: 0 };
     hazardsRef.current = [];
     flameWavesRef.current = [];
+    projectilesRef.current = [];
+    specialWeaponRef.current = null;
+    pendingSpecialRef.current = null;
     bossRef.current = null;
     bossTriggeredLevelsRef.current = new Set<number>();
     pickupsRef.current = [
@@ -489,6 +744,7 @@ export default function SignalBreach() {
     scoreRef.current = 0;
     livesRef.current = 3;
     levelRef.current = 1;
+    phaseRef.current = 1;
     levelProgressRef.current = 0;
     comboRef.current = 1;
     routesRef.current = 0;
@@ -496,9 +752,13 @@ export default function SignalBreach() {
     hazardTimerRef.current = 38;
     pickupTimerRef.current = 42;
     survivalTimerRef.current = 0;
+    hudSyncTimerRef.current = 0;
     gateCooldownRef.current = 0;
     spawnFreezeRef.current = 0;
     postNovaGraceRef.current = 0;
+    phasePromptRef.current = false;
+    phaseChoiceRef.current = null;
+    weaponActivateRequestedRef.current = false;
     shakeRef.current = 0;
     dashQueuedRef.current = false;
     pausedRef.current = false;
@@ -599,7 +859,7 @@ export default function SignalBreach() {
               boss.message = 'SPIKED CANNONBALL DEPLOYED';
               livesRef.current = Math.min(9, livesRef.current + 1);
               comboRef.current = Math.min(16, comboRef.current + 2);
-              addScore(1400 + boss.level * 120, '+1 LIFE // BOSS CLEAR', gameWidth / 2, 94, { progress: false });
+              addScore(320 + boss.level * 35, '+1 LIFE // BOSS CLEAR', gameWidth / 2, 94, { progress: false });
               floatingTextRef.current.push({ x: gameWidth / 2, y: 132, vy: -0.55, life: 130, text: '+1 LIFE', color: '#6F924C' });
               beep('bossWin', mutedRef.current);
               syncHud();
@@ -607,6 +867,19 @@ export default function SignalBreach() {
           }
           return;
         }
+      }
+
+      if (phasePromptRef.current) {
+        event.preventDefault();
+        if (key === 'y' || key === 'enter') phaseChoiceRef.current = 'continue';
+        if (key === 'n' || key === 'escape') phaseChoiceRef.current = 'end';
+        return;
+      }
+
+      if (key === 'k') {
+        event.preventDefault();
+        weaponActivateRequestedRef.current = true;
+        return;
       }
 
       if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(key)) {
@@ -674,17 +947,361 @@ export default function SignalBreach() {
       }
     };
 
+    const nearestHazardsFrom = (x: number, y: number, limit = 1) => {
+      const candidates = hazardsRef.current
+        .filter((hazard) => hazard.x > x + 8 && hazard.x < x + 430)
+        .sort((a, b) => distance({ x, y }, a) - distance({ x, y }, b));
+      return candidates.slice(0, limit);
+    };
+
+    const pushProjectile = (projectile: Omit<Projectile, 'id' | 'hitIds'>) => {
+      projectilesRef.current.push({
+        id: idRef.current++,
+        hitIds: new Set<number>(),
+        ...projectile,
+      });
+    };
+
+    const grantSpecialWeapon = (bossLevel: number) => {
+      const cycleIndex = Math.max(0, Math.floor(bossLevel / 5) - 2);
+      const cycle = phaseRef.current === 2 ? phaseTwoSpecialCycle : specialCycle;
+      const kind = cycle[cycleIndex % cycle.length];
+      const meta = specialWeaponMeta[kind];
+      pendingSpecialRef.current = kind;
+      specialWeaponRef.current = null;
+      projectilesRef.current = [];
+      playerRef.current.shield = Math.max(playerRef.current.shield, 120);
+      playerRef.current.invulnerable = Math.max(playerRef.current.invulnerable, 45);
+      comboRef.current = Math.min(14, comboRef.current + 0.35);
+      addBurst(playerRef.current.x, playerRef.current.y, meta.color, 24, 1);
+      addBurst(playerRef.current.x, playerRef.current.y, '#FFF8DB', 12, 0.82);
+      floatingTextRef.current.push({
+        x: gameWidth / 2,
+        y: 154,
+        vy: -0.42,
+        life: 150,
+        text: `${meta.name.toUpperCase()} READY // PRESS K`,
+        color: meta.color,
+      });
+      beep(phaseRef.current === 2 ? 'phasePickup' : 'special', mutedRef.current);
+      syncHud();
+    };
+
+    const grantMysteryWeapon = (x: number, y: number) => {
+      const kind = allSpecialKinds[Math.floor(random(0, allSpecialKinds.length))] ?? 'bitstream';
+      const meta = specialWeaponMeta[kind];
+      pendingSpecialRef.current = kind;
+      comboRef.current = Math.min(14, comboRef.current + 0.5);
+      playerRef.current.invulnerable = Math.max(playerRef.current.invulnerable, 42);
+      addScore(64 + levelRef.current * 2, `${meta.short} MYSTERY DROP`, x, y, { progressValue: 150 + levelRef.current * 5 });
+      addBurst(x, y, meta.color, 34, 1.12);
+      addBurst(x, y, '#FFF8DB', 20, 0.94);
+      floatingTextRef.current.push({
+        x,
+        y: y - 34,
+        vy: -0.68,
+        life: 100,
+        text: specialWeaponRef.current ? `${meta.short} QUEUED // K NEXT` : `${meta.short} READY // PRESS K`,
+        color: meta.color,
+      });
+      beep(phaseRef.current === 2 ? 'phasePickup' : 'special', mutedRef.current);
+      syncHud();
+    };
+
+    const activateSpecialWeapon = () => {
+      const kind = pendingSpecialRef.current;
+      if (bossRef.current?.active || phasePromptRef.current) return;
+      if (specialWeaponRef.current) {
+        const active = specialWeaponMeta[specialWeaponRef.current.kind];
+        floatingTextRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 42, vy: -0.54, life: 58, text: `${active.short} ALREADY ONLINE`, color: active.color });
+        return;
+      }
+      if (!kind) {
+        floatingTextRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 42, vy: -0.54, life: 58, text: 'NO TECH READY', color: '#B96658' });
+        beep('hit', mutedRef.current);
+        return;
+      }
+      const meta = specialWeaponMeta[kind];
+      pendingSpecialRef.current = null;
+      specialWeaponRef.current = {
+        kind,
+        timer: specialDurationFrames,
+        cooldown: 0,
+        phase: 0,
+        targetBudget: meta.budget + (phaseRef.current === 2 ? 2 : 0),
+        shotsFired: 0,
+      };
+      projectilesRef.current = [];
+      playerRef.current.invulnerable = Math.max(playerRef.current.invulnerable, 36);
+      addBurst(playerRef.current.x, playerRef.current.y, meta.color, 24, 0.96);
+      floatingTextRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 42, vy: -0.62, life: 110, text: `${meta.short} ONLINE // 30s`, color: meta.color });
+      beep(phaseRef.current === 2 ? 'phase' : 'special', mutedRef.current);
+      syncHud();
+    };
+
+    const fireSpecialWeapon = (weapon: SpecialWeapon) => {
+      if (weapon.targetBudget <= 0) {
+        weapon.cooldown = 18;
+        return;
+      }
+      const player = playerRef.current;
+      const target = nearestHazardsFrom(player.x, player.y, 1)[0];
+      const targetAngle = target ? Math.atan2(target.y - player.y, target.x - player.x) : 0;
+
+      if (weapon.kind === 'bitstream') {
+        [0].forEach((i) => {
+          const angle = targetAngle + i * 0.18 + random(-0.035, 0.035);
+          pushProjectile({
+            kind: 'bit',
+            owner: weapon.kind,
+            glyph: weapon.shotsFired % 2 === 0 ? '0' : '1',
+            x: player.x + 22,
+            y: player.y + i * 9,
+            vx: Math.cos(angle) * 6.9,
+            vy: Math.sin(angle) * 6.9,
+            radius: 12,
+            life: 64,
+            maxLife: 64,
+            phase: Math.random() > 0.5 ? 1 : 0,
+            angle,
+            pierce: 1,
+          });
+        });
+        weapon.cooldown = 38;
+      }
+
+      if (weapon.kind === 'laser') {
+        pushProjectile({
+          kind: 'laser',
+          owner: weapon.kind,
+          x: player.x + 34,
+          y: player.y,
+          vx: 0,
+          vy: 0,
+          radius: 15,
+          life: 14,
+          maxLife: 14,
+          phase: random(0, Math.PI * 2),
+          angle: 0,
+          pierce: 1,
+        });
+        weapon.cooldown = 84;
+      }
+
+      if (weapon.kind === 'kunai') {
+        [-0.5, 0.5].forEach((i) => {
+          const angle = targetAngle + i * 0.16 + random(-0.05, 0.05);
+          pushProjectile({
+            kind: 'kunai',
+            owner: weapon.kind,
+            x: player.x + Math.cos(angle) * 26,
+            y: player.y + Math.sin(angle) * 26,
+            vx: Math.cos(angle) * 7.8,
+            vy: Math.sin(angle) * 7.8,
+            radius: 14,
+            life: 52,
+            maxLife: 52,
+            phase: random(0, Math.PI * 2),
+            angle,
+            pierce: 1,
+          });
+        });
+        weapon.cooldown = 52;
+      }
+
+      if (weapon.kind === 'firewall') {
+        [-0.45, 0.45].forEach((i) => {
+          const angle = targetAngle + i * 0.12 + random(-0.035, 0.035);
+          pushProjectile({
+            kind: 'fire',
+            owner: weapon.kind,
+            x: player.x + 26,
+            y: player.y,
+            vx: Math.cos(angle) * 5.1,
+            vy: Math.sin(angle) * 5.1,
+            radius: 17,
+            life: 34,
+            maxLife: 34,
+            phase: random(0, Math.PI * 2),
+            angle,
+            pierce: 1,
+          });
+        });
+        weapon.cooldown = 44;
+      }
+
+      if (weapon.kind === 'pulse') {
+        nearestHazardsFrom(player.x, player.y, 2).forEach((hazard, index) => {
+          const angle = Math.atan2(hazard.y - player.y, hazard.x - player.x) + random(-0.08, 0.08);
+          pushProjectile({
+            kind: 'pulse',
+            owner: weapon.kind,
+            x: player.x + Math.cos(index) * 18,
+            y: player.y + Math.sin(index) * 18,
+            vx: Math.cos(angle) * 6.2,
+            vy: Math.sin(angle) * 6.2,
+            radius: 16,
+            life: 56,
+            maxLife: 56,
+            phase: random(0, Math.PI * 2),
+            angle,
+            pierce: 1,
+          });
+        });
+        weapon.cooldown = 72;
+      }
+
+      if (weapon.kind === 'drone') {
+        const side = weapon.shotsFired % 2 === 0 ? -1 : 1;
+        const angle = targetAngle + side * 0.1 + random(-0.04, 0.04);
+        pushProjectile({
+          kind: 'drone',
+          owner: weapon.kind,
+          x: player.x - 2,
+          y: player.y + side * 18,
+          vx: Math.cos(angle) * 7.2,
+          vy: Math.sin(angle) * 7.2,
+          radius: 11,
+          life: 60,
+          maxLife: 60,
+          phase: random(0, Math.PI * 2),
+          angle,
+          pierce: 1,
+        });
+        weapon.cooldown = 60;
+      }
+
+      weapon.shotsFired += 1;
+      addBurst(player.x + 24, player.y, specialWeaponMeta[weapon.kind].color, weapon.kind === 'laser' ? 8 : 4, 0.54);
+      beep(phaseRef.current === 2 ? 'phaseWeapon' : 'weapon', mutedRef.current);
+    };
+
+    const updateProjectiles = (delta: number) => {
+      let hits = 0;
+      projectilesRef.current.forEach((projectile) => {
+        projectile.x += projectile.vx * delta;
+        projectile.y += projectile.vy * delta;
+        projectile.life -= delta;
+        projectile.phase += delta * 0.12;
+
+        if (projectile.kind === 'bit' || projectile.kind === 'drone' || projectile.kind === 'pulse') {
+          const target = nearestHazardsFrom(projectile.x, projectile.y, 1)[0];
+          if (target) {
+            const angle = Math.atan2(target.y - projectile.y, target.x - projectile.x);
+            const speed = projectile.kind === 'pulse' ? 6.3 : projectile.kind === 'drone' ? 7 : 6.8;
+            projectile.vx += (Math.cos(angle) * speed - projectile.vx) * 0.032 * delta;
+            projectile.vy += (Math.sin(angle) * speed - projectile.vy) * 0.032 * delta;
+            projectile.angle = Math.atan2(projectile.vy, projectile.vx);
+          }
+        }
+
+        hazardsRef.current.forEach((hazard) => {
+          if (projectile.pierce <= 0 || projectile.hitIds.has(hazard.id)) return;
+          const activeWeapon = specialWeaponRef.current;
+          if (!activeWeapon || activeWeapon.kind !== projectile.owner || activeWeapon.targetBudget <= 0) return;
+          const hit =
+            projectile.kind === 'laser'
+              ? hazard.x > projectile.x - 14 && hazard.x < projectile.x + 370 && Math.abs(hazard.y - projectile.y) < hazard.radius + 12
+              : distance(projectile, hazard) < projectile.radius + hazard.radius * (hazard.kind === 'gate' ? 0.88 : 0.78);
+          if (!hit) return;
+
+          projectile.hitIds.add(hazard.id);
+          projectile.pierce -= 1;
+          activeWeapon.targetBudget -= 1;
+          hits += 1;
+          const hitX = hazard.x;
+          const hitY = hazard.kind === 'gate' ? projectile.y : hazard.y;
+          hazard.x = -280;
+          hazard.vx = 0;
+          hazard.vy = 0;
+          const color =
+            projectile.kind === 'fire'
+              ? '#EF6C42'
+              : projectile.kind === 'laser'
+                ? '#65CFD7'
+                : projectile.kind === 'kunai'
+                  ? '#8D6B45'
+                  : projectile.kind === 'pulse'
+                    ? '#5B7FD8'
+                    : projectile.kind === 'drone'
+                      ? '#6F924C'
+                      : '#A8D58C';
+          addBurst(hitX, hitY, color, projectile.kind === 'laser' ? 16 : 9, projectile.kind === 'laser' ? 0.95 : 0.72);
+        });
+      });
+
+      projectilesRef.current = projectilesRef.current.filter(
+        (projectile) =>
+          projectile.life > 0 &&
+          projectile.pierce > 0 &&
+          projectile.x > -80 &&
+          projectile.x < gameWidth + 120 &&
+          projectile.y > -80 &&
+          projectile.y < gameHeight + 80,
+      );
+
+      if (hits > 0) {
+        comboRef.current = Math.min(14, comboRef.current + hits * 0.1);
+        addScore((12 + levelRef.current * 2.35) * hits * comboRef.current, `WEAPON x${hits}`, playerRef.current.x + 64, playerRef.current.y - 42, { progressValue: (82 + levelRef.current * 9) * hits });
+      }
+    };
+
+    const updateSpecialWeapon = (delta: number) => {
+      const weapon = specialWeaponRef.current;
+      if (!weapon) {
+        updateProjectiles(delta);
+        return;
+      }
+
+      weapon.timer -= delta;
+      weapon.cooldown -= delta;
+      weapon.phase += delta * 0.05;
+
+      if (weapon.targetBudget <= 0 && weapon.timer > 45) {
+        weapon.timer = 45;
+        const meta = specialWeaponMeta[weapon.kind];
+        floatingTextRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 36, vy: -0.55, life: 62, text: `${meta.short} DEPLETED`, color: '#6C827C' });
+        syncHud();
+      }
+
+      if (weapon.timer <= 0) {
+        const meta = specialWeaponMeta[weapon.kind];
+        specialWeaponRef.current = null;
+        floatingTextRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 36, vy: -0.55, life: 76, text: `${meta.short} EXPIRED`, color: '#6C827C' });
+        syncHud();
+      } else if (weapon.cooldown <= 0 && hazardsRef.current.length > 0 && weapon.targetBudget > 0) {
+        fireSpecialWeapon(weapon);
+      }
+
+      updateProjectiles(delta);
+    };
+
     const spawnPickup = () => {
       if (pickupsRef.current.length >= 8) return;
       const player = playerRef.current;
       const roll = Math.random();
-      const kind: Pickup['kind'] = levelRef.current >= 2 && roll < 0.085 ? 'nova' : player.shield <= 0 && roll < 0.2 ? 'shield' : roll < 0.36 ? 'overclock' : 'shard';
+      const canRepair = livesRef.current < 5 || player.shield <= 0;
+      const mysteryChance = phaseRef.current === 2 ? 0.024 : 0.016;
+      const kind: Pickup['kind'] =
+        roll < mysteryChance
+          ? 'mystery'
+          : phaseRef.current === 2 && roll < 0.14
+          ? 'cache'
+          : canRepair && roll < 0.24
+          ? 'repair'
+          : player.shield <= 0 && roll < 0.34
+            ? 'shield'
+            : levelRef.current >= 2 && roll < 0.42
+              ? 'nova'
+              : roll < 0.58
+                ? 'overclock'
+                : 'shard';
       pickupsRef.current.push({
         id: idRef.current++,
         kind,
         x: random(190, gameWidth - 190),
         y: random(62, gameHeight - 70),
-        radius: kind === 'shard' ? 17 : kind === 'nova' ? 24 : 20,
+        radius: kind === 'shard' ? 17 : kind === 'nova' || kind === 'mystery' ? 24 : kind === 'repair' || kind === 'cache' ? 21 : 20,
         phase: random(0, Math.PI * 2),
       });
     };
@@ -702,7 +1319,7 @@ export default function SignalBreach() {
         phase: random(0, Math.PI * 2),
         hitIds: new Set<number>(),
       });
-      comboRef.current = Math.min(12, comboRef.current + 1.4);
+      comboRef.current = Math.min(12, comboRef.current + 0.8);
       spawnFreezeRef.current = Math.max(spawnFreezeRef.current, 96);
       postNovaGraceRef.current = Math.max(postNovaGraceRef.current, 132);
       hazardTimerRef.current = Math.max(hazardTimerRef.current, 92);
@@ -710,7 +1327,7 @@ export default function SignalBreach() {
       addBurst(x, y, '#EF6C42', 44, 1.65);
       addBurst(x, y, '#F7B15E', 34, 1.25);
       floatingTextRef.current.push({ x, y: y - 30, vy: -0.75, life: 78, text: 'FLAME NOVA', color: '#B94A36' });
-      addScore(180, 'NOVA READY', x, y + 12);
+      addScore(45, 'NOVA READY', x, y + 12, { progressValue: 160 });
       beep('nova', mutedRef.current);
     };
 
@@ -751,8 +1368,8 @@ export default function SignalBreach() {
         });
 
         if (destroyed > 0) {
-          comboRef.current = Math.min(14, comboRef.current + destroyed * 0.55);
-          addScore((190 + levelRef.current * 28) * destroyed * comboRef.current, `BURN x${destroyed}`, wave.x, wave.y - Math.min(120, wave.radius * 0.28));
+          comboRef.current = Math.min(12, comboRef.current + destroyed * 0.22);
+          addScore((48 + levelRef.current * 5) * destroyed * comboRef.current, `BURN x${destroyed}`, wave.x, wave.y - Math.min(120, wave.radius * 0.28), { progressValue: (210 + levelRef.current * 20) * destroyed });
           shakeRef.current = Math.max(shakeRef.current, 8 + destroyed * 2);
           beep('burn', mutedRef.current);
         }
@@ -763,10 +1380,42 @@ export default function SignalBreach() {
 
     const spawnHazard = () => {
       const level = levelRef.current;
+      const phase = phaseRef.current;
       const roll = Math.random();
-      const speed = random(1.9, 2.8) + level * 0.24;
+      const speed = random(1.9, 2.8) + level * (phase === 2 ? 0.18 : 0.24) + (phase === 2 ? 0.95 : 0);
       const gatesOnScreen = hazardsRef.current.filter((hazard) => hazard.kind === 'gate' && hazard.x > -60 && hazard.x < gameWidth + 260).length;
       const gateChance = level >= 5 && gateCooldownRef.current <= 0 && gatesOnScreen === 0 ? Math.min(0.18, 0.07 + level * 0.005) : 0;
+      const activeSeekers = hazardsRef.current.filter((hazard) => hazard.kind === 'seeker' && hazard.x > -40 && hazard.x < gameWidth + 160).length;
+      const maxSeekers = level < 10 ? 1 : level < 20 ? 2 : 3;
+      const seekerChance = activeSeekers >= maxSeekers ? 0 : Math.min(0.31, 0.11 + level * 0.0075);
+
+      if (phase === 2 && roll < 0.2) {
+        hazardsRef.current.push({
+          id: idRef.current++,
+          kind: 'wraith',
+          x: gameWidth + random(48, 120),
+          y: random(76, gameHeight - 76),
+          radius: 24,
+          vx: -speed * 0.48,
+          vy: random(-0.35, 0.35),
+          phase: random(0, Math.PI * 2),
+        });
+        return;
+      }
+
+      if (phase === 2 && roll < 0.36) {
+        hazardsRef.current.push({
+          id: idRef.current++,
+          kind: 'shuriken',
+          x: gameWidth + 50,
+          y: random(80, gameHeight - 80),
+          radius: 23,
+          vx: -speed * 0.88,
+          vy: random(-2.4, 2.4),
+          phase: random(0, Math.PI * 2),
+        });
+        return;
+      }
 
       if (roll < gateChance) {
         const gapSize = Math.max(132, 210 - Math.min(level, 22) * 2.6);
@@ -788,15 +1437,15 @@ export default function SignalBreach() {
         return;
       }
 
-      if (level >= 3 && roll < Math.min(0.52, 0.22 + level * 0.018)) {
+      if (level >= 3 && roll < gateChance + seekerChance) {
         hazardsRef.current.push({
           id: idRef.current++,
           kind: 'seeker',
           x: gameWidth + 46,
           y: random(72, gameHeight - 72),
           radius: 22,
-          vx: -speed * 0.68,
-          vy: random(-0.7, 0.7),
+          vx: -speed * 0.56,
+          vy: random(-0.52, 0.52),
           phase: random(0, Math.PI * 2),
         });
         return;
@@ -817,27 +1466,70 @@ export default function SignalBreach() {
     const spawnBossHorde = (boss: BossChallenge) => {
       const lane = (hazardsRef.current.length + Math.floor(tickRef.current)) % 7;
       const y = 70 + lane * 62 + Math.sin(tickRef.current * 0.04 + lane) * 18;
-      const kind: Hazard['kind'] = lane % 3 === 0 ? 'seeker' : 'block';
+      const kind: Hazard['kind'] = phaseRef.current === 2 && lane % 4 === 0 ? 'wraith' : lane % 3 === 0 ? 'seeker' : 'block';
       hazardsRef.current.push({
         id: idRef.current++,
         kind,
         x: gameWidth + random(28, 180),
         y: clamp(y, 58, gameHeight - 58),
-        radius: kind === 'seeker' ? 22 : random(24, 34),
+        radius: kind === 'seeker' || kind === 'wraith' ? 22 : random(24, 34),
         vx: -random(2.6, 4.8) - boss.level * 0.08,
         vy: random(-0.9, 0.9),
         phase: random(0, Math.PI * 2),
       });
     };
 
+    const startPhaseTwo = () => {
+      phasePromptRef.current = false;
+      phaseChoiceRef.current = null;
+      phaseRef.current = 2;
+      levelRef.current = phaseOneFinalBoss + 1;
+      levelProgressRef.current = 0;
+      hazardsRef.current = [];
+      projectilesRef.current = [];
+      flameWavesRef.current = [];
+      pickupsRef.current = [
+        { id: idRef.current++, kind: 'cache', x: 330, y: 150, radius: 21, phase: 0 },
+        { id: idRef.current++, kind: 'repair', x: 540, y: 330, radius: 21, phase: 2 },
+        { id: idRef.current++, kind: 'overclock', x: 690, y: 220, radius: 20, phase: 4 },
+      ];
+      playerRef.current.x = 118;
+      playerRef.current.y = gameHeight / 2;
+      playerRef.current.vx = 0;
+      playerRef.current.vy = 0;
+      playerRef.current.invulnerable = 150;
+      spawnFreezeRef.current = 170;
+      postNovaGraceRef.current = 160;
+      hazardTimerRef.current = 126;
+      pickupTimerRef.current = 34;
+      shakeRef.current = 18;
+      addScore(420, 'PHASE 2 ONLINE', gameWidth / 2, 118, { progress: false });
+      addBurst(gameWidth / 2, gameHeight / 2, '#5B7FD8', 52, 1.45);
+      addBurst(gameWidth / 2, gameHeight / 2, '#65CFD7', 32, 1.15);
+      beep('phase', mutedRef.current);
+      syncHud();
+    };
+
+    const endAtPhaseOne = () => {
+      phasePromptRef.current = false;
+      phaseChoiceRef.current = null;
+      runningRef.current = false;
+      setRunning(false);
+      floatingTextRef.current.push({ x: gameWidth / 2, y: 122, vy: -0.35, life: 140, text: 'PHASE 1 ARCHIVED', color: '#6F924C' });
+      syncHud();
+    };
+
     const finishBossChallenge = (cleared: boolean) => {
       const boss = bossRef.current;
       if (!boss) return;
-      levelRef.current = Math.min(40, boss.level + 1);
+      const nextLevel = Math.min(maxLevel, boss.level + 1);
+      const phaseTwoPrompt = phaseRef.current === 1 && boss.level >= phaseOneFinalBoss;
+      levelRef.current = phaseTwoPrompt ? phaseOneFinalBoss : nextLevel;
       levelProgressRef.current = 0;
       bossRef.current = null;
       hazardsRef.current = [];
       flameWavesRef.current = [];
+      projectilesRef.current = [];
       spawnFreezeRef.current = 92;
       postNovaGraceRef.current = 130;
       hazardTimerRef.current = 118;
@@ -852,9 +1544,21 @@ export default function SignalBreach() {
         y: 118,
         vy: -0.45,
         life: 110,
-        text: cleared ? `LEVEL ${Math.min(40, boss.level + 1)} ONLINE` : `LEVEL ${Math.min(40, boss.level + 1)} ONLINE // NO BONUS`,
+        text: phaseTwoPrompt ? 'PHASE 1 COMPLETE' : cleared ? `LEVEL ${nextLevel} ONLINE` : `LEVEL ${nextLevel} ONLINE // NO BONUS`,
         color: cleared ? '#6F924C' : '#B96658',
       });
+      if (cleared && boss.level >= 10) {
+        grantSpecialWeapon(boss.level);
+      }
+      if (phaseTwoPrompt) {
+        phasePromptRef.current = true;
+        phaseChoiceRef.current = null;
+        spawnFreezeRef.current = 999;
+        postNovaGraceRef.current = 999;
+        beep('phase', mutedRef.current);
+        syncHud();
+        return;
+      }
       if (!cleared) beep('bossFail', mutedRef.current);
       syncHud();
     };
@@ -958,7 +1662,7 @@ export default function SignalBreach() {
         });
 
         if (hits > 0) {
-          addScore((230 + boss.level * 35) * hits, `SPIKES x${hits}`, playerRef.current.x, playerRef.current.y - 36, { progress: false });
+          addScore((18 + boss.level * 2) * hits, `SPIKES x${hits}`, playerRef.current.x, playerRef.current.y - 36, { progress: false });
           beep('burn', mutedRef.current);
         }
         hazardsRef.current = hazardsRef.current.filter((hazard) => hazard.x > -150);
@@ -1040,8 +1744,10 @@ export default function SignalBreach() {
     const routePacket = () => {
       const player = playerRef.current;
       routesRef.current += 1;
-      comboRef.current = Math.min(12, comboRef.current + 1);
-      addScore(320 + levelRef.current * 55 + comboRef.current * 42, `ROUTE x${comboRef.current}`, gameWidth - 144, player.y);
+      comboRef.current = Math.min(12, comboRef.current + (phaseRef.current === 2 ? 0.7 : 0.55));
+      addScore(85 + levelRef.current * 9 + comboRef.current * 14, phaseRef.current === 2 ? `PHASE ROUTE x${comboRef.current.toFixed(1)}` : `ROUTE x${comboRef.current.toFixed(1)}`, gameWidth - 144, player.y, {
+        progressValue: 520 + levelRef.current * 48,
+      });
       if (bossRef.current?.active) {
         syncHud();
         return;
@@ -1053,14 +1759,41 @@ export default function SignalBreach() {
       player.invulnerable = 42;
       hazardTimerRef.current = Math.min(hazardTimerRef.current, 18);
       addBurst(gameWidth - 90, player.y, '#A8D58C', 34, 1.35);
-      beep('route', mutedRef.current);
+      beep(phaseRef.current === 2 ? 'phasePickup' : 'route', mutedRef.current);
       syncHud();
     };
 
     const update = (delta: number) => {
       if (updateBossChallenge(delta)) return;
+      if (phasePromptRef.current) {
+        tickRef.current += delta;
+        if (phaseChoiceRef.current === 'continue') startPhaseTwo();
+        if (phaseChoiceRef.current === 'end') endAtPhaseOne();
+        particlesRef.current = particlesRef.current
+          .map((particle) => ({
+            ...particle,
+            x: particle.x + particle.vx * delta,
+            y: particle.y + particle.vy * delta,
+            vx: particle.vx * 0.985,
+            vy: particle.vy * 0.985,
+            life: particle.life - delta,
+          }))
+          .filter((particle) => particle.life > 0);
+        floatingTextRef.current = floatingTextRef.current
+          .map((text) => ({ ...text, y: text.y + text.vy * delta, life: text.life - delta }))
+          .filter((text) => text.life > 0);
+        shakeRef.current = Math.max(0, shakeRef.current - delta * 0.6);
+        return;
+      }
+
+      if (weaponActivateRequestedRef.current) {
+        weaponActivateRequestedRef.current = false;
+        activateSpecialWeapon();
+      }
+
       const player = playerRef.current;
       const level = levelRef.current;
+      const phase = phaseRef.current;
       tickRef.current += delta;
       gateCooldownRef.current = Math.max(0, gateCooldownRef.current - delta);
       spawnFreezeRef.current = Math.max(0, spawnFreezeRef.current - delta);
@@ -1074,19 +1807,19 @@ export default function SignalBreach() {
 
       if (hazardTimerRef.current <= 0 && spawnFreezeRef.current <= 0) {
         spawnHazard();
-        if (level >= 10 && Math.random() < 0.28) spawnHazard();
-        if (level >= 18 && Math.random() < 0.16) spawnHazard();
-        hazardTimerRef.current = Math.max(9, random(42, 74) - level * 2.65);
+        if (level >= 12 && Math.random() < (phase === 2 ? 0.2 : 0.12)) spawnHazard();
+        if (level >= 22 && Math.random() < (phase === 2 ? 0.12 : 0.06)) spawnHazard();
+        hazardTimerRef.current = Math.max(phase === 2 ? 11 : 16, random(phase === 2 ? 38 : 52, phase === 2 ? 70 : 90) - level * (phase === 2 ? 1.55 : 1.75));
       }
 
       if (pickupTimerRef.current <= 0) {
         spawnPickup();
-        pickupTimerRef.current = Math.max(38, random(76, 122) - level * 1.4);
+        pickupTimerRef.current = Math.max(phase === 2 ? 34 : 42, random(phase === 2 ? 66 : 82, phase === 2 ? 112 : 132) - level * 1.08);
       }
 
       if (survivalTimerRef.current > 34) {
         survivalTimerRef.current = 0;
-        addScore(level + comboRef.current);
+        addScore(Math.max(1, level / 5 + comboRef.current / 3), undefined, undefined, undefined, { progressValue: 34 + level * 4 });
         if (bossRef.current?.active) return;
       }
 
@@ -1095,7 +1828,7 @@ export default function SignalBreach() {
       const up = keysRef.current.has('arrowup') || keysRef.current.has('w');
       const down = keysRef.current.has('arrowdown') || keysRef.current.has('s');
       const hasKeyboardInput = left || right || up || down;
-      const maxSpeed = (player.overclock > 0 ? 5.85 : 4.45) + Math.min(level, 16) * 0.035;
+      const maxSpeed = (player.overclock > 0 ? 5.85 : 4.45) + Math.min(level, 22) * 0.028 + (phase === 2 ? 0.28 : 0);
       let targetVx = (right ? maxSpeed : 0) - (left ? maxSpeed : 0);
       let targetVy = (down ? maxSpeed : 0) - (up ? maxSpeed : 0);
 
@@ -1144,14 +1877,14 @@ export default function SignalBreach() {
         .slice(0, player.dashTime > 0 ? 30 : 18);
 
       hazardsRef.current.forEach((hazard) => {
-        if (hazard.kind === 'seeker') {
+        if (hazard.kind === 'seeker' || hazard.kind === 'wraith') {
           const dx = player.x - hazard.x;
           const dy = player.y - hazard.y;
           const length = Math.hypot(dx, dy) || 1;
-          const aggression = 0.026 + Math.min(level, 22) * 0.002;
+          const aggression = hazard.kind === 'wraith' ? 0.011 + Math.min(level, 35) * 0.0009 : 0.015 + Math.min(level, 22) * 0.00125;
           hazard.vx += (dx / length) * aggression * delta;
           hazard.vy += (dy / length) * aggression * delta;
-          const maxSeekerSpeed = 2.1 + Math.min(level, 20) * 0.085;
+          const maxSeekerSpeed = hazard.kind === 'wraith' ? 2.15 + Math.min(level, 35) * 0.035 : 1.75 + Math.min(level, 20) * 0.055;
           const speed = Math.hypot(hazard.vx, hazard.vy);
           if (speed > maxSeekerSpeed) {
             hazard.vx = (hazard.vx / speed) * maxSeekerSpeed;
@@ -1161,35 +1894,73 @@ export default function SignalBreach() {
 
         hazard.x += hazard.vx * delta;
         hazard.y += (hazard.vy + Math.sin((tickRef.current + hazard.phase * 30) * 0.045) * 0.36) * delta;
+        if (hazard.kind === 'shuriken' && (hazard.y < 52 || hazard.y > gameHeight - 52)) {
+          hazard.vy *= -1;
+        }
         if (hazard.kind !== 'gate') {
           hazard.y = clamp(hazard.y, 44, gameHeight - 44);
         }
       });
+      updateSpecialWeapon(delta);
       updateFlameWaves(delta);
       if (bossRef.current?.active) return;
       hazardsRef.current = hazardsRef.current.filter((hazard) => hazard.x > -150);
+
+      hudSyncTimerRef.current += delta;
+      if (hudSyncTimerRef.current >= 18) {
+        hudSyncTimerRef.current = 0;
+        syncHud();
+      }
 
       pickupsRef.current = pickupsRef.current.filter((pickup) => {
         pickup.phase += 0.035 * delta;
         if (distance(player, pickup) < player.radius + pickup.radius) {
           if (pickup.kind === 'shard') {
-            comboRef.current = Math.min(12, comboRef.current + 0.35);
-            addScore(115 * comboRef.current, `+${Math.round(115 * comboRef.current)}`, pickup.x, pickup.y);
+            comboRef.current = Math.min(12, comboRef.current + 0.22);
+            const points = 28 * comboRef.current;
+            addScore(points, `+${Math.round(points)}`, pickup.x, pickup.y, { progressValue: 125 });
             addBurst(pickup.x, pickup.y, '#A8D58C', 16);
             beep('collect', mutedRef.current);
           }
           if (pickup.kind === 'shield') {
             player.shield = 430;
-            addScore(80, 'SHIELD', pickup.x, pickup.y);
+            addScore(24, 'SHIELD', pickup.x, pickup.y, { progressValue: 80 });
             addBurst(pickup.x, pickup.y, '#65CFD7', 18);
+            beep('power', mutedRef.current);
+          }
+          if (pickup.kind === 'repair') {
+            if (livesRef.current < 5) {
+              livesRef.current += 1;
+              addScore(42, '+1 LIFE PATCH', pickup.x, pickup.y, { progressValue: 130 });
+            } else {
+              player.shield = Math.max(player.shield, 260);
+              addScore(34, 'STABILITY PATCH', pickup.x, pickup.y, { progressValue: 110 });
+            }
+            player.invulnerable = Math.max(player.invulnerable, 44);
+            addBurst(pickup.x, pickup.y, '#A8D58C', 18);
+            addBurst(pickup.x, pickup.y, '#65CFD7', 12);
             beep('power', mutedRef.current);
           }
           if (pickup.kind === 'overclock') {
             player.overclock = 360;
-            comboRef.current = Math.min(12, comboRef.current + 1);
-            addScore(120, 'OVERCLOCK', pickup.x, pickup.y);
+            comboRef.current = Math.min(12, comboRef.current + 0.55);
+            addScore(32, 'OVERCLOCK', pickup.x, pickup.y, { progressValue: 120 });
             addBurst(pickup.x, pickup.y, '#F3D99B', 22);
             beep('power', mutedRef.current);
+          }
+          if (pickup.kind === 'mystery') {
+            grantMysteryWeapon(pickup.x, pickup.y);
+          }
+          if (pickup.kind === 'cache') {
+            comboRef.current = Math.min(14, comboRef.current + 0.9);
+            if (pendingSpecialRef.current && !specialWeaponRef.current) {
+              const pending = specialWeaponMeta[pendingSpecialRef.current];
+              floatingTextRef.current.push({ x: pickup.x, y: pickup.y - 22, vy: -0.65, life: 74, text: `${pending.short} STABILIZED`, color: pending.color });
+            }
+            addScore(72 * comboRef.current, 'PHASE CACHE', pickup.x, pickup.y, { progressValue: 260 + level * 12 });
+            addBurst(pickup.x, pickup.y, '#5B7FD8', 24, 1.15);
+            addBurst(pickup.x, pickup.y, '#65CFD7', 12, 0.95);
+            beep('phasePickup', mutedRef.current);
           }
           if (pickup.kind === 'nova') {
             activateNova(player.x, player.y);
@@ -1240,13 +2011,14 @@ export default function SignalBreach() {
     };
 
     const drawGrid = () => {
+      const phase = phaseRef.current;
       const offset = (tickRef.current * 0.55) % 42;
-      ctx.strokeStyle = 'rgba(65,128,130,0.1)';
+      ctx.strokeStyle = phase === 2 ? 'rgba(91,127,216,0.16)' : 'rgba(65,128,130,0.1)';
       ctx.lineWidth = 1;
       for (let x = -42 + offset; x <= gameWidth; x += 42) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
-        ctx.lineTo(x + 90, gameHeight);
+        ctx.lineTo(x + (phase === 2 ? 132 : 90), gameHeight);
         ctx.stroke();
       }
       for (let y = 22; y <= gameHeight; y += 42) {
@@ -1254,6 +2026,18 @@ export default function SignalBreach() {
         ctx.moveTo(0, y);
         ctx.lineTo(gameWidth, y);
         ctx.stroke();
+      }
+
+      if (phase === 2) {
+        ctx.strokeStyle = 'rgba(91,127,216,0.22)';
+        ctx.lineWidth = 2;
+        for (let lane = 0; lane < 4; lane += 1) {
+          const y = 86 + lane * 108 + Math.sin(tickRef.current * 0.018 + lane) * 8;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.bezierCurveTo(210, y - 52, 520, y + 48, gameWidth, y - 10);
+          ctx.stroke();
+        }
       }
     };
 
@@ -1330,6 +2114,109 @@ export default function SignalBreach() {
       ctx.restore();
     };
 
+    const drawProjectile = (projectile: Projectile) => {
+      const alpha = clamp(projectile.life / projectile.maxLife, 0, 1);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.globalCompositeOperation = projectile.kind === 'laser' || projectile.kind === 'fire' ? 'lighter' : 'source-over';
+      ctx.translate(projectile.x, projectile.y);
+      ctx.rotate(projectile.angle);
+
+      if (projectile.kind === 'laser') {
+        const length = Math.min(390, gameWidth - projectile.x + 36);
+        const beam = ctx.createLinearGradient(0, 0, length, 0);
+        beam.addColorStop(0, 'rgba(255,255,255,0.95)');
+        beam.addColorStop(0.12, 'rgba(101,207,215,0.9)');
+        beam.addColorStop(1, 'rgba(101,207,215,0.02)');
+        ctx.shadowColor = '#65CFD7';
+        ctx.shadowBlur = 16;
+        ctx.strokeStyle = beam;
+        ctx.lineWidth = 16;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(length, 0);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(8, 0);
+        ctx.lineTo(length * 0.72, 0);
+        ctx.stroke();
+      }
+
+      if (projectile.kind === 'bit') {
+        ctx.fillStyle = '#20302D';
+        ctx.strokeStyle = '#A8D58C';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, 13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#FFF8DB';
+        ctx.font = '900 15px Space Grotesk, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(projectile.glyph ?? (Math.floor(projectile.phase * 2) % 2 === 0 ? '0' : '1'), 0, 0);
+        ctx.textBaseline = 'alphabetic';
+      }
+
+      if (projectile.kind === 'kunai') {
+        drawSprite('kunaiChip', 0, 0, 42, Math.PI / 2, alpha);
+      }
+
+      if (projectile.kind === 'pulse') {
+        drawSprite('pulseLotus', 0, 0, 42 + Math.sin(projectile.phase) * 3, projectile.phase * 0.45, alpha);
+        ctx.strokeStyle = `rgba(91,127,216,${0.42 * alpha})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 24 + Math.sin(projectile.phase * 1.6) * 4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      if (projectile.kind === 'drone') {
+        drawSprite('mirrorDrone', 0, 0, 36, Math.sin(projectile.phase) * 0.18, alpha);
+        ctx.strokeStyle = `rgba(111,146,76,${0.34 * alpha})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-26, 0);
+        ctx.lineTo(-56, Math.sin(projectile.phase) * 8);
+        ctx.stroke();
+      }
+
+      if (projectile.kind === 'fire') {
+        const flame = ctx.createRadialGradient(0, 0, 3, 0, 0, 24);
+        flame.addColorStop(0, 'rgba(255,248,219,0.95)');
+        flame.addColorStop(0.45, 'rgba(247,177,94,0.76)');
+        flame.addColorStop(1, 'rgba(239,108,66,0.05)');
+        ctx.fillStyle = flame;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 25, 13 + Math.sin(projectile.phase) * 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    };
+
+    const drawSpecialCompanion = () => {
+      const weapon = specialWeaponRef.current;
+      const pending = pendingSpecialRef.current;
+      if ((!weapon && !pending) || bossRef.current?.active) return;
+      const player = playerRef.current;
+      const meta = specialWeaponMeta[weapon?.kind ?? pending!];
+      const orbit = (weapon?.phase ?? 0) + tickRef.current * (weapon ? 0.04 : 0.028);
+      const x = player.x - 12 + Math.cos(orbit) * (weapon ? 42 : 34);
+      const y = player.y - 4 + Math.sin(orbit * 1.4) * (weapon ? 24 : 18);
+      drawSprite(meta.sprite, x, y, (weapon ? 46 : 40) + Math.sin(tickRef.current * 0.16) * 4, orbit * 0.5, weapon ? 1 : 0.78);
+
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.font = '900 10px Space Grotesk, monospace';
+      ctx.fillStyle = meta.color;
+      ctx.fillText(weapon ? String(Math.max(0, weapon.targetBudget)) : 'K', x, y - 29);
+      ctx.restore();
+    };
+
     const drawSpikedCannonball = () => {
       const player = playerRef.current;
       const spin = tickRef.current * 0.44;
@@ -1400,6 +2287,35 @@ export default function SignalBreach() {
       ctx.restore();
     };
 
+    const drawPhasePromptOverlay = () => {
+      if (!phasePromptRef.current) return;
+      const pulse = 0.5 + Math.sin(tickRef.current * 0.045) * 0.5;
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,250,240,0.76)';
+      roundRect(ctx, 86, 68, gameWidth - 172, 262, 32);
+      ctx.fill();
+      ctx.strokeStyle = `rgba(91,127,216,${0.44 + pulse * 0.2})`;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#20302D';
+      ctx.font = '900 28px Space Grotesk, sans-serif';
+      ctx.fillText('PHASE 2 AVAILABLE', gameWidth / 2, 120);
+      ctx.font = '800 13px Space Grotesk, monospace';
+      ctx.fillStyle = 'rgba(32,48,45,0.68)';
+      ctx.fillText('new layout // phase wraiths // quantum caches // pulse + drone weapons', gameWidth / 2, 148);
+      drawSprite('phaseCore', gameWidth / 2, 214, 112 + pulse * 8, Math.sin(tickRef.current * 0.02) * 0.04);
+
+      ctx.fillStyle = '#5B7FD8';
+      ctx.font = '900 18px Space Grotesk, sans-serif';
+      ctx.fillText('Press Y / Enter to continue', gameWidth / 2, 286);
+      ctx.fillStyle = 'rgba(32,48,45,0.56)';
+      ctx.font = '800 12px Space Grotesk, monospace';
+      ctx.fillText('Press N / Esc to archive the run here', gameWidth / 2, 310);
+      ctx.textAlign = 'left';
+      ctx.restore();
+    };
+
     const drawOverlay = (title: string, subtitle: string) => {
       ctx.save();
       ctx.fillStyle = 'rgba(255,248,235,0.72)';
@@ -1422,10 +2338,17 @@ export default function SignalBreach() {
       if (isPlaying) update(delta);
 
       ctx.clearRect(0, 0, gameWidth, gameHeight);
+      const phase = phaseRef.current;
       const gradient = ctx.createLinearGradient(0, 0, gameWidth, gameHeight);
-      gradient.addColorStop(0, '#fff8eb');
-      gradient.addColorStop(0.5, '#eef8f5');
-      gradient.addColorStop(1, '#f7fff0');
+      if (phase === 2) {
+        gradient.addColorStop(0, '#f5fbff');
+        gradient.addColorStop(0.42, '#edf6ff');
+        gradient.addColorStop(1, '#f7fff0');
+      } else {
+        gradient.addColorStop(0, '#fff8eb');
+        gradient.addColorStop(0.5, '#eef8f5');
+        gradient.addColorStop(1, '#f7fff0');
+      }
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, gameWidth, gameHeight);
       drawGrid();
@@ -1435,11 +2358,11 @@ export default function SignalBreach() {
       ctx.translate(shake, shake * 0.45);
 
       const coreGradient = ctx.createLinearGradient(gameWidth - 128, 0, gameWidth, 0);
-      coreGradient.addColorStop(0, 'rgba(168,213,140,0)');
-      coreGradient.addColorStop(1, 'rgba(168,213,140,0.32)');
+      coreGradient.addColorStop(0, phase === 2 ? 'rgba(91,127,216,0)' : 'rgba(168,213,140,0)');
+      coreGradient.addColorStop(1, phase === 2 ? 'rgba(91,127,216,0.3)' : 'rgba(168,213,140,0.32)');
       ctx.fillStyle = coreGradient;
       ctx.fillRect(gameWidth - 140, 0, 140, gameHeight);
-      drawSprite('core', gameWidth - 64, gameHeight / 2, 142, Math.sin(tickRef.current * 0.012) * 0.02);
+      drawSprite(phase === 2 ? 'phaseCore' : 'core', gameWidth - 64, gameHeight / 2, phase === 2 ? 156 : 142, Math.sin(tickRef.current * 0.012) * 0.02);
 
       trailRef.current.forEach((trail, index) => {
         ctx.globalAlpha = Math.max(0, trail.life / 28) * (playerRef.current.dashTime > 0 ? 0.42 : 0.28);
@@ -1452,8 +2375,21 @@ export default function SignalBreach() {
 
       pickupsRef.current.forEach((pickup) => {
         const bob = Math.sin(pickup.phase + tickRef.current * 0.045) * 5;
-        const key: SpriteKey = pickup.kind === 'shield' ? 'shield' : pickup.kind === 'overclock' ? 'overclock' : pickup.kind === 'nova' ? 'nova' : 'shard';
-        drawSprite(key, pickup.x, pickup.y + bob, pickup.kind === 'shard' ? 48 : pickup.kind === 'nova' ? 62 : 54, Math.sin(pickup.phase) * 0.08);
+        const key: SpriteKey =
+          pickup.kind === 'shield'
+            ? 'shield'
+            : pickup.kind === 'repair'
+              ? 'repair'
+              : pickup.kind === 'overclock'
+                ? 'overclock'
+                : pickup.kind === 'nova'
+                  ? 'nova'
+                  : pickup.kind === 'cache'
+                    ? 'quantumCache'
+                    : pickup.kind === 'mystery'
+                      ? 'mysteryBox'
+                      : 'shard';
+        drawSprite(key, pickup.x, pickup.y + bob, pickup.kind === 'shard' ? 48 : pickup.kind === 'nova' ? 62 : pickup.kind === 'repair' || pickup.kind === 'cache' ? 56 : pickup.kind === 'mystery' ? 64 : 54, Math.sin(pickup.phase) * 0.08);
       });
 
       hazardsRef.current.forEach((hazard) => {
@@ -1461,10 +2397,12 @@ export default function SignalBreach() {
           drawGate(hazard);
           return;
         }
-        const key: SpriteKey = hazard.kind === 'seeker' ? 'seeker' : 'block';
-        drawSprite(key, hazard.x, hazard.y, hazard.radius * 2.45, Math.sin(tickRef.current * 0.035 + hazard.phase) * 0.18);
+        const key: SpriteKey = hazard.kind === 'seeker' ? 'seeker' : hazard.kind === 'wraith' ? 'phaseWraith' : hazard.kind === 'shuriken' ? 'shurikenVirus' : 'block';
+        const rotation = hazard.kind === 'shuriken' ? tickRef.current * 0.18 + hazard.phase : Math.sin(tickRef.current * 0.035 + hazard.phase) * 0.18;
+        drawSprite(key, hazard.x, hazard.y, hazard.radius * (hazard.kind === 'shuriken' ? 2.7 : 2.45), rotation);
       });
 
+      projectilesRef.current.forEach(drawProjectile);
       flameWavesRef.current.forEach(drawFlameWave);
 
       particlesRef.current.forEach((particle) => {
@@ -1484,6 +2422,7 @@ export default function SignalBreach() {
         ctx.arc(player.x, player.y, 34 + Math.sin(tickRef.current * 0.12) * 3, 0, Math.PI * 2);
         ctx.stroke();
       }
+      drawSpecialCompanion();
       if (bossRef.current?.active && bossRef.current.phase === 'strike') {
         drawSpikedCannonball();
       } else if (player.invulnerable <= 0 || Math.floor(tickRef.current / 5) % 2 === 0) {
@@ -1503,23 +2442,31 @@ export default function SignalBreach() {
       ctx.restore();
 
       ctx.fillStyle = 'rgba(255,255,255,0.74)';
-      roundRect(ctx, 18, 18, 318, 52, 20);
+      roundRect(ctx, 18, 18, 650, 52, 20);
       ctx.fill();
       ctx.fillStyle = '#20302D';
       ctx.font = '900 13px Space Grotesk, monospace';
-      ctx.fillText(`LVL ${levelRef.current}  COMBO x${comboRef.current.toFixed(1)}  DASH ${playerRef.current.dashCooldown <= 0 ? 'READY' : 'CHARGING'}`, 36, 49);
+      const activeSpecial = specialWeaponRef.current;
+      const pendingSpecial = pendingSpecialRef.current;
+      const specialHud = activeSpecial
+        ? `${specialWeaponMeta[activeSpecial.kind].short} ${Math.ceil(activeSpecial.timer / framesPerSecond)}s/${Math.max(0, activeSpecial.targetBudget)}${pendingSpecial ? ` +${specialWeaponMeta[pendingSpecial].short}` : ''}`
+        : pendingSpecial
+          ? `${specialWeaponMeta[pendingSpecial].short} READY K`
+          : 'NONE';
+      ctx.fillText(`P${phaseRef.current}  LVL ${levelRef.current}  COMBO x${comboRef.current.toFixed(1)}  DASH ${playerRef.current.dashCooldown <= 0 ? 'READY' : 'CHARGING'}  ITEM ${specialHud}`, 36, 49);
 
       ctx.fillStyle = 'rgba(32,48,45,0.62)';
       ctx.font = '700 12px Space Grotesk, monospace';
-      ctx.fillText('route to the core // collect orbs // dash through gaps // flame nova deletes everything it touches', 24, gameHeight - 24);
+      ctx.fillText('route to the core // K activates ready tech for 30s // weapons have limited hits, keep dodging', 24, gameHeight - 24);
 
       drawBossOverlay();
+      drawPhasePromptOverlay();
       if (bossRef.current?.active && bossRef.current.phase === 'strike') {
         drawSpikedCannonball();
       }
 
       if (!runningRef.current) {
-        drawOverlay(scoreRef.current > 0 ? 'BREACH COMPLETE?' : 'SIGNAL BREACH', scoreRef.current > 0 ? 'hit start run to chase the next best score' : 'start run // WASD or drag // Space for dash');
+        drawOverlay(scoreRef.current > 0 ? 'BREACH COMPLETE?' : 'SIGNAL BREACH', scoreRef.current > 0 ? 'hit start run to chase the next best score' : 'start run // WASD or drag // Space dash // K weapon');
       } else if (pausedRef.current) {
         drawOverlay('PAUSED', 'press P or resume run');
       }
@@ -1553,7 +2500,7 @@ export default function SignalBreach() {
             <h2 className="mt-5 font-display text-4xl font-black uppercase leading-none text-[#20302d] md:text-6xl">Signal Breach</h2>
           </div>
           <p className="max-w-3xl text-lg font-semibold leading-8 text-[#536963] lg:self-end">
-            A 2.5D packet-running arcade game: dash through corrupted gates, stack combo, grab shields, trigger Flame Nova, and route signals before the system gets feral.
+            A 2.5D packet-running arcade game: dash through corrupted gates, stack combo, survive boss protocols, and trigger earned weapons with K before the system gets feral.
           </p>
         </div>
 
@@ -1592,11 +2539,21 @@ export default function SignalBreach() {
               <div className="grid grid-cols-2 gap-3">
                 <Metric label="score" value={String(score).padStart(5, '0')} />
                 <Metric label="best" value={String(best).padStart(5, '0')} />
+                <Metric label="phase" value={`P${phase}`} />
                 <Metric label="level" value={String(level)} />
                 <Metric label="lives" value={String(lives)} />
                 <Metric label="combo" value={`x${combo.toFixed(1)}`} />
                 <Metric label="routes" value={String(routes)} />
+                <Metric label="item" value={specialItem} />
+                <Metric label="timer" value={specialSeconds > 0 ? `${specialSeconds}s` : '--'} />
               </div>
+
+              {phasePrompt && (
+                <div className="mt-5 rounded-[1.35rem] border border-[#5b7fd8]/30 bg-[#f5fbff]/82 p-4 shadow-[0_18px_45px_rgba(91,127,216,0.12)]">
+                  <p className="font-mono text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#5b7fd8]">Phase 2 unlocked</p>
+                  <p className="mt-2 text-sm font-bold leading-6 text-[#536963]">Press Y / Enter to continue into the harder layout, or N / Esc to archive the run here.</p>
+                </div>
+              )}
 
               <div className="mt-5 grid gap-2">
                 <p className="flex items-center gap-2 rounded-[1.1rem] border border-system-lime/24 bg-[#f7fff0]/70 px-3 py-2 text-xs font-bold leading-5 text-[#536963]">
@@ -1605,11 +2562,21 @@ export default function SignalBreach() {
                 </p>
                 <p className="flex items-center gap-2 rounded-[1.1rem] border border-system-cyan/22 bg-[#f7fffb]/70 px-3 py-2 text-xs font-bold leading-5 text-[#536963]">
                   <Shield size={15} className="text-[#43888c]" />
-                  Shields forgive one mistake. Overclock makes greed profitable.
+                  Shields forgive one mistake. Repair patches can restore a life.
                 </p>
                 <p className="flex items-center gap-2 rounded-[1.1rem] border border-[#ef6c42]/20 bg-[#fff4e8]/72 px-3 py-2 text-xs font-bold leading-5 text-[#536963]">
                   <Flame size={15} className="text-[#b94a36]" />
                   Flame Nova fires 360 degrees and burns every enemy it touches.
+                </p>
+                <p className="flex items-center gap-2 rounded-[1.1rem] border border-[#8d6b45]/18 bg-[#fff8eb]/76 px-3 py-2 text-xs font-bold leading-5 text-[#536963]">
+                  <Sparkles size={15} className="text-[#8d6b45]" />
+                  Clear boss level 10+ to stock special tech. Press K to run it for 30 seconds with limited hits.
+                </p>
+                <p className="rounded-[1.1rem] border border-[#5b7fd8]/20 bg-[#f5fbff]/72 px-3 py-2 text-xs font-bold leading-5 text-[#536963]">
+                  After level 30, Phase 2 adds wraiths, shuriken viruses, quantum caches, and new Pulse / Drone weapons.
+                </p>
+                <p className="rounded-[1.1rem] border border-[#f7b15e]/24 bg-[#fff8eb]/76 px-3 py-2 text-xs font-bold leading-5 text-[#536963]">
+                  Rare mystery boxes can drop any weapon at any level. If one appears, grab it. Obviously.
                 </p>
                 <p className="rounded-[1.1rem] border border-[#8d6b45]/18 bg-[#fff8eb]/76 px-3 py-2 text-xs font-bold leading-5 text-[#536963]">
                   Every 5 levels: type the boss word to trigger spiked cannonball mode and earn +1 life.
@@ -1618,7 +2585,7 @@ export default function SignalBreach() {
             </div>
 
             <div className="grid gap-3">
-              <button onClick={start} className="magnetic-button inline-flex h-12 items-center justify-center gap-3 rounded-full border border-system-lime/45 bg-system-lime/78 px-4 font-mono text-xs font-black uppercase tracking-[0.18em] text-[#20302d]">
+              <button data-magnetic="true" onClick={start} className="magnetic-button inline-flex h-12 items-center justify-center gap-3 rounded-full border border-system-lime/45 bg-system-lime/78 px-4 font-mono text-xs font-black uppercase tracking-[0.18em] text-[#20302d]">
                 <Play size={16} />
                 Start run
               </button>

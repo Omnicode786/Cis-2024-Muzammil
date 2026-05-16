@@ -46,14 +46,25 @@
     background: #a8d58c;
     color: #20302d;
   }
+
+  body.model-hovering .custom-cursor-dot {
+    background: #8d6b45;
+    box-shadow: 0 0 20px rgba(141, 107, 69, 0.48);
+  }
+
+  body.model-hovering .custom-cursor-ring {
+    border-color: rgba(141, 107, 69, 0.8);
+    background: rgba(216, 234, 214, 0.28);
+    box-shadow: 0 0 34px rgba(168, 213, 140, 0.28);
+  }
 }
 
 @layer utilities {
   .system-glass {
-    border: 1px solid rgba(100, 133, 124, 0.16);
-    background: rgba(255, 255, 255, 0.72);
-    box-shadow: 0 24px 80px rgba(88, 115, 108, 0.12);
-    backdrop-filter: blur(22px);
+    border: 1px solid rgba(100, 133, 124, 0.18);
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 18px 54px rgba(88, 115, 108, 0.1);
+    backdrop-filter: blur(8px) saturate(1.04);
   }
 
   .terminal-scanline {
@@ -73,7 +84,6 @@
 
   .magnetic-button {
     transition:
-      transform 220ms cubic-bezier(0.2, 0, 0, 1),
       background-color 220ms cubic-bezier(0.2, 0, 0, 1),
       color 220ms cubic-bezier(0.2, 0, 0, 1),
       border-color 220ms cubic-bezier(0.2, 0, 0, 1),
@@ -81,6 +91,19 @@
   }
 
   .magnetic-button:hover {
+    box-shadow: 0 12px 30px rgba(101, 207, 215, 0.14);
+  }
+
+  .magnetic-button[data-magnetic='true'] {
+    transition:
+      transform 220ms cubic-bezier(0.2, 0, 0, 1),
+      background-color 220ms cubic-bezier(0.2, 0, 0, 1),
+      color 220ms cubic-bezier(0.2, 0, 0, 1),
+      border-color 220ms cubic-bezier(0.2, 0, 0, 1),
+      box-shadow 220ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .magnetic-button[data-magnetic='true']:hover {
     transform: translateY(-3px);
     box-shadow: 0 18px 42px rgba(101, 207, 215, 0.22);
   }
@@ -92,9 +115,50 @@
 
   .soft-card {
     border: 1px solid rgba(77, 112, 105, 0.16);
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.82), rgba(255, 247, 229, 0.68));
-    box-shadow: 0 22px 70px rgba(75, 95, 88, 0.11);
-    backdrop-filter: blur(20px);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(255, 247, 229, 0.9));
+    box-shadow: 0 18px 56px rgba(75, 95, 88, 0.1);
+    backdrop-filter: blur(8px) saturate(1.04);
+  }
+
+  .backdrop-blur,
+  .backdrop-blur-sm,
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl,
+  .backdrop-blur-2xl,
+  .backdrop-blur-3xl {
+    --tw-backdrop-blur: blur(6px) !important;
+  }
+
+  .backdrop-blur-\[2px\] {
+    --tw-backdrop-blur: blur(2px) !important;
+  }
+
+  .bg-white\/44 {
+    background-color: rgb(255 255 255 / 0.82) !important;
+  }
+
+  .bg-white\/55,
+  .bg-white\/56,
+  .bg-white\/58,
+  .bg-white\/62,
+  .bg-white\/64,
+  .bg-white\/66 {
+    background-color: rgb(255 255 255 / 0.86) !important;
+  }
+
+  .bg-white\/68,
+  .bg-white\/70,
+  .bg-white\/72,
+  .bg-white\/76,
+  .bg-white\/78 {
+    background-color: rgb(255 255 255 / 0.9) !important;
+  }
+
+  .bg-white\/80,
+  .bg-white\/82,
+  .bg-white\/88 {
+    background-color: rgb(255 255 255 / 0.94) !important;
   }
 
   .paper-grain {

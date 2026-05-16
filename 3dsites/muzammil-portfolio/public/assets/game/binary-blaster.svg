@@ -1,0 +1,22 @@
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bitBody" x1="18" y1="20" x2="82" y2="78" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7FFFB"/>
+      <stop offset=".45" stop-color="#65CFD7"/>
+      <stop offset="1" stop-color="#315D52"/>
+    </linearGradient>
+    <filter id="bitDrop" x="4" y="6" width="88" height="84" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="#315D52" flood-opacity=".22"/>
+    </filter>
+  </defs>
+  <ellipse cx="48" cy="79" rx="27" ry="7" fill="#20302D" opacity=".12"/>
+  <g filter="url(#bitDrop)">
+    <path d="M19 44c0-12 10-22 22-22h19c8 0 15 7 15 15v21c0 6-5 11-11 11H38c-11 0-19-8-19-19v-6Z" fill="url(#bitBody)" stroke="#FFF8DB" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M64 35h18c4 0 7 3 7 7s-3 7-7 7H64V35Z" fill="#20302D" stroke="#FFF8DB" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M23 53 11 61M26 63 16 75" stroke="#315D52" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="42" cy="45" r="15" fill="#20302D" stroke="#D8EAD6" stroke-width="3"/>
+    <path d="M36 38v14M49 38v14" stroke="#A8D58C" stroke-width="4" stroke-linecap="round"/>
+    <path d="M70 29c3 2 5 5 5 9M71 55c-3 2-7 3-11 3" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" opacity=".42"/>
+    <text x="35" y="50" fill="#FFF8DB" font-family="Space Grotesk, monospace" font-size="14" font-weight="900">01</text>
+  </g>
+</svg>

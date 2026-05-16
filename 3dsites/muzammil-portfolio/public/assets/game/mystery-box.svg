@@ -1,0 +1,31 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="boxShell" x1="25" y1="20" x2="102" y2="105" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8DB"/>
+      <stop offset=".34" stop-color="#F7B15E"/>
+      <stop offset=".68" stop-color="#65CFD7"/>
+      <stop offset="1" stop-color="#315D52"/>
+    </linearGradient>
+    <linearGradient id="boxRibbon" x1="39" y1="18" x2="86" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FFFF"/>
+      <stop offset=".48" stop-color="#A8D58C"/>
+      <stop offset="1" stop-color="#5B7FD8"/>
+    </linearGradient>
+    <filter id="mysteryDrop" x="9" y="10" width="110" height="108" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="9" stdDeviation="7" flood-color="#315D52" flood-opacity=".25"/>
+    </filter>
+  </defs>
+  <ellipse cx="64" cy="105" rx="38" ry="9" fill="#20302D" opacity=".14"/>
+  <g filter="url(#mysteryDrop)">
+    <path d="M25 47h78v49c0 8-7 15-15 15H40c-8 0-15-7-15-15V47Z" fill="url(#boxShell)" stroke="#FFF8DB" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M18 34c0-8 7-15 15-15h62c8 0 15 7 15 15v17H18V34Z" fill="#20302D" stroke="#FFF8DB" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M56 19h16v92H56V19Z" fill="url(#boxRibbon)" stroke="#FFF8DB" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M18 51h92" stroke="#FFF8DB" stroke-width="5" stroke-linecap="round"/>
+    <path d="M43 25c-9-10-3-22 10-13 7 5 9 13 11 18-7 1-16 0-21-5ZM85 25c9-10 3-22-10-13-7 5-9 13-11 18 7 1 16 0 21-5Z" fill="url(#boxRibbon)" stroke="#FFF8DB" stroke-width="4" stroke-linejoin="round"/>
+    <circle cx="64" cy="75" r="19" fill="#FFF8DB" stroke="#20302D" stroke-width="4"/>
+    <path d="M58 69c0-6 5-10 11-9 7 1 10 8 5 14-3 3-7 4-7 9" stroke="#315D52" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="66" cy="91" r="3.5" fill="#315D52"/>
+    <path d="M33 37c16-6 40-7 63 0" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity=".34"/>
+    <path d="M33 97c18 8 42 9 62 0" stroke="#20302D" stroke-width="5" stroke-linecap="round" opacity=".22"/>
+  </g>
+</svg>

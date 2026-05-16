@@ -30,16 +30,18 @@ export default function CustomCursor() {
         ringY(event.clientY);
       };
 
-      const magneticSelector = 'a, button, input, textarea, select, .story-node, .skill-card-live, .tree-root-card, .timeline-leaf, .timeline-leaf-card, [data-magnetic]';
+      const interactiveSelector = 'a, button, input, textarea, select, [role="button"], [data-cursor]';
+      const magneticSelector = '[data-magnetic="true"]';
       let activeMagnet: HTMLElement | null = null;
 
       const hoverMove = (event: MouseEvent) => {
         const target = event.target as HTMLElement | null;
-        const interactive = target?.closest(magneticSelector);
+        const interactive = target?.closest(interactiveSelector);
+        const magnetic = target?.closest(magneticSelector);
         gsap.to(ringRef.current, {
-          scale: interactive ? 1.9 : 1,
-          opacity: interactive ? 0.78 : 0.48,
-          borderColor: interactive ? '#a8d58c' : '#65cfd7',
+          scale: magnetic ? 1.72 : interactive ? 1.28 : 1,
+          opacity: magnetic ? 0.76 : interactive ? 0.62 : 0.48,
+          borderColor: magnetic ? '#a8d58c' : interactive ? '#8d6b45' : '#65cfd7',
           duration: 0.2,
           ease: 'power2.out',
         });
@@ -91,8 +93,8 @@ export default function CustomCursor() {
 
   return (
     <div ref={rootRef} className="pointer-events-none fixed inset-0 z-[9999] hidden md:block" aria-hidden="true">
-      <div ref={dotRef} className="fixed left-0 top-0 h-2.5 w-2.5 rounded-full bg-[#3e8e93] shadow-[0_0_18px_rgba(101,207,215,0.7)] mix-blend-multiply" />
-      <div ref={ringRef} className="fixed left-0 top-0 h-11 w-11 rounded-full border border-system-cyan/80 bg-white/20 opacity-50 shadow-[0_0_34px_rgba(101,207,215,0.28)] mix-blend-multiply backdrop-blur-[2px]" />
+      <div ref={dotRef} className="custom-cursor-dot fixed left-0 top-0 h-2.5 w-2.5 rounded-full bg-[#3e8e93] shadow-[0_0_18px_rgba(101,207,215,0.7)] mix-blend-multiply transition-colors duration-200" />
+      <div ref={ringRef} className="custom-cursor-ring fixed left-0 top-0 h-11 w-11 rounded-full border border-system-cyan/80 bg-white/20 opacity-50 shadow-[0_0_34px_rgba(101,207,215,0.28)] mix-blend-multiply backdrop-blur-[2px] transition-colors duration-200" />
     </div>
   );
 }

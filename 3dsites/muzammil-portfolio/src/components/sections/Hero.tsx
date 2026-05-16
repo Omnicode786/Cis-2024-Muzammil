@@ -43,11 +43,11 @@ export default function Hero() {
           </p>
 
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-            <a href="#projects" className="magnetic-button inline-flex items-center justify-center gap-3 rounded-full border border-system-cyan/40 bg-system-cyan/75 px-6 py-4 font-mono text-xs font-black uppercase tracking-[0.2em] text-[#20302d] shadow-[0_22px_50px_rgba(101,207,215,0.26)]">
+            <a data-magnetic="true" href="#projects" className="magnetic-button inline-flex items-center justify-center gap-3 rounded-full border border-system-cyan/40 bg-system-cyan/75 px-6 py-4 font-mono text-xs font-black uppercase tracking-[0.2em] text-[#20302d] shadow-[0_22px_50px_rgba(101,207,215,0.26)]">
               Enter projects
               <ArrowDownRight size={18} />
             </a>
-            <a href="#signal-breach" className="magnetic-button inline-flex items-center justify-center gap-3 rounded-full border border-system-lime/50 bg-white/70 px-6 py-4 font-mono text-xs font-black uppercase tracking-[0.2em] text-[#54723f] backdrop-blur-xl hover:bg-system-lime/70 hover:text-[#20302d]">
+            <a data-magnetic="true" href="#signal-breach" className="magnetic-button inline-flex items-center justify-center gap-3 rounded-full border border-system-lime/50 bg-white/70 px-6 py-4 font-mono text-xs font-black uppercase tracking-[0.2em] text-[#54723f] backdrop-blur-xl hover:bg-system-lime/70 hover:text-[#20302d]">
               Play the system
               <Terminal size={18} />
             </a>

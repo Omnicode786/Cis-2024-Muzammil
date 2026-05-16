@@ -1,0 +1,24 @@
+<svg width="112" height="112" viewBox="0 0 112 112" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="petal" x1="29" y1="17" x2="85" y2="98" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FFFF"/>
+      <stop offset=".4" stop-color="#9FC8F5"/>
+      <stop offset=".72" stop-color="#5B7FD8"/>
+      <stop offset="1" stop-color="#315D52"/>
+    </linearGradient>
+    <filter id="pulseDrop" x="8" y="8" width="96" height="96" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="#315D52" flood-opacity=".22"/>
+    </filter>
+  </defs>
+  <ellipse cx="56" cy="91" rx="30" ry="8" fill="#20302D" opacity=".12"/>
+  <g filter="url(#pulseDrop)">
+    <path d="M56 14c13 15 15 31 0 48-15-17-13-33 0-48Z" fill="url(#petal)" stroke="#FFF8DB" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M19 45c19-5 34 0 42 20-22 7-36-1-42-20Z" fill="url(#petal)" stroke="#FFF8DB" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M93 45c-19-5-34 0-42 20 22 7 36-1 42-20Z" fill="url(#petal)" stroke="#FFF8DB" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M32 91c2-20 10-32 31-34 1 23-11 34-31 34Z" fill="url(#petal)" stroke="#FFF8DB" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M80 91c-2-20-10-32-31-34-1 23 11 34 31 34Z" fill="url(#petal)" stroke="#FFF8DB" stroke-width="4" stroke-linejoin="round"/>
+    <circle cx="56" cy="62" r="18" fill="#20302D" stroke="#D8EAD6" stroke-width="4"/>
+    <circle cx="56" cy="62" r="8" fill="#65CFD7"/>
+    <path d="M47 52c5-5 14-5 19 0" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" opacity=".42"/>
+  </g>
+</svg>
