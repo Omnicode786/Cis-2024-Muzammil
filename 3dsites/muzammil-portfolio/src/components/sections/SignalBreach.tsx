@@ -178,13 +178,21 @@ const bossWords = ['KERNEL', 'SIGNAL', 'RISC-V', 'NED', 'JAUNT', 'SYSTEM', 'VECT
 const specialCycle: SpecialKind[] = ['bitstream', 'laser', 'kunai', 'firewall'];
 const phaseTwoSpecialCycle: SpecialKind[] = ['pulse', 'drone', 'laser', 'kunai', 'firewall', 'bitstream'];
 const allSpecialKinds: SpecialKind[] = ['bitstream', 'laser', 'kunai', 'firewall', 'pulse', 'drone'];
+const weaponSoundType: Record<SpecialKind, SoundType> = {
+  bitstream: 'bitWeapon',
+  laser: 'laserWeapon',
+  kunai: 'kunaiWeapon',
+  firewall: 'fireWeapon',
+  pulse: 'pulseWeapon',
+  drone: 'droneWeapon',
+};
 const specialWeaponMeta: Record<SpecialKind, { name: string; short: string; sprite: SpriteKey; color: string; budget: number; description: string }> = {
   bitstream: {
     name: 'Bitstream Blaster',
     short: 'BITS',
     sprite: 'bitstream',
     color: '#43888C',
-    budget: 11,
+    budget: 24,
     description: 'K fires homing 0/1 packets at a limited set of threats.',
   },
   laser: {
@@ -192,7 +200,7 @@ const specialWeaponMeta: Record<SpecialKind, { name: string; short: string; spri
     short: 'LASER',
     sprite: 'laserPrism',
     color: '#65CFD7',
-    budget: 7,
+    budget: 14,
     description: 'K cuts short, timed lanes through corruption.',
   },
   kunai: {
@@ -200,7 +208,7 @@ const specialWeaponMeta: Record<SpecialKind, { name: string; short: string; spri
     short: 'KUNAI',
     sprite: 'kunaiChip',
     color: '#8D6B45',
-    budget: 12,
+    budget: 24,
     description: 'K launches chip-kunai spreads for close survival.',
   },
   firewall: {
@@ -208,7 +216,7 @@ const specialWeaponMeta: Record<SpecialKind, { name: string; short: string; spri
     short: 'FIRE',
     sprite: 'firewallTalisman',
     color: '#B94A36',
-    budget: 10,
+    budget: 20,
     description: 'K breathes capped flame bursts into clustered enemies.',
   },
   pulse: {
@@ -216,7 +224,7 @@ const specialWeaponMeta: Record<SpecialKind, { name: string; short: string; spri
     short: 'PULSE',
     sprite: 'pulseLotus',
     color: '#5B7FD8',
-    budget: 10,
+    budget: 20,
     description: 'Phase 2 K pulses precision petals into marked targets.',
   },
   drone: {
@@ -224,14 +232,14 @@ const specialWeaponMeta: Record<SpecialKind, { name: string; short: string; spri
     short: 'DRONE',
     sprite: 'mirrorDrone',
     color: '#6F924C',
-    budget: 11,
+    budget: 22,
     description: 'Phase 2 K deploys a twin drone that covers your flank.',
   },
 };
 
 function levelRequirement(level: number) {
-  const phaseBoost = level > phaseOneFinalBoss ? 1.28 : 1;
-  return Math.round((990 + level * 380 + level ** 2 * 84) * phaseBoost);
+  const phaseBoost = level > phaseOneFinalBoss ? 1.2 : 1;
+  return Math.round((820 + level * 320 + level ** 2 * 68) * phaseBoost);
 }
 
 const spritePaths: Record<SpriteKey, string> = {
@@ -525,6 +533,45 @@ function beep(type: SoundType, muted: boolean) {
     playNoise(context, master, now, 0.09, 0.014, 3400, 'highpass');
   }
 
+  if (type === 'bitWeapon') {
+    [310, 620, 1240].forEach((note, index) => playTone(context, master, note, now + index * 0.022, 0.16, 0.018, index % 2 ? 'square' : 'triangle', note * 1.5));
+    [0, 1, 0, 1].forEach((bit, index) => playTone(context, master, bit ? 1760 : 880, now + 0.09 + index * 0.024, 0.08, 0.012, 'square', bit ? 1320 : 660));
+    playNoise(context, master, now, 0.16, 0.018, 4200, 'bandpass');
+  }
+
+  if (type === 'laserWeapon') {
+    playTone(context, master, 1880, now, 0.22, 0.018, 'sine', 880);
+    playTone(context, master, 3760, now + 0.016, 0.14, 0.01, 'triangle', 2200);
+    playNoise(context, master, now, 0.2, 0.02, 6200, 'highpass');
+    playSurrealSweep(context, master, now + 0.01, 520, 'pickup');
+  }
+
+  if (type === 'kunaiWeapon') {
+    [720, 540, 810].forEach((note, index) => playTone(context, master, note, now + index * 0.026, 0.11, 0.018, 'triangle', note * 0.45));
+    playNoise(context, master, now, 0.08, 0.026, 1800, 'highpass');
+    playNoise(context, master, now + 0.045, 0.1, 0.018, 3600, 'bandpass');
+  }
+
+  if (type === 'fireWeapon') {
+    playTone(context, master, 120, now, 0.28, 0.034, 'sawtooth', 64);
+    playTone(context, master, 240, now + 0.03, 0.18, 0.022, 'triangle', 180);
+    playNoise(context, master, now, 0.3, 0.04, 620, 'lowpass');
+    playNoise(context, master, now + 0.04, 0.18, 0.028, 2300, 'bandpass');
+  }
+
+  if (type === 'pulseWeapon') {
+    [260, 390, 585, 878].forEach((note, index) => playTone(context, master, note, now + index * 0.038, 0.2, 0.018, 'sine', note * 1.28));
+    playSurrealSweep(context, master, now + 0.02, 260);
+    playNoise(context, master, now + 0.04, 0.2, 0.02, 1500, 'bandpass');
+  }
+
+  if (type === 'droneWeapon') {
+    playTone(context, master, 172, now, 0.34, 0.026, 'sawtooth', 206);
+    playTone(context, master, 344, now + 0.02, 0.28, 0.018, 'triangle', 412);
+    [690, 700, 690].forEach((note, index) => playTone(context, master, note, now + 0.08 + index * 0.04, 0.16, 0.012, 'square', note * 0.92));
+    playNoise(context, master, now, 0.26, 0.018, 900, 'bandpass');
+  }
+
   if (type === 'phase') {
     playTone(context, master, 72, now, 0.92, 0.065, 'sawtooth', 108);
     [180, 240, 320, 430, 580, 780].forEach((note, index) => playTone(context, master, note, now + 0.08 + index * 0.05, 0.28, 0.032, index % 2 ? 'triangle' : 'sine', note * 1.12));
@@ -605,6 +652,7 @@ export default function SignalBreach() {
   const idRef = useRef(0);
   const hazardTimerRef = useRef(32);
   const pickupTimerRef = useRef(24);
+  const mysteryPityRef = useRef(0);
   const survivalTimerRef = useRef(0);
   const hudSyncTimerRef = useRef(0);
   const gateCooldownRef = useRef(0);
@@ -708,6 +756,7 @@ export default function SignalBreach() {
         if (nextLevel % 5 === 0) {
           levelProgressRef.current = 0;
         }
+        mysteryPityRef.current += nextLevel % 5 === 0 ? 1 : 2;
         hazardTimerRef.current = Math.min(hazardTimerRef.current, 20);
         beep('level', mutedRef.current);
         floatingTextRef.current.push({ x: gameWidth * 0.5, y: 92, vy: -0.55, life: 90, text: `LEVEL ${nextLevel}`, color: '#6F924C' });
@@ -751,6 +800,7 @@ export default function SignalBreach() {
     tickRef.current = 0;
     hazardTimerRef.current = 38;
     pickupTimerRef.current = 42;
+    mysteryPityRef.current = 0;
     survivalTimerRef.current = 0;
     hudSyncTimerRef.current = 0;
     gateCooldownRef.current = 0;
@@ -983,7 +1033,8 @@ export default function SignalBreach() {
         text: `${meta.name.toUpperCase()} READY // PRESS K`,
         color: meta.color,
       });
-      beep(phaseRef.current === 2 ? 'phasePickup' : 'special', mutedRef.current);
+      beep(weaponSoundType[kind], mutedRef.current);
+      if (phaseRef.current === 2) beep('phasePickup', mutedRef.current);
       syncHud();
     };
 
@@ -1004,7 +1055,8 @@ export default function SignalBreach() {
         text: specialWeaponRef.current ? `${meta.short} QUEUED // K NEXT` : `${meta.short} READY // PRESS K`,
         color: meta.color,
       });
-      beep(phaseRef.current === 2 ? 'phasePickup' : 'special', mutedRef.current);
+      beep(weaponSoundType[kind], mutedRef.current);
+      if (phaseRef.current === 2) beep('phasePickup', mutedRef.current);
       syncHud();
     };
 
@@ -1028,14 +1080,15 @@ export default function SignalBreach() {
         timer: specialDurationFrames,
         cooldown: 0,
         phase: 0,
-        targetBudget: meta.budget + (phaseRef.current === 2 ? 2 : 0),
+        targetBudget: meta.budget + (phaseRef.current === 2 ? 5 : 0),
         shotsFired: 0,
       };
       projectilesRef.current = [];
       playerRef.current.invulnerable = Math.max(playerRef.current.invulnerable, 36);
       addBurst(playerRef.current.x, playerRef.current.y, meta.color, 24, 0.96);
       floatingTextRef.current.push({ x: playerRef.current.x, y: playerRef.current.y - 42, vy: -0.62, life: 110, text: `${meta.short} ONLINE // 30s`, color: meta.color });
-      beep(phaseRef.current === 2 ? 'phase' : 'special', mutedRef.current);
+      beep(weaponSoundType[kind], mutedRef.current);
+      if (phaseRef.current === 2) beep('phase', mutedRef.current);
       syncHud();
     };
 
@@ -1049,20 +1102,103 @@ export default function SignalBreach() {
       const targetAngle = target ? Math.atan2(target.y - player.y, target.x - player.x) : 0;
 
       if (weapon.kind === 'bitstream') {
-        [0].forEach((i) => {
+        [-1, 0, 1].forEach((i) => {
           const angle = targetAngle + i * 0.18 + random(-0.035, 0.035);
           pushProjectile({
             kind: 'bit',
             owner: weapon.kind,
-            glyph: weapon.shotsFired % 2 === 0 ? '0' : '1',
+            glyph: (weapon.shotsFired + i + 3) % 2 === 0 ? '0' : '1',
             x: player.x + 22,
             y: player.y + i * 9,
-            vx: Math.cos(angle) * 6.9,
-            vy: Math.sin(angle) * 6.9,
+            vx: Math.cos(angle) * 8.2,
+            vy: Math.sin(angle) * 8.2,
             radius: 12,
+            life: 70,
+            maxLife: 70,
+            phase: Math.random() > 0.5 ? 1 : 0,
+            angle,
+            pierce: 1,
+          });
+        });
+        weapon.cooldown = 22;
+      }
+
+      if (weapon.kind === 'laser') {
+        [-18, 0, 18].forEach((offset) => {
+          pushProjectile({
+            kind: 'laser',
+            owner: weapon.kind,
+            x: player.x + 34,
+            y: player.y + offset,
+            vx: 0,
+            vy: 0,
+            radius: 16,
+            life: 16,
+            maxLife: 16,
+            phase: random(0, Math.PI * 2),
+            angle: 0,
+            pierce: 1,
+          });
+        });
+        weapon.cooldown = 46;
+      }
+
+      if (weapon.kind === 'kunai') {
+        [-1, 0, 1].forEach((i) => {
+          const angle = targetAngle + i * 0.18 + random(-0.05, 0.05);
+          pushProjectile({
+            kind: 'kunai',
+            owner: weapon.kind,
+            x: player.x + Math.cos(angle) * 26,
+            y: player.y + Math.sin(angle) * 26,
+            vx: Math.cos(angle) * 9.4,
+            vy: Math.sin(angle) * 9.4,
+            radius: 14,
+            life: 58,
+            maxLife: 58,
+            phase: random(0, Math.PI * 2),
+            angle,
+            pierce: 1,
+          });
+        });
+        weapon.cooldown = 30;
+      }
+
+      if (weapon.kind === 'firewall') {
+        [-1, 0, 1].forEach((i) => {
+          const angle = targetAngle + i * 0.2 + random(-0.035, 0.035);
+          pushProjectile({
+            kind: 'fire',
+            owner: weapon.kind,
+            x: player.x + 26,
+            y: player.y,
+            vx: Math.cos(angle) * 6.2,
+            vy: Math.sin(angle) * 6.2,
+            radius: 19,
+            life: 42,
+            maxLife: 42,
+            phase: random(0, Math.PI * 2),
+            angle,
+            pierce: 1,
+          });
+        });
+        weapon.cooldown = 26;
+      }
+
+      if (weapon.kind === 'pulse') {
+        nearestHazardsFrom(player.x, player.y, 3).forEach((hazard, index) => {
+          const angle = Math.atan2(hazard.y - player.y, hazard.x - player.x) + random(-0.08, 0.08);
+          pushProjectile({
+            kind: 'pulse',
+            owner: weapon.kind,
+            x: player.x + Math.cos(index) * 18,
+            y: player.y + Math.sin(index) * 18,
+            vx: Math.cos(angle) * 7.4,
+            vy: Math.sin(angle) * 7.4,
+            radius: 18,
             life: 64,
             maxLife: 64,
-            phase: Math.random() > 0.5 ? 1 : 0,
+            phase: random(0, Math.PI * 2),
             angle,
             pierce: 1,
           });
@@ -1070,110 +1206,31 @@ export default function SignalBreach() {
         weapon.cooldown = 38;
       }
 
-      if (weapon.kind === 'laser') {
-        pushProjectile({
-          kind: 'laser',
-          owner: weapon.kind,
-          x: player.x + 34,
-          y: player.y,
-          vx: 0,
-          vy: 0,
-          radius: 15,
-          life: 14,
-          maxLife: 14,
-          phase: random(0, Math.PI * 2),
-          angle: 0,
-          pierce: 1,
-        });
-        weapon.cooldown = 84;
-      }
-
-      if (weapon.kind === 'kunai') {
-        [-0.5, 0.5].forEach((i) => {
-          const angle = targetAngle + i * 0.16 + random(-0.05, 0.05);
-          pushProjectile({
-            kind: 'kunai',
-            owner: weapon.kind,
-            x: player.x + Math.cos(angle) * 26,
-            y: player.y + Math.sin(angle) * 26,
-            vx: Math.cos(angle) * 7.8,
-            vy: Math.sin(angle) * 7.8,
-            radius: 14,
-            life: 52,
-            maxLife: 52,
-            phase: random(0, Math.PI * 2),
-            angle,
-            pierce: 1,
-          });
-        });
-        weapon.cooldown = 52;
-      }
-
-      if (weapon.kind === 'firewall') {
-        [-0.45, 0.45].forEach((i) => {
-          const angle = targetAngle + i * 0.12 + random(-0.035, 0.035);
-          pushProjectile({
-            kind: 'fire',
-            owner: weapon.kind,
-            x: player.x + 26,
-            y: player.y,
-            vx: Math.cos(angle) * 5.1,
-            vy: Math.sin(angle) * 5.1,
-            radius: 17,
-            life: 34,
-            maxLife: 34,
-            phase: random(0, Math.PI * 2),
-            angle,
-            pierce: 1,
-          });
-        });
-        weapon.cooldown = 44;
-      }
-
-      if (weapon.kind === 'pulse') {
-        nearestHazardsFrom(player.x, player.y, 2).forEach((hazard, index) => {
-          const angle = Math.atan2(hazard.y - player.y, hazard.x - player.x) + random(-0.08, 0.08);
-          pushProjectile({
-            kind: 'pulse',
-            owner: weapon.kind,
-            x: player.x + Math.cos(index) * 18,
-            y: player.y + Math.sin(index) * 18,
-            vx: Math.cos(angle) * 6.2,
-            vy: Math.sin(angle) * 6.2,
-            radius: 16,
-            life: 56,
-            maxLife: 56,
-            phase: random(0, Math.PI * 2),
-            angle,
-            pierce: 1,
-          });
-        });
-        weapon.cooldown = 72;
-      }
-
       if (weapon.kind === 'drone') {
-        const side = weapon.shotsFired % 2 === 0 ? -1 : 1;
-        const angle = targetAngle + side * 0.1 + random(-0.04, 0.04);
-        pushProjectile({
-          kind: 'drone',
-          owner: weapon.kind,
-          x: player.x - 2,
-          y: player.y + side * 18,
-          vx: Math.cos(angle) * 7.2,
-          vy: Math.sin(angle) * 7.2,
-          radius: 11,
-          life: 60,
-          maxLife: 60,
-          phase: random(0, Math.PI * 2),
-          angle,
-          pierce: 1,
+        [-1, 0, 1].forEach((side) => {
+          const angle = targetAngle + side * 0.12 + random(-0.04, 0.04);
+          pushProjectile({
+            kind: 'drone',
+            owner: weapon.kind,
+            x: player.x - 2,
+            y: player.y + side * 18,
+            vx: Math.cos(angle) * 8.3,
+            vy: Math.sin(angle) * 8.3,
+            radius: 12,
+            life: 68,
+            maxLife: 68,
+            phase: random(0, Math.PI * 2),
+            angle,
+            pierce: 1,
+          });
         });
-        weapon.cooldown = 60;
+        weapon.cooldown = 34;
       }
 
       weapon.shotsFired += 1;
-      addBurst(player.x + 24, player.y, specialWeaponMeta[weapon.kind].color, weapon.kind === 'laser' ? 8 : 4, 0.54);
-      beep(phaseRef.current === 2 ? 'phaseWeapon' : 'weapon', mutedRef.current);
+      addBurst(player.x + 24, player.y, specialWeaponMeta[weapon.kind].color, weapon.kind === 'laser' ? 14 : 8, 0.74);
+      beep(weaponSoundType[weapon.kind], mutedRef.current);
+      if (phaseRef.current === 2) beep('phaseWeapon', mutedRef.current);
     };
 
     const updateProjectiles = (delta: number) => {
@@ -1188,9 +1245,9 @@ export default function SignalBreach() {
           const target = nearestHazardsFrom(projectile.x, projectile.y, 1)[0];
           if (target) {
             const angle = Math.atan2(target.y - projectile.y, target.x - projectile.x);
-            const speed = projectile.kind === 'pulse' ? 6.3 : projectile.kind === 'drone' ? 7 : 6.8;
-            projectile.vx += (Math.cos(angle) * speed - projectile.vx) * 0.032 * delta;
-            projectile.vy += (Math.sin(angle) * speed - projectile.vy) * 0.032 * delta;
+            const speed = projectile.kind === 'pulse' ? 7.5 : projectile.kind === 'drone' ? 8.2 : 8;
+            projectile.vx += (Math.cos(angle) * speed - projectile.vx) * 0.046 * delta;
+            projectile.vy += (Math.sin(angle) * speed - projectile.vy) * 0.046 * delta;
             projectile.angle = Math.atan2(projectile.vy, projectile.vx);
           }
         }
@@ -1201,8 +1258,8 @@ export default function SignalBreach() {
           if (!activeWeapon || activeWeapon.kind !== projectile.owner || activeWeapon.targetBudget <= 0) return;
           const hit =
             projectile.kind === 'laser'
-              ? hazard.x > projectile.x - 14 && hazard.x < projectile.x + 370 && Math.abs(hazard.y - projectile.y) < hazard.radius + 12
-              : distance(projectile, hazard) < projectile.radius + hazard.radius * (hazard.kind === 'gate' ? 0.88 : 0.78);
+              ? hazard.x > projectile.x - 14 && hazard.x < projectile.x + 430 && Math.abs(hazard.y - projectile.y) < hazard.radius + 15
+              : distance(projectile, hazard) < projectile.radius + hazard.radius * (hazard.kind === 'gate' ? 0.96 : 0.86);
           if (!hit) return;
 
           projectile.hitIds.add(hazard.id);
@@ -1226,7 +1283,7 @@ export default function SignalBreach() {
                     : projectile.kind === 'drone'
                       ? '#6F924C'
                       : '#A8D58C';
-          addBurst(hitX, hitY, color, projectile.kind === 'laser' ? 16 : 9, projectile.kind === 'laser' ? 0.95 : 0.72);
+          addBurst(hitX, hitY, color, projectile.kind === 'laser' ? 22 : 13, projectile.kind === 'laser' ? 1.12 : 0.9);
         });
       });
 
@@ -1241,8 +1298,8 @@ export default function SignalBreach() {
       );
 
       if (hits > 0) {
-        comboRef.current = Math.min(14, comboRef.current + hits * 0.1);
-        addScore((12 + levelRef.current * 2.35) * hits * comboRef.current, `WEAPON x${hits}`, playerRef.current.x + 64, playerRef.current.y - 42, { progressValue: (82 + levelRef.current * 9) * hits });
+        comboRef.current = Math.min(14, comboRef.current + hits * 0.14);
+        addScore((18 + levelRef.current * 3.1) * hits * comboRef.current, `WEAPON x${hits}`, playerRef.current.x + 64, playerRef.current.y - 42, { progressValue: (120 + levelRef.current * 14) * hits });
       }
     };
 
@@ -1281,9 +1338,12 @@ export default function SignalBreach() {
       const player = playerRef.current;
       const roll = Math.random();
       const canRepair = livesRef.current < 5 || player.shield <= 0;
-      const mysteryChance = phaseRef.current === 2 ? 0.024 : 0.016;
+      const mysteryOnScreen = pickupsRef.current.some((pickup) => pickup.kind === 'mystery');
+      const mysteryLimit = phaseRef.current === 2 ? 6 : 7;
+      const mysteryChance = Math.min(0.28, (phaseRef.current === 2 ? 0.075 : 0.058) + mysteryPityRef.current * 0.018);
+      const forceMystery = !mysteryOnScreen && mysteryPityRef.current >= mysteryLimit;
       const kind: Pickup['kind'] =
-        roll < mysteryChance
+        !mysteryOnScreen && (forceMystery || roll < mysteryChance)
           ? 'mystery'
           : phaseRef.current === 2 && roll < 0.14
           ? 'cache'
@@ -1304,6 +1364,7 @@ export default function SignalBreach() {
         radius: kind === 'shard' ? 17 : kind === 'nova' || kind === 'mystery' ? 24 : kind === 'repair' || kind === 'cache' ? 21 : 20,
         phase: random(0, Math.PI * 2),
       });
+      mysteryPityRef.current = kind === 'mystery' ? 0 : mysteryPityRef.current + 1;
     };
 
     const activateNova = (x: number, y: number) => {
@@ -1382,19 +1443,38 @@ export default function SignalBreach() {
       const level = levelRef.current;
       const phase = phaseRef.current;
       const roll = Math.random();
-      const speed = random(1.9, 2.8) + level * (phase === 2 ? 0.18 : 0.24) + (phase === 2 ? 0.95 : 0);
+      const speed = random(1.75, 2.55) + level * (phase === 2 ? 0.115 : 0.14) + (phase === 2 ? 0.78 : 0);
+      const pickOpenY = (min: number, max: number, gap = phase === 2 ? 58 : 68) => {
+        let chosen = random(min, max);
+        let best = chosen;
+        let bestDistance = -1;
+        const nearby = hazardsRef.current.filter((hazard) => hazard.kind !== 'gate' && hazard.x > gameWidth - 80 && hazard.x < gameWidth + 240);
+        for (let attempt = 0; attempt < 9; attempt += 1) {
+          const y = random(min, max);
+          const closest = nearby.reduce((minimum, hazard) => Math.min(minimum, Math.abs(hazard.y - y)), Number.POSITIVE_INFINITY);
+          if (closest > bestDistance) {
+            best = y;
+            bestDistance = closest;
+          }
+          if (closest >= gap) {
+            chosen = y;
+            break;
+          }
+        }
+        return bestDistance >= gap ? best : chosen;
+      };
       const gatesOnScreen = hazardsRef.current.filter((hazard) => hazard.kind === 'gate' && hazard.x > -60 && hazard.x < gameWidth + 260).length;
-      const gateChance = level >= 5 && gateCooldownRef.current <= 0 && gatesOnScreen === 0 ? Math.min(0.18, 0.07 + level * 0.005) : 0;
+      const gateChance = level >= 5 && gateCooldownRef.current <= 0 && gatesOnScreen === 0 ? Math.min(0.15, 0.06 + level * 0.0035) : 0;
       const activeSeekers = hazardsRef.current.filter((hazard) => hazard.kind === 'seeker' && hazard.x > -40 && hazard.x < gameWidth + 160).length;
-      const maxSeekers = level < 10 ? 1 : level < 20 ? 2 : 3;
-      const seekerChance = activeSeekers >= maxSeekers ? 0 : Math.min(0.31, 0.11 + level * 0.0075);
+      const maxSeekers = level < 10 ? 1 : level < 22 ? 2 : level < 42 ? 3 : 4;
+      const seekerChance = activeSeekers >= maxSeekers ? 0 : Math.min(0.28, 0.1 + level * 0.0048);
 
       if (phase === 2 && roll < 0.2) {
         hazardsRef.current.push({
           id: idRef.current++,
           kind: 'wraith',
           x: gameWidth + random(48, 120),
-          y: random(76, gameHeight - 76),
+          y: pickOpenY(76, gameHeight - 76, 62),
           radius: 24,
           vx: -speed * 0.48,
           vy: random(-0.35, 0.35),
@@ -1408,7 +1488,7 @@ export default function SignalBreach() {
           id: idRef.current++,
           kind: 'shuriken',
           x: gameWidth + 50,
-          y: random(80, gameHeight - 80),
+          y: pickOpenY(80, gameHeight - 80, 62),
           radius: 23,
           vx: -speed * 0.88,
           vy: random(-2.4, 2.4),
@@ -1442,7 +1522,7 @@ export default function SignalBreach() {
           id: idRef.current++,
           kind: 'seeker',
           x: gameWidth + 46,
-          y: random(72, gameHeight - 72),
+          y: pickOpenY(72, gameHeight - 72, 72),
           radius: 22,
           vx: -speed * 0.56,
           vy: random(-0.52, 0.52),
@@ -1455,7 +1535,7 @@ export default function SignalBreach() {
         id: idRef.current++,
         kind: 'block',
         x: gameWidth + 44,
-        y: random(58, gameHeight - 58),
+        y: pickOpenY(58, gameHeight - 58, 68),
         radius: random(21, 30),
         vx: -speed,
         vy: random(-0.85, 0.85),
@@ -1746,7 +1826,7 @@ export default function SignalBreach() {
       routesRef.current += 1;
       comboRef.current = Math.min(12, comboRef.current + (phaseRef.current === 2 ? 0.7 : 0.55));
       addScore(85 + levelRef.current * 9 + comboRef.current * 14, phaseRef.current === 2 ? `PHASE ROUTE x${comboRef.current.toFixed(1)}` : `ROUTE x${comboRef.current.toFixed(1)}`, gameWidth - 144, player.y, {
-        progressValue: 520 + levelRef.current * 48,
+        progressValue: 700 + levelRef.current * 72,
       });
       if (bossRef.current?.active) {
         syncHud();
@@ -1807,9 +1887,11 @@ export default function SignalBreach() {
 
       if (hazardTimerRef.current <= 0 && spawnFreezeRef.current <= 0) {
         spawnHazard();
-        if (level >= 12 && Math.random() < (phase === 2 ? 0.2 : 0.12)) spawnHazard();
-        if (level >= 22 && Math.random() < (phase === 2 ? 0.12 : 0.06)) spawnHazard();
-        hazardTimerRef.current = Math.max(phase === 2 ? 11 : 16, random(phase === 2 ? 38 : 52, phase === 2 ? 70 : 90) - level * (phase === 2 ? 1.55 : 1.75));
+        if (level >= 8 && Math.random() < (phase === 2 ? 0.32 : 0.2)) spawnHazard();
+        if (level >= 18 && Math.random() < (phase === 2 ? 0.22 : 0.14)) spawnHazard();
+        if (level >= 32 && Math.random() < (phase === 2 ? 0.18 : 0.1)) spawnHazard();
+        if (level >= 52 && Math.random() < (phase === 2 ? 0.12 : 0.07)) spawnHazard();
+        hazardTimerRef.current = Math.max(phase === 2 ? 8 : 11, random(phase === 2 ? 30 : 40, phase === 2 ? 54 : 70) - level * (phase === 2 ? 0.92 : 1.04));
       }
 
       if (pickupTimerRef.current <= 0) {
@@ -1819,7 +1901,7 @@ export default function SignalBreach() {
 
       if (survivalTimerRef.current > 34) {
         survivalTimerRef.current = 0;
-        addScore(Math.max(1, level / 5 + comboRef.current / 3), undefined, undefined, undefined, { progressValue: 34 + level * 4 });
+        addScore(Math.max(1, level / 4.2 + comboRef.current / 2.8), undefined, undefined, undefined, { progressValue: 52 + level * 6 });
         if (bossRef.current?.active) return;
       }
 
