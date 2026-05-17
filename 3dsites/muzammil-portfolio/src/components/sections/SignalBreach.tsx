@@ -172,6 +172,10 @@ const framesPerSecond = 60;
 const specialDurationFrames = framesPerSecond * 30;
 const phaseOneFinalBoss = 30;
 const maxLevel = 99;
+const maxParticles = 220;
+const maxFloatingTexts = 72;
+const maxProjectiles = 96;
+const maxHazards = 54;
 const bestScoreKey = 'signal-breach-best-score';
 const bossWords = ['KERNEL', 'SIGNAL', 'RISC-V', 'NED', 'JAUNT', 'SYSTEM', 'VECTOR', 'TRUST'];
 
@@ -261,7 +265,7 @@ const spritePaths: Record<SpriteKey, string> = {
   bitstream: '/assets/game/binary-blaster.svg',
   laserPrism: '/assets/game/laser-prism.svg',
   kunaiChip: '/assets/game/kunai-chip.svg',
-  firewallTalisman: '/assets/game/firewall-talisman.svg',
+  firewallTalisman: '/assets/game/fire-talisman-2-5d.svg',
   pulseLotus: '/assets/game/pulse-lotus.svg',
   mirrorDrone: '/assets/game/mirror-drone.svg',
 };
@@ -289,6 +293,30 @@ const sampleLayers: Partial<Record<SoundType, { src: string; volume: number; rat
     { src: '/assets/audio/game/kenney-interface/confirmation_003.ogg', volume: 0.24, rate: 0.92 },
   ],
   weapon: [{ src: '/assets/audio/game/kenney-interface/switch_002.ogg', volume: 0.16, rate: 1.35 }],
+  bitWeapon: [
+    { src: '/assets/audio/game/kenney-interface/tick_001.ogg', volume: 0.22, rate: 1.55 },
+    { src: '/assets/audio/game/kenney-interface/pluck_001.ogg', volume: 0.2, rate: 1.82 },
+  ],
+  laserWeapon: [
+    { src: '/assets/audio/game/kenney-interface/glitch_001.ogg', volume: 0.24, rate: 1.34 },
+    { src: '/assets/audio/game/kenney-interface/maximize_007.ogg', volume: 0.18, rate: 1.46 },
+  ],
+  kunaiWeapon: [
+    { src: '/assets/audio/game/kenney-interface/select_004.ogg', volume: 0.24, rate: 1.64 },
+    { src: '/assets/audio/game/kenney-interface/switch_002.ogg', volume: 0.18, rate: 1.86 },
+  ],
+  fireWeapon: [
+    { src: '/assets/audio/game/kenney-interface/glitch_002.ogg', volume: 0.24, rate: 0.64 },
+    { src: '/assets/audio/game/kenney-interface/open_003.ogg', volume: 0.2, rate: 0.72 },
+  ],
+  pulseWeapon: [
+    { src: '/assets/audio/game/kenney-interface/confirmation_002.ogg', volume: 0.22, rate: 0.64 },
+    { src: '/assets/audio/game/kenney-interface/tick_001.ogg', volume: 0.18, rate: 0.72 },
+  ],
+  droneWeapon: [
+    { src: '/assets/audio/game/kenney-interface/open_003.ogg', volume: 0.2, rate: 0.54 },
+    { src: '/assets/audio/game/kenney-interface/glitch_003.ogg', volume: 0.18, rate: 0.76 },
+  ],
   phase: [
     { src: '/assets/audio/game/kenney-interface/maximize_006.ogg', volume: 0.3, rate: 0.68 },
     { src: '/assets/audio/game/kenney-interface/glitch_003.ogg', volume: 0.18, rate: 0.92 },
@@ -333,6 +361,18 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: n
 let sharedAudioContext: AudioContext | null = null;
 let sharedNoiseBuffer: AudioBuffer | null = null;
 const sharedSampleBuffers = new Map<string, AudioBuffer>();
+const lastSoundAt = new Map<SoundType, number>();
+const soundCooldownMs: Partial<Record<SoundType, number>> = {
+  collect: 28,
+  burn: 95,
+  bitWeapon: 92,
+  laserWeapon: 120,
+  kunaiWeapon: 92,
+  fireWeapon: 110,
+  pulseWeapon: 130,
+  droneWeapon: 120,
+  phaseWeapon: 160,
+};
 
 function getAudioContext() {
   if (typeof window === 'undefined') return null;
@@ -446,6 +486,11 @@ function playSurrealSweep(context: AudioContext, destination: AudioNode, start: 
 
 function beep(type: SoundType, muted: boolean) {
   if (muted) return;
+  const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const cooldown = soundCooldownMs[type] ?? 0;
+  if (cooldown > 0 && nowMs - (lastSoundAt.get(type) ?? -Infinity) < cooldown) return;
+  lastSoundAt.set(type, nowMs);
+
   const context = getAudioContext();
   if (!context) return;
 
@@ -534,42 +579,58 @@ function beep(type: SoundType, muted: boolean) {
   }
 
   if (type === 'bitWeapon') {
-    [310, 620, 1240].forEach((note, index) => playTone(context, master, note, now + index * 0.022, 0.16, 0.018, index % 2 ? 'square' : 'triangle', note * 1.5));
-    [0, 1, 0, 1].forEach((bit, index) => playTone(context, master, bit ? 1760 : 880, now + 0.09 + index * 0.024, 0.08, 0.012, 'square', bit ? 1320 : 660));
-    playNoise(context, master, now, 0.16, 0.018, 4200, 'bandpass');
+    playTone(context, master, 128, now, 0.24, 0.02, 'square', 256);
+    [0, 1, 1, 0, 1, 0, 0, 1].forEach((bit, index) => {
+      const base = bit ? 1640 : 820;
+      playTone(context, master, base, now + index * 0.018, 0.064, 0.018, 'square', bit ? base * 0.58 : base * 1.68);
+    });
+    [256, 512, 1024, 2048].forEach((note, index) => playTone(context, master, note, now + 0.052 + index * 0.021, 0.16, 0.015, index % 2 ? 'square' : 'triangle', note * 1.42));
+    playNoise(context, master, now, 0.16, 0.02, 6200, 'bandpass');
+    playNoise(context, master, now + 0.08, 0.12, 0.014, 2800, 'highpass');
   }
 
   if (type === 'laserWeapon') {
-    playTone(context, master, 1880, now, 0.22, 0.018, 'sine', 880);
-    playTone(context, master, 3760, now + 0.016, 0.14, 0.01, 'triangle', 2200);
-    playNoise(context, master, now, 0.2, 0.02, 6200, 'highpass');
-    playSurrealSweep(context, master, now + 0.01, 520, 'pickup');
+    playTone(context, master, 3200, now, 0.3, 0.026, 'sine', 980);
+    playTone(context, master, 6400, now + 0.01, 0.22, 0.014, 'triangle', 2600);
+    playTone(context, master, 1180, now + 0.028, 0.28, 0.018, 'sawtooth', 1900);
+    playTone(context, master, 460, now, 0.24, 0.012, 'triangle', 350);
+    playNoise(context, master, now, 0.24, 0.03, 8600, 'highpass');
+    playSurrealSweep(context, master, now + 0.012, 720, 'pickup');
   }
 
   if (type === 'kunaiWeapon') {
-    [720, 540, 810].forEach((note, index) => playTone(context, master, note, now + index * 0.026, 0.11, 0.018, 'triangle', note * 0.45));
-    playNoise(context, master, now, 0.08, 0.026, 1800, 'highpass');
-    playNoise(context, master, now + 0.045, 0.1, 0.018, 3600, 'bandpass');
+    [1280, 920, 640].forEach((note, index) => playTone(context, master, note, now + index * 0.02, 0.095, 0.022, 'triangle', note * 0.36));
+    [1760, 1280, 940].forEach((note, index) => playTone(context, master, note, now + 0.032 + index * 0.017, 0.065, 0.014, 'sine', note * 0.52));
+    playTone(context, master, 220, now + 0.02, 0.18, 0.01, 'triangle', 160);
+    playNoise(context, master, now, 0.075, 0.044, 3000, 'highpass');
+    playNoise(context, master, now + 0.04, 0.12, 0.028, 5200, 'bandpass');
   }
 
   if (type === 'fireWeapon') {
-    playTone(context, master, 120, now, 0.28, 0.034, 'sawtooth', 64);
-    playTone(context, master, 240, now + 0.03, 0.18, 0.022, 'triangle', 180);
-    playNoise(context, master, now, 0.3, 0.04, 620, 'lowpass');
-    playNoise(context, master, now + 0.04, 0.18, 0.028, 2300, 'bandpass');
+    playTone(context, master, 62, now, 0.5, 0.05, 'sawtooth', 42);
+    playTone(context, master, 124, now + 0.02, 0.36, 0.04, 'sawtooth', 76);
+    playTone(context, master, 248, now + 0.05, 0.24, 0.022, 'triangle', 174);
+    [720, 1040, 620, 1380, 890].forEach((note, index) => playTone(context, master, note, now + 0.045 + index * 0.023, 0.08, 0.012, 'triangle', note * random(0.62, 0.9)));
+    playNoise(context, master, now, 0.46, 0.065, 460, 'lowpass');
+    playNoise(context, master, now + 0.02, 0.34, 0.048, 2400, 'bandpass');
+    playNoise(context, master, now + 0.11, 0.16, 0.032, 5200, 'highpass');
   }
 
   if (type === 'pulseWeapon') {
-    [260, 390, 585, 878].forEach((note, index) => playTone(context, master, note, now + index * 0.038, 0.2, 0.018, 'sine', note * 1.28));
-    playSurrealSweep(context, master, now + 0.02, 260);
-    playNoise(context, master, now + 0.04, 0.2, 0.02, 1500, 'bandpass');
+    [180, 270, 180, 540, 810].forEach((note, index) => playTone(context, master, note, now + index * 0.048, 0.18, index % 2 === 0 ? 0.028 : 0.018, 'sine', note * 1.28));
+    playTone(context, master, 72, now, 0.52, 0.034, 'triangle', 128);
+    playTone(context, master, 144, now + 0.02, 0.4, 0.022, 'sine', 216);
+    playSurrealSweep(context, master, now + 0.018, 240);
+    playNoise(context, master, now + 0.04, 0.26, 0.024, 1400, 'bandpass');
   }
 
   if (type === 'droneWeapon') {
-    playTone(context, master, 172, now, 0.34, 0.026, 'sawtooth', 206);
-    playTone(context, master, 344, now + 0.02, 0.28, 0.018, 'triangle', 412);
-    [690, 700, 690].forEach((note, index) => playTone(context, master, note, now + 0.08 + index * 0.04, 0.16, 0.012, 'square', note * 0.92));
-    playNoise(context, master, now, 0.26, 0.018, 900, 'bandpass');
+    playTone(context, master, 74, now, 0.46, 0.028, 'sawtooth', 88);
+    playTone(context, master, 148, now + 0.014, 0.42, 0.024, 'sawtooth', 176);
+    playTone(context, master, 296, now + 0.028, 0.3, 0.016, 'triangle', 282);
+    [620, 640, 612, 646, 628].forEach((note, index) => playTone(context, master, note, now + 0.058 + index * 0.032, 0.14, 0.014, 'square', note * (index % 2 ? 1.06 : 0.9)));
+    playNoise(context, master, now, 0.34, 0.026, 820, 'bandpass');
+    playNoise(context, master, now + 0.08, 0.18, 0.016, 1800, 'lowpass');
   }
 
   if (type === 'phase') {
@@ -609,7 +670,7 @@ function beep(type: SoundType, muted: boolean) {
     playNoise(context, master, now, 0.18, 0.035, 1300, 'bandpass');
   }
 
-  window.setTimeout(() => master.disconnect(), 1100);
+  window.setTimeout(() => master.disconnect(), 1500);
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -981,7 +1042,10 @@ export default function SignalBreach() {
     };
 
     const addBurst = (x: number, y: number, color: string, count: number, force = 1) => {
-      for (let i = 0; i < count; i += 1) {
+      const availableSlots = maxParticles - particlesRef.current.length;
+      if (availableSlots <= 0) return;
+      const particleCount = Math.min(count, availableSlots);
+      for (let i = 0; i < particleCount; i += 1) {
         const angle = random(0, Math.PI * 2);
         const speed = random(1.2, 4.4) * force;
         particlesRef.current.push({
@@ -998,13 +1062,22 @@ export default function SignalBreach() {
     };
 
     const nearestHazardsFrom = (x: number, y: number, limit = 1) => {
-      const candidates = hazardsRef.current
-        .filter((hazard) => hazard.x > x + 8 && hazard.x < x + 430)
-        .sort((a, b) => distance({ x, y }, a) - distance({ x, y }, b));
-      return candidates.slice(0, limit);
+      const selected: { hazard: Hazard; score: number }[] = [];
+      hazardsRef.current.forEach((hazard) => {
+        if (hazard.x <= x + 8 || hazard.x >= x + 430) return;
+        const score = (hazard.x - x) * 1.15 + Math.abs(hazard.y - y) * 0.9;
+        const insertAt = selected.findIndex((candidate) => score < candidate.score);
+        if (insertAt === -1) selected.push({ hazard, score });
+        else selected.splice(insertAt, 0, { hazard, score });
+        if (selected.length > limit) selected.pop();
+      });
+      return selected.map((candidate) => candidate.hazard);
     };
 
     const pushProjectile = (projectile: Omit<Projectile, 'id' | 'hitIds'>) => {
+      if (projectilesRef.current.length >= maxProjectiles) {
+        projectilesRef.current.splice(0, projectilesRef.current.length - maxProjectiles + 1);
+      }
       projectilesRef.current.push({
         id: idRef.current++,
         hitIds: new Set<number>(),
@@ -1080,7 +1153,7 @@ export default function SignalBreach() {
         timer: specialDurationFrames,
         cooldown: 0,
         phase: 0,
-        targetBudget: meta.budget + (phaseRef.current === 2 ? 5 : 0),
+        targetBudget: Math.round(meta.budget * (phaseRef.current === 2 ? 1.58 : 1)) + (phaseRef.current === 2 ? 4 : 0),
         shotsFired: 0,
       };
       projectilesRef.current = [];
@@ -1098,33 +1171,39 @@ export default function SignalBreach() {
         return;
       }
       const player = playerRef.current;
+      const phaseTwoWeapon = phaseRef.current === 2;
+      const speedBoost = phaseTwoWeapon ? 1.22 : 1;
+      const lifeBoost = phaseTwoWeapon ? 1.16 : 1;
+      const phaseTwoPierce = phaseTwoWeapon ? 2 : 1;
       const target = nearestHazardsFrom(player.x, player.y, 1)[0];
       const targetAngle = target ? Math.atan2(target.y - player.y, target.x - player.x) : 0;
 
       if (weapon.kind === 'bitstream') {
-        [-1, 0, 1].forEach((i) => {
-          const angle = targetAngle + i * 0.18 + random(-0.035, 0.035);
+        const lanes = phaseTwoWeapon ? [-2, -1, 0, 1, 2] : [-1, 0, 1];
+        lanes.forEach((i, index) => {
+          const angle = targetAngle + i * (phaseTwoWeapon ? 0.13 : 0.18) + random(-0.035, 0.035);
           pushProjectile({
             kind: 'bit',
             owner: weapon.kind,
-            glyph: (weapon.shotsFired + i + 3) % 2 === 0 ? '0' : '1',
+            glyph: (weapon.shotsFired + index) % 2 === 0 ? '0' : '1',
             x: player.x + 22,
             y: player.y + i * 9,
-            vx: Math.cos(angle) * 8.2,
-            vy: Math.sin(angle) * 8.2,
-            radius: 12,
-            life: 70,
-            maxLife: 70,
+            vx: Math.cos(angle) * 8.2 * speedBoost,
+            vy: Math.sin(angle) * 8.2 * speedBoost,
+            radius: phaseTwoWeapon ? 13.5 : 12,
+            life: 70 * lifeBoost,
+            maxLife: 70 * lifeBoost,
             phase: Math.random() > 0.5 ? 1 : 0,
             angle,
-            pierce: 1,
+            pierce: phaseTwoPierce,
           });
         });
-        weapon.cooldown = 22;
+        weapon.cooldown = phaseTwoWeapon ? 17 : 22;
       }
 
       if (weapon.kind === 'laser') {
-        [-18, 0, 18].forEach((offset) => {
+        const lanes = phaseTwoWeapon ? [-30, -10, 10, 30] : [-18, 0, 18];
+        lanes.forEach((offset) => {
           pushProjectile({
             kind: 'laser',
             owner: weapon.kind,
@@ -1132,103 +1211,106 @@ export default function SignalBreach() {
             y: player.y + offset,
             vx: 0,
             vy: 0,
-            radius: 16,
-            life: 16,
-            maxLife: 16,
+            radius: phaseTwoWeapon ? 18 : 16,
+            life: phaseTwoWeapon ? 19 : 16,
+            maxLife: phaseTwoWeapon ? 19 : 16,
             phase: random(0, Math.PI * 2),
             angle: 0,
-            pierce: 1,
+            pierce: phaseTwoPierce,
           });
         });
-        weapon.cooldown = 46;
+        weapon.cooldown = phaseTwoWeapon ? 34 : 46;
       }
 
       if (weapon.kind === 'kunai') {
-        [-1, 0, 1].forEach((i) => {
-          const angle = targetAngle + i * 0.18 + random(-0.05, 0.05);
+        const lanes = phaseTwoWeapon ? [-2, -1, 0, 1, 2] : [-1, 0, 1];
+        lanes.forEach((i) => {
+          const angle = targetAngle + i * (phaseTwoWeapon ? 0.14 : 0.18) + random(-0.05, 0.05);
           pushProjectile({
             kind: 'kunai',
             owner: weapon.kind,
             x: player.x + Math.cos(angle) * 26,
             y: player.y + Math.sin(angle) * 26,
-            vx: Math.cos(angle) * 9.4,
-            vy: Math.sin(angle) * 9.4,
-            radius: 14,
-            life: 58,
-            maxLife: 58,
+            vx: Math.cos(angle) * 9.4 * speedBoost,
+            vy: Math.sin(angle) * 9.4 * speedBoost,
+            radius: phaseTwoWeapon ? 15.5 : 14,
+            life: 58 * lifeBoost,
+            maxLife: 58 * lifeBoost,
             phase: random(0, Math.PI * 2),
             angle,
-            pierce: 1,
+            pierce: phaseTwoPierce,
           });
         });
-        weapon.cooldown = 30;
+        weapon.cooldown = phaseTwoWeapon ? 24 : 30;
       }
 
       if (weapon.kind === 'firewall') {
-        [-1, 0, 1].forEach((i) => {
-          const angle = targetAngle + i * 0.2 + random(-0.035, 0.035);
+        const lanes = phaseTwoWeapon ? [-2, -1, 0, 1, 2] : [-1, 0, 1];
+        lanes.forEach((i) => {
+          const angle = targetAngle + i * (phaseTwoWeapon ? 0.15 : 0.2) + random(-0.035, 0.035);
           pushProjectile({
             kind: 'fire',
             owner: weapon.kind,
             x: player.x + 26,
             y: player.y,
-            vx: Math.cos(angle) * 6.2,
-            vy: Math.sin(angle) * 6.2,
-            radius: 19,
-            life: 42,
-            maxLife: 42,
+            vx: Math.cos(angle) * 6.2 * speedBoost,
+            vy: Math.sin(angle) * 6.2 * speedBoost,
+            radius: phaseTwoWeapon ? 22 : 19,
+            life: 42 * lifeBoost,
+            maxLife: 42 * lifeBoost,
             phase: random(0, Math.PI * 2),
             angle,
-            pierce: 1,
+            pierce: phaseTwoPierce,
           });
         });
-        weapon.cooldown = 26;
+        weapon.cooldown = phaseTwoWeapon ? 21 : 26;
       }
 
       if (weapon.kind === 'pulse') {
-        nearestHazardsFrom(player.x, player.y, 3).forEach((hazard, index) => {
+        nearestHazardsFrom(player.x, player.y, phaseTwoWeapon ? 4 : 3).forEach((hazard, index) => {
           const angle = Math.atan2(hazard.y - player.y, hazard.x - player.x) + random(-0.08, 0.08);
           pushProjectile({
             kind: 'pulse',
             owner: weapon.kind,
             x: player.x + Math.cos(index) * 18,
             y: player.y + Math.sin(index) * 18,
-            vx: Math.cos(angle) * 7.4,
-            vy: Math.sin(angle) * 7.4,
-            radius: 18,
-            life: 64,
-            maxLife: 64,
+            vx: Math.cos(angle) * 7.4 * speedBoost,
+            vy: Math.sin(angle) * 7.4 * speedBoost,
+            radius: phaseTwoWeapon ? 20 : 18,
+            life: 64 * lifeBoost,
+            maxLife: 64 * lifeBoost,
             phase: random(0, Math.PI * 2),
             angle,
-            pierce: 1,
+            pierce: phaseTwoPierce,
           });
         });
-        weapon.cooldown = 38;
+        weapon.cooldown = phaseTwoWeapon ? 29 : 38;
       }
 
       if (weapon.kind === 'drone') {
-        [-1, 0, 1].forEach((side) => {
-          const angle = targetAngle + side * 0.12 + random(-0.04, 0.04);
+        const lanes = phaseTwoWeapon ? [-2, -1, 0, 1, 2] : [-1, 0, 1];
+        lanes.forEach((side) => {
+          const angle = targetAngle + side * (phaseTwoWeapon ? 0.09 : 0.12) + random(-0.04, 0.04);
           pushProjectile({
             kind: 'drone',
             owner: weapon.kind,
             x: player.x - 2,
             y: player.y + side * 18,
-            vx: Math.cos(angle) * 8.3,
-            vy: Math.sin(angle) * 8.3,
-            radius: 12,
-            life: 68,
-            maxLife: 68,
+            vx: Math.cos(angle) * 8.3 * speedBoost,
+            vy: Math.sin(angle) * 8.3 * speedBoost,
+            radius: phaseTwoWeapon ? 13.5 : 12,
+            life: 68 * lifeBoost,
+            maxLife: 68 * lifeBoost,
             phase: random(0, Math.PI * 2),
             angle,
-            pierce: 1,
+            pierce: phaseTwoPierce,
           });
         });
-        weapon.cooldown = 34;
+        weapon.cooldown = phaseTwoWeapon ? 27 : 34;
       }
 
       weapon.shotsFired += 1;
-      addBurst(player.x + 24, player.y, specialWeaponMeta[weapon.kind].color, weapon.kind === 'laser' ? 14 : 8, 0.74);
+      addBurst(player.x + 24, player.y, specialWeaponMeta[weapon.kind].color, weapon.kind === 'laser' ? (phaseTwoWeapon ? 18 : 14) : phaseTwoWeapon ? 11 : 8, phaseTwoWeapon ? 0.86 : 0.74);
       beep(weaponSoundType[weapon.kind], mutedRef.current);
       if (phaseRef.current === 2) beep('phaseWeapon', mutedRef.current);
     };
