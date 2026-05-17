@@ -1,42 +1,153 @@
-type AiResult = { text: string; provider: string; confidence: number };
+import {
+  FunctionCallingConfigMode,
+  GoogleGenAI,
+  HarmBlockThreshold,
+  HarmCategory,
+  type Content,
+  type FunctionCall,
+  type FunctionDeclaration,
+  type Part
+} from "@google/genai";
+
+export type GeminiToolResult = {
+  id?: string;
+  name: string;
+  args: Record<string, unknown>;
+  response: Record<string, unknown>;
+};
+
+export type GeminiToolTurnInput = {
+  systemInstruction: string;
+  userPrompt: string;
+  history?: Content[];
+  tools: FunctionDeclaration[];
+  executeToolCall: (call: FunctionCall) => Promise<Record<string, unknown>>;
+};
+
+export type GeminiToolTurnResult = {
+  text: string;
+  provider: "gemini";
+  model: string;
+  confidence: number;
+  toolResults: GeminiToolResult[];
+};
 
 function env(name: string, fallback = "") {
-  return (process.env[name] || fallback).trim().replace(/^['\"]|['\"]$/g, "");
+  return (process.env[name] || fallback).trim().replace(/^['"]|['"]$/g, "");
 }
 
-async function gemini(prompt: string): Promise<AiResult> {
+export function getGeminiModel() {
+  return env("GEMINI_MODEL", "gemini-2.5-flash");
+}
+
+function geminiApiKey() {
   const apiKey = env("GEMINI_API_KEY");
-  if (!apiKey) throw new Error("Missing GEMINI_API_KEY");
-  const model = env("GEMINI_MODEL", "gemini-2.0-flash");
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.25, maxOutputTokens: 2200 } })
+  if (!apiKey) {
+    throw new Error("Gemini is not configured. Add GEMINI_API_KEY to your environment.");
+  }
+  return apiKey;
+}
+
+function createClient() {
+  return new GoogleGenAI({ apiKey: geminiApiKey() });
+}
+
+function textFromResponse(response: { text?: string }) {
+  const text = response.text?.trim();
+  return text || "I could not produce a final answer from Gemini for this request.";
+}
+
+function safetySettings() {
+  return [
+    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }
+  ];
+}
+
+function normalizeCall(call: FunctionCall) {
+  return {
+    id: call.id,
+    name: String(call.name || ""),
+    args: (call.args || {}) as Record<string, unknown>
+  };
+}
+
+export async function runGeminiToolTurn(input: GeminiToolTurnInput): Promise<GeminiToolTurnResult> {
+  const model = getGeminiModel();
+  const ai = createClient();
+  const contents: Content[] = [
+    ...(input.history || []),
+    { role: "user", parts: [{ text: input.userPrompt }] }
+  ];
+
+  const config = {
+    systemInstruction: input.systemInstruction,
+    temperature: 0.22,
+    maxOutputTokens: 2800,
+    safetySettings: safetySettings(),
+    tools: [{ functionDeclarations: input.tools }],
+    toolConfig: {
+      functionCallingConfig: {
+        mode: FunctionCallingConfigMode.AUTO
+      }
+    }
+  };
+
+  const first = await ai.models.generateContent({ model, contents, config });
+  const calls = first.functionCalls || [];
+  if (!calls.length) {
+    return { text: textFromResponse(first), provider: "gemini", model, confidence: 0.82, toolResults: [] };
+  }
+
+  const toolResults: GeminiToolResult[] = [];
+  for (const call of calls.slice(0, 6)) {
+    const normalized = normalizeCall(call);
+    if (!normalized.name) continue;
+    try {
+      const response = await input.executeToolCall(call);
+      toolResults.push({ ...normalized, response });
+    } catch (error) {
+      toolResults.push({
+        ...normalized,
+        response: {
+          ok: false,
+          error: error instanceof Error ? error.message : "Tool execution failed."
+        }
+      });
+    }
+  }
+
+  const modelParts: Part[] = calls.map((call) => ({ functionCall: call }));
+  const toolParts: Part[] = toolResults.map((result) => ({
+    functionResponse: {
+      id: result.id,
+      name: result.name,
+      response: result.response
+    }
+  }));
+
+  const final = await ai.models.generateContent({
+    model,
+    contents: [
+      ...contents,
+      { role: "model", parts: modelParts },
+      { role: "user", parts: toolParts }
+    ],
+    config: {
+      systemInstruction: input.systemInstruction,
+      temperature: 0.2,
+      maxOutputTokens: 2800,
+      safetySettings: safetySettings()
+    }
   });
-  const raw = await res.text();
-  if (!res.ok) {
-    console.error("[GEMINI_ERROR]", res.status, raw);
-    throw new Error("Gemini request failed");
-  }
-  const data = JSON.parse(raw);
-  const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || "").join("\n").trim() || "No response returned.";
-  return { text, provider: "gemini", confidence: 0.82 };
-}
 
-function mock(prompt: string): AiResult {
-  const p = prompt.toLowerCase();
-  let text = `## ShopIQ Business Brief\n\nI reviewed the current shop context and prepared a practical operating summary.\n\n### Recommended Focus\n- Prioritize low-stock fast-moving products.\n- Collect pending customer balances before month close.\n- Review supplier payables and reorder only high-margin items.\n\n### Next Actions\n1. Check the low stock list.\n2. Reorder products with strong sales velocity.\n3. Follow up with customers with overdue balances.`;
-  if (p.includes("reorder")) text = `## Reorder Plan\n\n### High Priority\n- Reorder fast-moving low-stock products first.\n- Keep 10–14 days of cover for electronics and accessories.\n\n### Review Before Buying\n- Avoid overstocking slow movers.\n- Compare supplier balances before placing purchase orders.`;
-  return { text, provider: "mock", confidence: 0.7 };
-}
-
-export async function runAiTask(prompt: string): Promise<AiResult> {
-  const provider = env("AI_PROVIDER", "mock");
-  try {
-    if (provider === "gemini") return await gemini(prompt);
-    return mock(prompt);
-  } catch (error) {
-    if (env("AI_ALLOW_MOCK_FALLBACK", "true") === "true") return mock(prompt);
-    throw error;
-  }
+  return {
+    text: textFromResponse(final),
+    provider: "gemini",
+    model,
+    confidence: 0.9,
+    toolResults
+  };
 }

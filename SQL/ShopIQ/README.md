@@ -14,7 +14,7 @@ ShopIQ turns everyday shop operations into an intelligent inventory and sales wo
 - Premium dashboards, cards, tables, charts, sidebars, and topbar
 - Large realistic seed data for markets and shops
 - Product inventory, customers, suppliers, invoices, purchases, payments, reports, staff, and AI assistant
-- Context-aware AI business copilot with preview-first product creation agent
+- Live Gemini AI business agent with role-aware tools, operating jobs, and confirmation-gated database actions
 - Recharts-based inventory, category, velocity, and dues charts
 
 ## Product modules
@@ -42,8 +42,9 @@ flowchart TB
   API --> Prisma[Prisma ORM]
   Prisma --> DB[(PostgreSQL)]
   API --> AI[AI Provider Layer]
-  AI --> Gemini[Gemini]
-  AI --> Mock[Mock fallback]
+  AI --> Gemini[Gemini API]
+  AI --> Tools[ShopIQ role-aware tools]
+  Tools --> Prisma
 ```
 
 ## Database design
@@ -95,15 +96,15 @@ It can answer questions like:
 
 ### Agentic workflow
 
-ShopIQ includes a minimal safe agent action:
+ShopIQ includes safe agent actions:
 
-1. User asks AI to add/create a product.
-2. AI extracts a product preview.
+1. User asks AI to analyze data or prepare an action.
+2. Gemini calls ShopIQ tools for live role-filtered data.
 3. User confirms with “yes / add it / proceed”.
-4. Product is created in PostgreSQL.
+4. The server executes the action in PostgreSQL.
 5. Activity log is written.
 
-No destructive delete tools are implemented.
+No mock fallback or destructive delete tools are implemented.
 
 ## Environment variables
 
@@ -112,12 +113,8 @@ Create `.env` from `.env.example`:
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/shopiq_next?schema=public"
 JWT_SECRET="replace-this-with-a-long-random-secret"
-AI_PROVIDER="gemini"
-AI_ALLOW_MOCK_FALLBACK="true"
 GEMINI_API_KEY=""
-GEMINI_MODEL="gemini-2.0-flash"
-OPENAI_API_KEY=""
-OPENAI_MODEL="gpt-4.1-mini"
+GEMINI_MODEL="gemini-2.5-flash"
 ```
 
 ## Quick start
