@@ -1,0 +1,64 @@
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="backPlate" x1="36" y1="16" x2="124" y2="142" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8E6AA"/>
+      <stop offset=".32" stop-color="#B77A38"/>
+      <stop offset=".68" stop-color="#743A27"/>
+      <stop offset="1" stop-color="#2A1712"/>
+    </linearGradient>
+    <linearGradient id="paperFold" x1="48" y1="21" x2="103" y2="134" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFBE6"/>
+      <stop offset=".38" stop-color="#EECF8A"/>
+      <stop offset=".72" stop-color="#B86B37"/>
+      <stop offset="1" stop-color="#5C2A1F"/>
+    </linearGradient>
+    <linearGradient id="paperSide" x1="96" y1="29" x2="119" y2="129" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B94A36"/>
+      <stop offset=".5" stop-color="#6D2F25"/>
+      <stop offset="1" stop-color="#21110E"/>
+    </linearGradient>
+    <linearGradient id="cord" x1="31" y1="43" x2="132" y2="132" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7B15E"/>
+      <stop offset=".42" stop-color="#B94A36"/>
+      <stop offset="1" stop-color="#3D241A"/>
+    </linearGradient>
+    <radialGradient id="coreCeramic" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(78 78) rotate(90) scale(24 19)">
+      <stop stop-color="#FFF8DB"/>
+      <stop offset=".38" stop-color="#F7B15E"/>
+      <stop offset=".76" stop-color="#B94A36"/>
+      <stop offset="1" stop-color="#3D241A"/>
+    </radialGradient>
+    <filter id="artifactDrop" x="7" y="5" width="146" height="150" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="12" stdDeviation="7" flood-color="#2A1712" flood-opacity=".28"/>
+    </filter>
+  </defs>
+
+  <ellipse cx="80" cy="138" rx="50" ry="11" fill="#2A1712" opacity=".16"/>
+
+  <g filter="url(#artifactDrop)">
+    <path d="M45 17h69l14 23-11 90-38 16-38-16-11-90 15-23Z" fill="url(#backPlate)" stroke="#FFF8DB" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M52 27h48l10 17-9 78-24 11-24-11-9-78 8-17Z" fill="url(#paperFold)" stroke="#5C2A1F" stroke-width="4" stroke-linejoin="round"/>
+    <path d="m100 27 10 17-9 78-24 11 9-89 14-17Z" fill="url(#paperSide)" opacity=".88"/>
+
+    <path d="M38 42h78M42 120h69" stroke="#FFF8DB" stroke-width="6" stroke-linecap="round" opacity=".55"/>
+    <path d="M49 51h53M52 112h43" stroke="#4A231B" stroke-width="4" stroke-linecap="round" opacity=".48"/>
+
+    <path d="M32 62c21 14 74 14 95-1" stroke="url(#cord)" stroke-width="8" stroke-linecap="round"/>
+    <path d="M35 62c6 12 7 28 1 47M124 62c-6 12-7 28-1 47" stroke="url(#cord)" stroke-width="6" stroke-linecap="round"/>
+
+    <path d="M53 75c10-20 41-24 55-1-12 19-41 23-55 1Z" fill="#2A1712" stroke="#FFF8DB" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M58 75c8-13 31-16 42-1-10 12-30 15-42 1Z" fill="url(#coreCeramic)" stroke="#7F241F" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M77 59c6 9 16 13 17 24 1 10-6 17-16 17-9 0-16-7-15-17 1-10 9-15 14-24Z" fill="#F7B15E" stroke="#3D241A" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M79 71c3 4 8 6 8 12 0 5-4 9-8 9s-8-4-7-9c0-5 4-8 7-12Z" fill="#FFF8DB"/>
+
+    <path d="M61 39h27M58 101h35M66 47v13M89 47l-7 13M64 113l16-8 14 8" stroke="#3D241A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity=".72"/>
+    <path d="M56 89c7 5 16 7 27 6M97 86c-3 6-8 10-16 12" stroke="#FFF8DB" stroke-width="3" stroke-linecap="round" opacity=".36"/>
+
+    <circle cx="34" cy="118" r="8" fill="#F8E6AA" stroke="#6D4724" stroke-width="4"/>
+    <circle cx="126" cy="118" r="8" fill="#F8E6AA" stroke="#6D4724" stroke-width="4"/>
+    <path d="M26 118h-12M134 118h12M80 18V5M48 23 35 9M112 23l13-14" stroke="#B94A36" stroke-width="6" stroke-linecap="round"/>
+
+    <path d="M56 30c12-7 26-8 42 0" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" opacity=".36"/>
+    <path d="M48 131c19 10 41 11 64-1" stroke="#160B09" stroke-width="6" stroke-linecap="round" opacity=".28"/>
+  </g>
+</svg>

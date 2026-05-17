@@ -1,0 +1,18 @@
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bolt" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(35 25) rotate(55) scale(61)">
+      <stop stop-color="#FFFBE6"/>
+      <stop offset=".48" stop-color="#F3D99B"/>
+      <stop offset="1" stop-color="#B98548"/>
+    </radialGradient>
+    <filter id="glow" x="2" y="2" width="92" height="92" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="7" stdDeviation="8" flood-color="#F3D99B" flood-opacity=".48"/>
+    </filter>
+  </defs>
+  <ellipse cx="48" cy="78" rx="24" ry="7" fill="#8D6B45" opacity=".17"/>
+  <g filter="url(#glow)">
+    <circle cx="48" cy="43" r="34" fill="url(#bolt)" stroke="#FFF8DB" stroke-width="4"/>
+    <path d="M52 17 31 49h15l-4 24 23-35H50l2-21Z" fill="#20302D" stroke="#FFF8DB" stroke-width="3" stroke-linejoin="round"/>
+    <circle cx="34" cy="25" r="6" fill="#FFFFFF" opacity=".58"/>
+  </g>
+</svg>

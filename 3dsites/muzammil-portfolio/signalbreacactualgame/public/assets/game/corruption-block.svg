@@ -1,0 +1,24 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="top" x1="29" y1="18" x2="99" y2="62" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFC8B8"/>
+      <stop offset=".46" stop-color="#EF8A7A"/>
+      <stop offset="1" stop-color="#B96658"/>
+    </linearGradient>
+    <linearGradient id="side" x1="31" y1="55" x2="96" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D66C62"/>
+      <stop offset="1" stop-color="#7E3C3A"/>
+    </linearGradient>
+    <filter id="drop" x="10" y="10" width="108" height="108" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#B96658" flood-opacity=".36"/>
+    </filter>
+  </defs>
+  <ellipse cx="64" cy="104" rx="36" ry="10" fill="#6A2B2E" opacity=".18"/>
+  <g filter="url(#drop)">
+    <path d="M64 16 106 40 64 66 22 40 64 16Z" fill="url(#top)" stroke="#FFF3E5" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M22 40 64 66v44L22 84V40Z" fill="url(#side)" stroke="#FFF3E5" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M106 40 64 66v44l42-26V40Z" fill="#9E4B47" stroke="#FFF3E5" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M54 28 63 41 56 47l12 12M83 47l-12 8 10 18M42 58l12 5-7 16" stroke="#5F2528" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="82" cy="37" r="5" fill="#FFF8DB"/>
+  </g>
+</svg>

@@ -1,0 +1,6 @@
+﻿Kenney Interface Sounds
+Source: https://opengameart.org/content/interface-sounds
+Author: Kenney
+License: CC0
+Note: OpenGameArt page says credit "Kenney.nl" or "www.kenney.nl" is optional.
+Only a curated subset of OGG files is included for Signal Breach game feedback layers.

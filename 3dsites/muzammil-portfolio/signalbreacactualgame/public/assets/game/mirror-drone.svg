@@ -1,0 +1,24 @@
+<svg width="112" height="112" viewBox="0 0 112 112" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="droneBody" x1="26" y1="25" x2="86" y2="84" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FFFF"/>
+      <stop offset=".38" stop-color="#A8D58C"/>
+      <stop offset=".72" stop-color="#6F924C"/>
+      <stop offset="1" stop-color="#20302D"/>
+    </linearGradient>
+    <filter id="droneDrop" x="8" y="13" width="96" height="88" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#315D52" flood-opacity=".22"/>
+    </filter>
+  </defs>
+  <ellipse cx="56" cy="88" rx="31" ry="8" fill="#20302D" opacity=".12"/>
+  <g filter="url(#droneDrop)">
+    <path d="M31 44c0-12 10-22 22-22h6c12 0 22 10 22 22v21c0 10-8 18-18 18H49c-10 0-18-8-18-18V44Z" fill="url(#droneBody)" stroke="#FFF8DB" stroke-width="4"/>
+    <path d="M22 49H9M90 49h13M30 70l-14 11M82 70l14 11" stroke="#315D52" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="43" cy="52" r="9" fill="#20302D"/>
+    <circle cx="69" cy="52" r="9" fill="#20302D"/>
+    <circle cx="46" cy="49" r="3" fill="#65CFD7"/>
+    <circle cx="72" cy="49" r="3" fill="#65CFD7"/>
+    <path d="M47 69c7 4 13 4 19 0" stroke="#20302D" stroke-width="4" stroke-linecap="round" opacity=".55"/>
+    <path d="M39 32c10-8 25-8 36 0" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity=".36"/>
+  </g>
+</svg>

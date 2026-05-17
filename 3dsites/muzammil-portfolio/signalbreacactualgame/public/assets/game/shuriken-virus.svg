@@ -1,0 +1,28 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="blade" x1="25" y1="21" x2="103" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8DB"/>
+      <stop offset=".42" stop-color="#C9D9D1"/>
+      <stop offset=".72" stop-color="#789A90"/>
+      <stop offset="1" stop-color="#20302D"/>
+    </linearGradient>
+    <linearGradient id="virus" x1="43" y1="40" x2="85" y2="87" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EF8A7A"/>
+      <stop offset=".55" stop-color="#B96658"/>
+      <stop offset="1" stop-color="#6B342F"/>
+    </linearGradient>
+    <filter id="shuriDrop" x="8" y="8" width="112" height="112" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#20302D" flood-opacity=".24"/>
+    </filter>
+  </defs>
+  <ellipse cx="64" cy="104" rx="35" ry="9" fill="#20302D" opacity=".12"/>
+  <g filter="url(#shuriDrop)">
+    <path d="M64 12 80 48l36 16-36 16-16 36-16-36-36-16 36-16 16-36Z" fill="url(#blade)" stroke="#FFF8DB" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M64 29v70M29 64h70" stroke="#20302D" stroke-width="4" stroke-linecap="round" opacity=".45"/>
+    <circle cx="64" cy="64" r="25" fill="url(#virus)" stroke="#FFF8DB" stroke-width="4"/>
+    <path d="M52 58c4-7 18-7 24 0M50 75c8 7 21 8 29 0" stroke="#20302D" stroke-width="5" stroke-linecap="round" opacity=".56"/>
+    <circle cx="56" cy="64" r="4" fill="#FFF8DB"/>
+    <circle cx="73" cy="64" r="4" fill="#FFF8DB"/>
+    <path d="M41 31c17-10 37-10 52 1" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity=".34"/>
+  </g>
+</svg>
