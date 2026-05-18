@@ -17,8 +17,14 @@ const invoiceSchema = z.object({
   invoiceNo: optionalText(80),
   discount: money,
   tax: money,
+  loyaltyDiscount: money,
   paidAmount: money,
   dueDate: z.coerce.date().optional(),
+  cashierCounter: optionalText(80),
+  channel: optionalText(80),
+  promoCode: optionalText(80),
+  receiptNo: optionalText(100),
+  paymentBreakdown: z.record(z.any()).optional(),
   notes: optionalText(600),
   items: z.array(invoiceItemSchema).min(1, "Add at least one item.")
 });
@@ -65,7 +71,7 @@ export async function POST(request: Request) {
       const product = productMap.get(item.productId)!;
       return sum + item.quantity * Number(item.unitPrice ?? product.salePrice);
     }, 0);
-    const total = Math.max(subtotal - data.discount + data.tax, 0);
+    const total = Math.max(subtotal - data.discount - data.loyaltyDiscount + data.tax, 0);
     const paid = Math.min(data.paidAmount, total);
     const due = Math.max(total - paid, 0);
     const invoice = await prisma.$transaction(async (tx) => {
@@ -78,11 +84,17 @@ export async function POST(request: Request) {
           subtotal,
           discount: data.discount,
           tax: data.tax,
+          loyaltyDiscount: data.loyaltyDiscount,
           total,
           paidAmount: paid,
           dueAmount: due,
           status: invoiceStatus(total, paid),
           dueDate: data.dueDate,
+          cashierCounter: data.cashierCounter,
+          channel: data.channel,
+          promoCode: data.promoCode,
+          receiptNo: data.receiptNo,
+          paymentBreakdown: data.paymentBreakdown,
           notes: data.notes,
           items: {
             create: data.items.map((item) => {

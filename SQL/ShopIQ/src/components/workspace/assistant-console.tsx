@@ -1,22 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bot, CheckCircle2, Send, Sparkles, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { FormattedAiContent } from "@/utils/ai-content";
 import { cn } from "@/lib/utils";
 
 type ChatMessage = {
+  id?: string;
   role: "USER" | "AI";
   content: string;
+  fullContent?: string;
   action?: { label: string; href: string } | null;
   previewAction?: { type: string; payload: Record<string, any>; previewId: string } | null;
+  isTyping?: boolean;
 };
+
+const USER_MESSAGE_LAND_MS = 500;
 
 function actionLabel(type?: string) {
   if (type === "create_product") return "Product preview";
@@ -38,77 +43,282 @@ export function AssistantConsole({ initialThreadId }: { initialThreadId?: string
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showThinking, setShowThinking] = useState(false);
+  const [typingResponse, setTypingResponse] = useState(false);
+  const [activeFocusMessageId, setActiveFocusMessageId] = useState<string | null>(null);
   const [resolvedPreviews, setResolvedPreviews] = useState<Set<string>>(new Set());
+  const typingTimers = useRef<Set<number>>(new Set());
+  const choreographyTimers = useRef<Set<number>>(new Set());
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const bottomAnchorRef = useRef<HTMLDivElement | null>(null);
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const autoFollowRef = useRef(true);
+  const userScrollIntentRef = useRef(false);
+  const activeTypingMessageIdRef = useRef<string | null>(null);
+  const programmaticScrollUntilRef = useRef(0);
+  const scrollFrames = useRef<Set<number>>(new Set());
   const router = useRouter();
+  const isBusy = loading || typingResponse;
+
+  useEffect(() => {
+    const timers = typingTimers.current;
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      timers.clear();
+      choreographyTimers.current.forEach((timer) => window.clearTimeout(timer));
+      choreographyTimers.current.clear();
+      scrollFrames.current.forEach((frame) => window.cancelAnimationFrame(frame));
+      scrollFrames.current.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (showThinking) scrollToConversationEnd("smooth");
+  }, [showThinking]);
+
+  function messageId(prefix: string) {
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  function scheduleTyping(callback: () => void, delay: number) {
+    const timer = window.setTimeout(() => {
+      typingTimers.current.delete(timer);
+      callback();
+    }, delay);
+    typingTimers.current.add(timer);
+  }
+
+  function registerMessageNode(id?: string) {
+    return (node: HTMLDivElement | null) => {
+      if (!id) return;
+      if (node) {
+        messageRefs.current.set(id, node);
+      } else {
+        messageRefs.current.delete(id);
+      }
+    };
+  }
+
+  function waitForUserMessageLanding() {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const timer = window.setTimeout(() => {
+        choreographyTimers.current.delete(timer);
+        resolve();
+      }, USER_MESSAGE_LAND_MS);
+      choreographyTimers.current.add(timer);
+    });
+  }
+
+  function scrollToMessage(id: string, behavior: ScrollBehavior = "smooth") {
+    if (!autoFollowRef.current) return;
+    programmaticScrollUntilRef.current = Date.now() + (behavior === "smooth" ? 620 : 220);
+    const firstFrame = window.requestAnimationFrame(() => {
+      scrollFrames.current.delete(firstFrame);
+      const secondFrame = window.requestAnimationFrame(() => {
+        scrollFrames.current.delete(secondFrame);
+        messageRefs.current.get(id)?.scrollIntoView({ block: "nearest", behavior });
+      });
+      scrollFrames.current.add(secondFrame);
+    });
+    scrollFrames.current.add(firstFrame);
+  }
+
+  function scrollToConversationEnd(behavior: ScrollBehavior = "smooth") {
+    if (!autoFollowRef.current) return;
+    programmaticScrollUntilRef.current = Date.now() + (behavior === "smooth" ? 700 : 260);
+    const firstFrame = window.requestAnimationFrame(() => {
+      scrollFrames.current.delete(firstFrame);
+      const secondFrame = window.requestAnimationFrame(() => {
+        scrollFrames.current.delete(secondFrame);
+        const scrollArea = scrollAreaRef.current;
+        if (!scrollArea || !autoFollowRef.current) {
+          return;
+        }
+        const nextTop = scrollArea.scrollHeight;
+        scrollArea.scrollTo({ top: nextTop, behavior });
+        if (behavior !== "smooth") {
+          scrollArea.scrollTop = scrollArea.scrollHeight;
+        }
+        bottomAnchorRef.current?.scrollIntoView({ block: "nearest", behavior });
+      });
+      scrollFrames.current.add(secondFrame);
+    });
+    scrollFrames.current.add(firstFrame);
+  }
+
+  function resetAutoFollow() {
+    autoFollowRef.current = true;
+    userScrollIntentRef.current = false;
+    scrollToConversationEnd("auto");
+  }
+
+  function handleConversationScroll() {
+    const scrollArea = scrollAreaRef.current;
+    if (!scrollArea || (Date.now() < programmaticScrollUntilRef.current && !userScrollIntentRef.current)) return;
+    const distanceFromBottom = scrollArea.scrollHeight - scrollArea.scrollTop - scrollArea.clientHeight;
+    const nearBottom = distanceFromBottom < 56;
+    if (nearBottom) {
+      autoFollowRef.current = true;
+      userScrollIntentRef.current = false;
+      return;
+    }
+    if (userScrollIntentRef.current) {
+      autoFollowRef.current = false;
+    }
+  }
+
+  function handleUserScrollIntent() {
+    userScrollIntentRef.current = true;
+  }
+
+  function conversationContext() {
+    return messages
+      .map((message) => ({
+        role: message.role,
+        content: (message.fullContent || message.content).trim()
+      }))
+      .filter((message) => message.content.length > 0)
+      .slice(-12)
+      .map((message) => ({
+        role: message.role,
+        content: message.content.slice(0, 2200)
+      }));
+  }
+
+  function typeAiMessage(message: Omit<ChatMessage, "id" | "role" | "isTyping">) {
+    const id = messageId("ai");
+    const fullContent = message.content || "No response returned.";
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    setTypingResponse(!reduceMotion);
+    setActiveFocusMessageId(id);
+    setMessages((current) => [
+      ...current,
+      { ...message, id, role: "AI", content: reduceMotion ? fullContent : "", fullContent, isTyping: !reduceMotion }
+    ]);
+    scrollToMessage(id, "smooth");
+    if (reduceMotion) {
+      setTypingResponse(false);
+      return;
+    }
+
+    activeTypingMessageIdRef.current = id;
+    const chunkSize = fullContent.length > 1600 ? 8 : fullContent.length > 900 ? 6 : fullContent.length > 420 ? 4 : 2;
+    let cursor = 0;
+
+    const tick = () => {
+      cursor = Math.min(fullContent.length, cursor + chunkSize);
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                content: fullContent.slice(0, cursor),
+                isTyping: cursor < fullContent.length
+              }
+            : item
+        )
+      );
+      scrollToConversationEnd("auto");
+      if (cursor < fullContent.length) {
+        const typedChar = fullContent[cursor - 1] || "";
+        const pause = typedChar === "\n" ? 68 : /[.!?;:]/.test(typedChar) ? 82 : 24 + Math.random() * 20;
+        scheduleTyping(tick, pause);
+      } else {
+        activeTypingMessageIdRef.current = null;
+        setTypingResponse(false);
+        scrollToConversationEnd("smooth");
+      }
+    };
+
+    scheduleTyping(tick, 180);
+  }
 
   async function ask(prompt?: string) {
     const finalQuestion = prompt || question;
-    if (!finalQuestion.trim() || loading) return;
+    if (!finalQuestion.trim() || isBusy) return;
+    const userMessageId = messageId("user");
+    const clientMessages = conversationContext();
     setLoading(true);
-    setMessages((current) => [...current, { role: "USER", content: finalQuestion }]);
+    setShowThinking(false);
+    resetAutoFollow();
+    setActiveFocusMessageId(userMessageId);
+    setMessages((current) => [...current, { id: userMessageId, role: "USER", content: finalQuestion }]);
+    scrollToMessage(userMessageId, "auto");
     setQuestion("");
     try {
-      const response = await fetch("/api/ai/chat", {
+      const responsePromise = fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ threadId, question: finalQuestion })
-      });
-      const data = await response.json();
+        body: JSON.stringify({ threadId, question: finalQuestion, clientMessages })
+      })
+        .then(async (response) => ({ ok: true as const, data: await response.json() }))
+        .catch((error) => ({ ok: false as const, error }));
+      await waitForUserMessageLanding();
+      setShowThinking(true);
+      const result = await responsePromise;
+      if (!result.ok) throw result.error;
+      const data = result.data;
       if (data.thread?.id) setThreadId(data.thread.id);
-      setMessages((current) => [
-        ...current,
-        {
-          role: "AI",
-          content: data.answer || data.error || "No response returned.",
-          action: data.action || null,
-          previewAction: data.previewAction || null
-        }
-      ]);
+      setShowThinking(false);
+      typeAiMessage({
+        content: data.answer || data.error || "No response returned.",
+        action: data.action || null,
+        previewAction: data.previewAction || null
+      });
       router.refresh();
     } catch {
-      setMessages((current) => [
-        ...current,
-        { role: "AI", content: "## Assistant unavailable\n\nI could not complete that request right now. Please try again." }
-      ]);
+      setShowThinking(false);
+      typeAiMessage({ content: "## Assistant unavailable\n\nI could not complete that request right now. Please try again." });
     } finally {
       setLoading(false);
     }
   }
 
   async function decidePreview(previewAction: NonNullable<ChatMessage["previewAction"]>, decision: "approve" | "cancel") {
-    if (loading) return;
+    if (isBusy) return;
     const label = actionLabel(previewAction.type);
     const userText = decision === "approve" ? `Approved ${label}` : `Cancelled ${label}`;
+    const userMessageId = messageId("user");
+    const clientMessages = conversationContext();
     setLoading(true);
-    setMessages((current) => [...current, { role: "USER", content: userText }]);
+    setShowThinking(false);
+    resetAutoFollow();
+    setActiveFocusMessageId(userMessageId);
+    setMessages((current) => [...current, { id: userMessageId, role: "USER", content: userText }]);
+    scrollToMessage(userMessageId, "auto");
     try {
-      const response = await fetch("/api/ai/chat", {
+      const responsePromise = fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           threadId,
           question: userText,
+          clientMessages,
           approval: { decision, previewId: previewAction.previewId }
         })
-      });
-      const data = await response.json();
+      })
+        .then(async (response) => ({ ok: true as const, data: await response.json() }))
+        .catch((error) => ({ ok: false as const, error }));
+      await waitForUserMessageLanding();
+      setShowThinking(true);
+      const result = await responsePromise;
+      if (!result.ok) throw result.error;
+      const data = result.data;
       if (data.thread?.id) setThreadId(data.thread.id);
       setResolvedPreviews((current) => new Set(current).add(previewAction.previewId));
-      setMessages((current) => [
-        ...current,
-        {
-          role: "AI",
-          content: data.answer || data.error || "No response returned.",
-          action: data.action || null,
-          previewAction: data.previewAction || null
-        }
-      ]);
+      setShowThinking(false);
+      typeAiMessage({
+        content: data.answer || data.error || "No response returned.",
+        action: data.action || null,
+        previewAction: data.previewAction || null
+      });
       router.refresh();
     } catch {
-      setMessages((current) => [
-        ...current,
-        { role: "AI", content: "## Assistant unavailable\n\nI could not complete that approval request right now. Please try again." }
-      ]);
+      setShowThinking(false);
+      typeAiMessage({ content: "## Assistant unavailable\n\nI could not complete that approval request right now. Please try again." });
     } finally {
       setLoading(false);
     }
@@ -147,32 +357,44 @@ export function AssistantConsole({ initialThreadId }: { initialThreadId?: string
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {chips.map((chip) => (
-              <button key={chip} type="button" className="assistant-chip" onClick={() => ask(chip)}>
+              <button key={chip} type="button" className="assistant-chip" onClick={() => ask(chip)} disabled={isBusy}>
                 {chip}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="flex max-h-[520px] flex-col gap-3 overflow-y-auto bg-muted/10 p-4">
+        <div
+          ref={scrollAreaRef}
+          onScroll={handleConversationScroll}
+          onPointerDown={handleUserScrollIntent}
+          onTouchMove={handleUserScrollIntent}
+          onWheel={handleUserScrollIntent}
+          className="flex max-h-[520px] flex-col gap-3 overflow-y-auto bg-muted/10 p-4"
+        >
           {messages.length ? (
             messages.map((message, index) => {
               const previewResolved = message.previewAction ? resolvedPreviews.has(message.previewAction.previewId) : false;
               return (
                 <div
-                  key={`${message.role}-${index}`}
+                  key={message.id || `${message.role}-${index}`}
+                  ref={registerMessageNode(message.id)}
                   className={cn(
-                    "message-bubble",
-                    message.role === "AI" ? "border-primary/20 bg-primary/5" : "ml-auto max-w-[92%] border-border bg-background md:max-w-[78%]"
+                    "message-bubble message-enter",
+                    message.role === "AI"
+                      ? "message-enter-ai border-primary/20 bg-primary/5"
+                      : "message-enter-user ml-auto max-w-[92%] border-border bg-background md:max-w-[78%]",
+                    message.id === activeFocusMessageId && (message.role === "AI" ? "message-focus-ai" : "message-focus-user")
                   )}
                 >
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{message.role === "AI" ? "ShopIQ Copilot" : "You"}</p>
                     {message.previewAction ? <Badge variant={previewResolved ? "secondary" : "warning"}>{previewResolved ? "Resolved preview" : actionLabel(message.previewAction.type)}</Badge> : null}
-                    {message.action ? <Badge variant="success">Completed</Badge> : null}
+                    {message.action && !message.isTyping ? <Badge variant="success">Completed</Badge> : null}
                   </div>
                   <FormattedAiContent content={message.content} />
-                  {message.previewAction && !previewResolved ? (
+                  {message.isTyping ? <span className="typing-caret" aria-label="Assistant is typing" /> : null}
+                  {message.previewAction && !previewResolved && !message.isTyping ? (
                     <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-muted-foreground">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex items-start gap-3">
@@ -185,11 +407,11 @@ export function AssistantConsole({ initialThreadId }: { initialThreadId?: string
                           </div>
                         </div>
                         <div className="flex shrink-0 flex-wrap gap-2">
-                          <Button size="sm" onClick={() => decidePreview(message.previewAction!, "approve")} disabled={loading}>
+                          <Button size="sm" onClick={() => decidePreview(message.previewAction!, "approve")} disabled={isBusy}>
                             <CheckCircle2 className="size-4" />
                             Approve
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => decidePreview(message.previewAction!, "cancel")} disabled={loading}>
+                          <Button size="sm" variant="outline" onClick={() => decidePreview(message.previewAction!, "cancel")} disabled={isBusy}>
                             <XCircle className="size-4" />
                             Cancel
                           </Button>
@@ -197,7 +419,7 @@ export function AssistantConsole({ initialThreadId }: { initialThreadId?: string
                       </div>
                     </div>
                   ) : null}
-                  {message.action ? (
+                  {message.action && !message.isTyping ? (
                     <Button className="mt-4" asChild>
                       <Link href={message.action.href}>{message.action.label}</Link>
                     </Button>
@@ -208,20 +430,40 @@ export function AssistantConsole({ initialThreadId }: { initialThreadId?: string
           ) : (
             <div className="empty-state">Ask the Gemini agent to analyze live operations, search records, run reorder or collection jobs, or prepare validated actions for approval.</div>
           )}
+          {showThinking ? (
+            <div className="message-bubble message-enter message-enter-ai message-bubble-thinking border-primary/20 bg-primary/5">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">ShopIQ Copilot</p>
+                <Badge variant="secondary">Thinking</Badge>
+              </div>
+              <div className="typing-orbit" aria-label="Gemini is thinking">
+                <span />
+                <span />
+                <span />
+              </div>
+            </div>
+          ) : null}
+          <div ref={bottomAnchorRef} className="h-px shrink-0" aria-hidden="true" />
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-border/70 bg-background/60 p-4 sm:flex-row">
-          <Input
+        <div className="assistant-composer flex flex-col gap-3 border-t border-border/70 bg-background/60 p-4 sm:flex-row sm:items-end">
+          <Textarea
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             placeholder="Ask a business question or give a ShopIQ action..."
+            rows={2}
+            disabled={isBusy}
+            className="min-h-[58px] max-h-[170px] resize-none rounded-2xl"
             onKeyDown={(event) => {
-              if (event.key === "Enter") ask();
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                ask();
+              }
             }}
           />
-          <Button onClick={() => ask()} disabled={loading || !question.trim()}>
+          <Button className="assistant-send-button sm:min-h-[58px]" onClick={() => ask()} disabled={isBusy || !question.trim()}>
             <Send className="size-4" />
-            {loading ? "Thinking..." : "Ask"}
+            {typingResponse ? "Typing..." : showThinking ? "Thinking..." : loading ? "Sending..." : "Ask"}
           </Button>
         </div>
       </CardContent>

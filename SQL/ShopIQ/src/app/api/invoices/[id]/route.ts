@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import type { InvoiceStatus } from "@prisma/client";
+import { Prisma, type InvoiceStatus } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { apiError, badRequest, forbidden, notFound, unauthorized } from "@/lib/api-response";
 import { can } from "@/lib/permissions";
@@ -12,9 +12,15 @@ const invoiceUpdateSchema = z.object({
   status: z.enum(["DRAFT", "PAID", "PARTIAL", "UNPAID", "CANCELLED"]).optional(),
   discount: money.optional(),
   tax: money.optional(),
+  loyaltyDiscount: money.optional(),
   paidAmount: money.optional(),
   total: money.optional(),
   dueDate: z.coerce.date().optional(),
+  cashierCounter: nullableText(80),
+  channel: nullableText(80),
+  promoCode: nullableText(80),
+  receiptNo: nullableText(100),
+  paymentBreakdown: z.record(z.any()).nullable().optional(),
   notes: nullableText(600)
 });
 
@@ -62,7 +68,14 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     const nextPaid = Math.min(Number(data.paidAmount ?? existing.paidAmount), nextTotal);
     const nextDue = Math.max(nextTotal - nextPaid, 0);
     const nextCustomerId = data.customerId !== undefined ? data.customerId || null : existing.customerId;
-    const updateData = { ...data, customerId: nextCustomerId, paidAmount: nextPaid, dueAmount: nextDue, status: data.status === "DRAFT" ? "DRAFT" : invoiceStatus(nextTotal, nextPaid) };
+    const updateData = {
+      ...data,
+      customerId: nextCustomerId,
+      paidAmount: nextPaid,
+      dueAmount: nextDue,
+      status: data.status === "DRAFT" ? "DRAFT" : invoiceStatus(nextTotal, nextPaid),
+      paymentBreakdown: data.paymentBreakdown === null ? Prisma.JsonNull : data.paymentBreakdown
+    };
     const invoice = await prisma.$transaction(async (tx) => {
       if (existing.customerId && Number(existing.dueAmount) > 0) await tx.customer.update({ where: { id: existing.customerId }, data: { balance: { decrement: Number(existing.dueAmount) } } });
       if (nextCustomerId && nextDue > 0 && updateData.status !== "CANCELLED") await tx.customer.update({ where: { id: nextCustomerId }, data: { balance: { increment: nextDue } } });

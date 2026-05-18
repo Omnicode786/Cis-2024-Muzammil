@@ -11,14 +11,26 @@ const productUpdateSchema = z.object({
   sku: optionalText(80),
   barcode: nullableText(80),
   brand: nullableText(120),
+  description: nullableText(600),
+  imageUrl: nullableText(500),
   unit: optionalText(40),
   costPrice: money.optional(),
   salePrice: money.optional(),
+  taxRate: money.optional(),
+  discountRate: money.optional(),
   stockQty: intQty.optional(),
   reorderLevel: intQty.optional(),
   reorderQuantity: intQty.optional(),
   location: nullableText(120),
+  aisle: nullableText(120),
+  shelf: nullableText(80),
+  productType: nullableText(80),
+  isPerishable: z.coerce.boolean().optional(),
+  batchNo: nullableText(80),
+  manufactureDate: z.coerce.date().nullable().optional(),
+  expiryDate: z.coerce.date().nullable().optional(),
   categoryId: nullableId,
+  supplierId: nullableId,
   status: z.enum(["ACTIVE", "ARCHIVED"]).optional()
 });
 
@@ -34,8 +46,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       const category = await prisma.category.findFirst({ where: { id: data.categoryId, shopId: user.shopId }, select: { id: true } });
       if (!category) return notFound("Selected category was not found.");
     }
+    if (data.supplierId) {
+      const supplier = await prisma.supplier.findFirst({ where: { id: data.supplierId, shopId: user.shopId }, select: { id: true } });
+      if (!supplier) return notFound("Selected supplier was not found.");
+    }
     const product = await prisma.$transaction(async (tx) => {
-      const updated = await tx.product.update({ where: { id: existing.id }, data, include: { category: true } });
+      const updated = await tx.product.update({ where: { id: existing.id }, data, include: { category: true, supplier: true } });
       if (data.stockQty !== undefined && data.stockQty !== existing.stockQty) {
         const delta = data.stockQty - existing.stockQty;
         await tx.stockMovement.create({ data: { shopId: user.shopId, productId: existing.id, userId: user.id, type: "ADJUSTMENT", quantity: delta, beforeQty: existing.stockQty, afterQty: data.stockQty, reference: "PRODUCT_EDIT", notes: "Manual stock adjustment from inventory editor." } });

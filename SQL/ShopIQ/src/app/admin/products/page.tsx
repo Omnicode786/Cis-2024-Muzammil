@@ -22,18 +22,23 @@ function compactMoney(value: number) {
 
 export default async function ProductsPage() {
   const user = await getCurrentUser();
-  const [productsRaw, categoriesRaw] = await Promise.all([
-    prisma.product.findMany({ where: { shopId: user!.shopId }, include: { category: true }, orderBy: { updatedAt: "desc" } }),
-    prisma.category.findMany({ where: { shopId: user!.shopId }, orderBy: { name: "asc" } })
+  const [productsRaw, categoriesRaw, suppliersRaw] = await Promise.all([
+    prisma.product.findMany({ where: { shopId: user!.shopId }, include: { category: true, supplier: true }, orderBy: { updatedAt: "desc" } }),
+    prisma.category.findMany({ where: { shopId: user!.shopId }, orderBy: { name: "asc" } }),
+    prisma.supplier.findMany({ where: { shopId: user!.shopId }, orderBy: { name: "asc" } })
   ]);
   const products = toPlain(productsRaw).map((product: any) => ({
     ...product,
     categoryName: product.category?.name || "Uncategorized",
+    supplierName: product.supplier?.name || "-",
+    retailLocation: [product.aisle, product.shelf].filter(Boolean).join(" / ") || product.location || "-",
+    productTypeDisplay: product.productType || (product.isPerishable ? "Perishable" : "General"),
     stockDisplay: `${product.stockQty} ${product.unit}`,
     costDisplay: money(product.costPrice),
     saleDisplay: money(product.salePrice)
   }));
   const categories = toPlain(categoriesRaw);
+  const suppliers = toPlain(suppliersRaw);
   const activeProducts = products.filter((product: any) => product.status === "ACTIVE");
   const value = activeProducts.reduce((sum: number, product: any) => sum + product.stockQty * Number(product.costPrice), 0);
   const low = activeProducts.filter((product: any) => product.stockQty <= product.reorderLevel);
@@ -122,19 +127,28 @@ export default async function ProductsPage() {
             { key: "barcode", label: "Barcode" },
             { key: "brand", label: "Brand" },
             { key: "categoryId", label: "Category", type: "select", options: categories.map((category: any) => ({ label: category.name, value: category.id })) },
+            { key: "supplierId", label: "Primary supplier", type: "select", options: suppliers.map((supplier: any) => ({ label: supplier.name, value: supplier.id })) },
             { key: "unit", label: "Unit", placeholder: "pcs" },
             { key: "costPrice", label: "Cost price", type: "number", required: true },
             { key: "salePrice", label: "Sale price", type: "number", required: true },
+            { key: "taxRate", label: "Tax rate %", type: "number" },
+            { key: "discountRate", label: "Discount rate %", type: "number" },
             { key: "stockQty", label: "Stock quantity", type: "number", required: true },
             { key: "reorderLevel", label: "Low stock level", type: "number" },
             { key: "reorderQuantity", label: "Reorder quantity", type: "number" },
             { key: "location", label: "Location" },
+            { key: "aisle", label: "Aisle/counter" },
+            { key: "shelf", label: "Shelf" },
+            { key: "productType", label: "Product type" },
+            { key: "description", label: "Description", type: "textarea", span: "full" },
             { key: "status", label: "Status", type: "select", hideOnCreate: true, options: [{ label: "Active", value: "ACTIVE" }, { label: "Archived", value: "ARCHIVED" }] }
           ]}
           columns={[
             { key: "name", label: "Product" },
             { key: "sku", label: "SKU" },
             { key: "categoryName", label: "Category" },
+            { key: "supplierName", label: "Supplier" },
+            { key: "retailLocation", label: "Location" },
             { key: "stockDisplay", label: "Stock" },
             { key: "costDisplay", label: "Cost" },
             { key: "saleDisplay", label: "Sale" },

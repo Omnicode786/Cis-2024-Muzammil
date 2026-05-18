@@ -2372,27 +2372,159 @@ html[data-ui-mode="glass"] .chart-chip {
     border-color 160ms ease,
     color 160ms ease,
     background-color 160ms ease;
+  animation: shopiq-chip-rise 420ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.assistant-chip:nth-child(2) {
+  animation-delay: 35ms;
+}
+
+.assistant-chip:nth-child(3) {
+  animation-delay: 70ms;
+}
+
+.assistant-chip:nth-child(4) {
+  animation-delay: 105ms;
+}
+
+.assistant-chip:nth-child(n + 5) {
+  animation-delay: 140ms;
 }
 
 .assistant-chip:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px) scale(1.015);
   border-color: hsl(var(--primary) / 0.32);
   background: hsl(var(--primary) / 0.08);
   color: hsl(var(--foreground));
 }
 
+.assistant-chip:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.assistant-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+  transform: none;
+}
+
+.assistant-composer {
+  position: relative;
+  transition:
+    background-color 220ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.assistant-composer:focus-within {
+  background: hsl(var(--background) / 0.78);
+  box-shadow: inset 0 1px 0 hsl(var(--primary) / 0.12), 0 -18px 42px hsl(var(--primary) / 0.08);
+}
+
+.assistant-composer textarea {
+  transition:
+    min-height 180ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 180ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 180ms cubic-bezier(0.2, 0, 0, 1),
+    transform 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.assistant-composer textarea:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 36px hsl(var(--primary) / 0.12), 0 0 0 2px hsl(var(--ring) / 0.34);
+}
+
+.assistant-send-button {
+  transition:
+    transform 160ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.assistant-send-button:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px hsl(var(--primary) / 0.22);
+}
+
+.assistant-send-button:not(:disabled):active {
+  transform: translateY(0) scale(0.98);
+}
+
 .message-bubble {
+  position: relative;
   border-radius: 1.5rem;
   border-width: 1px;
   padding: 1rem;
   box-shadow: 0 10px 26px hsl(var(--shopiq-ink) / 0.06);
-  transition:
-    transform 160ms ease,
-    background-color 160ms ease;
+  transform-origin: 32px 100%;
+  backface-visibility: hidden;
+  contain: paint;
+  transform: translateZ(0);
+  will-change: transform, opacity;
 }
 
-.message-bubble:hover {
-  transform: translateY(-1px);
+.message-enter {
+  animation: shopiq-message-rise 360ms cubic-bezier(0.05, 0.7, 0.1, 1) both;
+}
+
+.message-enter-ai {
+  transform-origin: 24px 100%;
+}
+
+.message-enter-user {
+  transform-origin: calc(100% - 24px) 100%;
+  animation-name: shopiq-message-send;
+  animation-duration: 980ms;
+  animation-timing-function: cubic-bezier(0.22, 0.78, 0.18, 1);
+}
+
+.message-focus-user {
+  outline: 1px solid hsl(var(--primary) / 0.22);
+  outline-offset: 2px;
+}
+
+.message-focus-ai {
+  outline: 1px solid hsl(var(--primary) / 0.18);
+  outline-offset: 2px;
+}
+
+.message-bubble-thinking {
+  width: fit-content;
+  min-width: min(20rem, 100%);
+}
+
+.typing-orbit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  min-height: 1.5rem;
+}
+
+.typing-orbit span {
+  display: block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  box-shadow: 0 0 0 0 hsl(var(--primary) / 0.22);
+  animation: shopiq-thinking-dot 1050ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.typing-orbit span:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.typing-orbit span:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+.typing-caret {
+  display: inline-block;
+  width: 0.55rem;
+  height: 1rem;
+  margin-left: 0.2rem;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  vertical-align: -0.12rem;
+  animation: shopiq-typing-caret 900ms cubic-bezier(0.2, 0, 0, 1) infinite;
 }
 
 .empty-state {
@@ -2425,8 +2557,116 @@ html[data-ui-mode="glass"] .chart-chip {
   .soft-hover,
   .activity-row,
   .assistant-chip,
+  .assistant-composer,
+  .assistant-composer textarea,
+  .assistant-send-button,
   .message-bubble {
     transition: none !important;
+  }
+
+  .assistant-chip,
+  .message-enter,
+  .typing-orbit span {
+    animation: none !important;
+  }
+
+  .typing-caret {
+    animation: none !important;
+  }
+}
+
+@keyframes shopiq-chip-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes shopiq-message-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(-18px, 14px, 0) scale(0.965);
+    filter: blur(5px);
+  }
+  64% {
+    opacity: 1;
+    transform: translate3d(2px, -1px, 0) scale(1.008);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes shopiq-message-send {
+  0% {
+    opacity: 0.08;
+    border-radius: 1.05rem;
+    transform: translate3d(clamp(-560px, -46vw, -116px), 72px, 0) scale(0.94);
+    box-shadow: 0 0 0 hsl(var(--shopiq-ink) / 0);
+  }
+  18% {
+    opacity: 0.76;
+    border-radius: 1.3rem;
+    transform: translate3d(clamp(-500px, -40vw, -104px), 58px, 0) scale(0.972);
+    box-shadow: 0 14px 34px hsl(var(--primary) / 0.08);
+  }
+  42% {
+    opacity: 1;
+    border-radius: 1.62rem;
+    transform: translate3d(clamp(-340px, -27vw, -70px), 34px, 0) scale(0.992);
+    box-shadow: 0 20px 48px hsl(var(--primary) / 0.12);
+  }
+  66% {
+    opacity: 1;
+    border-radius: 1.55rem;
+    transform: translate3d(-110px, 14px, 0) scale(1);
+    box-shadow: 0 18px 42px hsl(var(--shopiq-ink) / 0.08);
+  }
+  84% {
+    opacity: 1;
+    border-radius: 1.5rem;
+    transform: translate3d(-34px, 5px, 0) scale(1);
+    box-shadow: 0 14px 34px hsl(var(--shopiq-ink) / 0.07);
+  }
+  100% {
+    opacity: 1;
+    border-radius: 1.5rem;
+    transform: translate3d(0, 0, 0) scale(1);
+    box-shadow: 0 10px 26px hsl(var(--shopiq-ink) / 0.06);
+  }
+}
+
+@keyframes shopiq-thinking-dot {
+  0%,
+  100% {
+    opacity: 0.36;
+    transform: translateY(0) scale(0.84);
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+  }
+  44% {
+    opacity: 1;
+    transform: translateY(-5px) scale(1);
+    box-shadow: 0 8px 18px -8px hsl(var(--primary) / 0.8);
+  }
+}
+
+@keyframes shopiq-typing-caret {
+  0%,
+  45% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+  70%,
+  100% {
+    opacity: 0.24;
+    transform: translateY(1px) scaleY(0.82);
   }
 }
 

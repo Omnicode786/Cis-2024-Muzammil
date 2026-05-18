@@ -337,7 +337,12 @@ export function CrudManager({
               customerId: basePayload.customerId,
               discount: basePayload.discount,
               tax: basePayload.tax,
+              loyaltyDiscount: basePayload.loyaltyDiscount,
               paidAmount: basePayload.paidAmount,
+              cashierCounter: basePayload.cashierCounter,
+              channel: basePayload.channel,
+              promoCode: basePayload.promoCode,
+              receiptNo: basePayload.receiptNo,
               notes: basePayload.notes,
               items: [{ productId: basePayload.productId, quantity: basePayload.quantity || 1, ...(basePayload.unitPrice ? { unitPrice: basePayload.unitPrice } : {}) }]
             }

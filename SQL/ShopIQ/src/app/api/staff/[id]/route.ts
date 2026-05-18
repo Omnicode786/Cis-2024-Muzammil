@@ -7,7 +7,7 @@ import { can, canCreateStaffRole, canManageStaffMember } from "@/lib/permissions
 import { prisma } from "@/lib/prisma";
 import { nullableText, requiredText } from "@/lib/validation";
 
-const selectUser = { id: true, name: true, email: true, role: true, status: true, designation: true, phone: true, createdAt: true } as const;
+const selectUser = { id: true, name: true, email: true, role: true, status: true, designation: true, phone: true, cnic: true, shift: true, branchArea: true, joiningDate: true, permissions: true, createdAt: true } as const;
 
 const staffUpdateSchema = z.object({
   name: requiredText("Name").optional(),
@@ -16,7 +16,12 @@ const staffUpdateSchema = z.object({
   role: z.enum(["ADMIN", "MANAGER", "STAFF"]).optional(),
   status: z.enum(["ACTIVE", "INVITED", "SUSPENDED"]).optional(),
   designation: nullableText(120),
-  phone: nullableText(40)
+  phone: nullableText(40),
+  cnic: nullableText(20),
+  shift: nullableText(80),
+  branchArea: nullableText(120),
+  joiningDate: z.coerce.date().nullable().optional(),
+  permissions: z.record(z.any()).nullable().optional()
 });
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {

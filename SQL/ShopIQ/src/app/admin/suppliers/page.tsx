@@ -26,6 +26,8 @@ export default async function Suppliers() {
   const suppliers = toPlain(suppliersRaw).map((supplier: any) => ({
     ...supplier,
     purchaseCount: supplier.purchases.length,
+    supplierTypeDisplay: supplier.supplierType || "General",
+    leadTimeDisplay: supplier.leadTimeDays === null || supplier.leadTimeDays === undefined ? "-" : `${supplier.leadTimeDays} days`,
     reliabilityDisplay: `${supplier.reliabilityScore}%`,
     balanceDisplay: money(supplier.balance)
   }));
@@ -127,14 +129,21 @@ export default async function Suppliers() {
             { key: "phone", label: "Phone" },
             { key: "email", label: "Email", type: "email" },
             { key: "address", label: "Address", span: "half" },
+            { key: "contactPerson", label: "Contact person" },
+            { key: "supplierType", label: "Supplier type" },
+            { key: "paymentTerms", label: "Payment terms" },
+            { key: "leadTimeDays", label: "Lead time days", type: "number" },
+            { key: "ntn", label: "NTN" },
+            { key: "gstNumber", label: "GST number" },
             { key: "balance", label: "Opening payable", type: "number" },
             { key: "reliabilityScore", label: "Reliability score", type: "number" },
             { key: "notes", label: "Notes", type: "textarea", span: "full" }
           ]}
           columns={[
             { key: "name", label: "Supplier" },
-            { key: "phone", label: "Phone" },
-            { key: "address", label: "Address" },
+            { key: "contactPerson", label: "Contact" },
+            { key: "supplierTypeDisplay", label: "Type" },
+            { key: "leadTimeDisplay", label: "Lead time" },
             { key: "purchaseCount", label: "Purchases" },
             { key: "reliabilityDisplay", label: "Reliability" },
             { key: "balanceDisplay", label: "Balance" }

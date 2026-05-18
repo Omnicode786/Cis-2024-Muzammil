@@ -26,6 +26,9 @@ export default async function Customers() {
   const customers = toPlain(customersRaw).map((customer: any) => ({
     ...customer,
     invoiceCount: customer.invoices.length,
+    loyaltyDisplay: customer.loyaltyCardNo ? `${customer.loyaltyCardNo} / ${Number(customer.loyaltyPoints || 0).toLocaleString()} pts` : "-",
+    areaDisplay: [customer.area, customer.city].filter(Boolean).join(", ") || customer.address || "-",
+    customerTypeDisplay: customer.customerType || "Retail",
     balanceDisplay: money(customer.balance),
     creditLimitDisplay: money(customer.creditLimit)
   }));
@@ -125,8 +128,15 @@ export default async function Customers() {
           fields={[
             { key: "name", label: "Customer name", required: true },
             { key: "phone", label: "Phone" },
+            { key: "whatsapp", label: "WhatsApp" },
             { key: "email", label: "Email", type: "email" },
             { key: "address", label: "Address", span: "half" },
+            { key: "area", label: "Area" },
+            { key: "city", label: "City" },
+            { key: "customerType", label: "Customer type", type: "select", options: [{ label: "Walk-in loyalty", value: "WALK_IN_LOYALTY" }, { label: "Family monthly", value: "FAMILY_MONTHLY" }, { label: "Office pantry", value: "OFFICE_PANTRY" }, { label: "Bulk buyer", value: "BULK_BUYER" }] },
+            { key: "loyaltyCardNo", label: "Loyalty card no" },
+            { key: "loyaltyPoints", label: "Loyalty points", type: "number" },
+            { key: "preferredPaymentMethod", label: "Preferred payment", type: "select", options: [{ label: "Cash", value: "CASH" }, { label: "Card", value: "CARD" }, { label: "Bank transfer", value: "BANK_TRANSFER" }, { label: "JazzCash", value: "JAZZCASH" }, { label: "EasyPaisa", value: "EASYPAISA" }, { label: "Cheque", value: "CHEQUE" }, { label: "Other", value: "OTHER" }] },
             { key: "creditLimit", label: "Credit limit", type: "number" },
             { key: "balance", label: "Opening balance", type: "number" },
             { key: "notes", label: "Notes", type: "textarea", span: "full" }
@@ -134,7 +144,9 @@ export default async function Customers() {
           columns={[
             { key: "name", label: "Customer" },
             { key: "phone", label: "Phone" },
-            { key: "address", label: "Address" },
+            { key: "areaDisplay", label: "Area" },
+            { key: "customerTypeDisplay", label: "Type" },
+            { key: "loyaltyDisplay", label: "Loyalty" },
             { key: "invoiceCount", label: "Invoices" },
             { key: "creditLimitDisplay", label: "Credit limit" },
             { key: "balanceDisplay", label: "Balance" }

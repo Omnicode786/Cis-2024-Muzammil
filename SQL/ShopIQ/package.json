@@ -9,7 +9,9 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "seed:imtiaz": "tsx prisma/seed-imtiaz.ts",
+    "seed:kiryana": "tsx prisma/seed-kiryana.ts"
   },
   "dependencies": {
     "@google/genai": "^2.3.0",

@@ -30,6 +30,8 @@ export default async function Billing() {
   const invoices = toPlain(invoicesRaw).map((invoice: any) => ({
     ...invoice,
     customerName: invoice.customer?.name || "Walk-in",
+    channelDisplay: invoice.channel || "POS",
+    receiptDisplay: invoice.receiptNo || invoice.invoiceNo,
     invoiceDateDisplay: formatDate(invoice.invoiceDate),
     totalDisplay: money(invoice.total),
     dueDisplay: money(invoice.dueAmount),
@@ -127,8 +129,13 @@ export default async function Billing() {
             { key: "quantity", label: "Quantity", type: "number", required: true, hideOnEdit: true },
             { key: "unitPrice", label: "Unit price override", type: "number", hideOnEdit: true },
             { key: "discount", label: "Discount", type: "number" },
+            { key: "loyaltyDiscount", label: "Loyalty discount", type: "number" },
             { key: "tax", label: "Tax", type: "number" },
             { key: "paidAmount", label: "Paid amount", type: "number" },
+            { key: "cashierCounter", label: "Cashier counter" },
+            { key: "channel", label: "Channel", type: "select", options: [{ label: "POS", value: "POS" }, { label: "Loyalty counter", value: "LOYALTY" }, { label: "B2B / bulk", value: "B2B" }] },
+            { key: "promoCode", label: "Promo code" },
+            { key: "receiptNo", label: "Receipt no" },
             { key: "total", label: "Total", type: "number", hideOnCreate: true },
             { key: "status", label: "Status", type: "select", hideOnCreate: true, options: [{ label: "Draft", value: "DRAFT" }, { label: "Paid", value: "PAID" }, { label: "Partial", value: "PARTIAL" }, { label: "Unpaid", value: "UNPAID" }, { label: "Cancelled", value: "CANCELLED" }] },
             { key: "notes", label: "Notes", type: "textarea", span: "full" }
@@ -136,6 +143,8 @@ export default async function Billing() {
           columns={[
             { key: "invoiceNo", label: "Invoice" },
             { key: "customerName", label: "Customer" },
+            { key: "channelDisplay", label: "Channel" },
+            { key: "receiptDisplay", label: "Receipt" },
             { key: "invoiceDateDisplay", label: "Date" },
             { key: "itemCount", label: "Items" },
             { key: "totalDisplay", label: "Total" },

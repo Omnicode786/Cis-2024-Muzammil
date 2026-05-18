@@ -29,6 +29,21 @@ function geminiConfigError(error: unknown) {
   return error instanceof Error && error.message.includes("GEMINI_API_KEY");
 }
 
+function clientConversationHistory(body: unknown) {
+  const messages = (body as { clientMessages?: unknown })?.clientMessages;
+  if (!Array.isArray(messages)) return [];
+  return messages
+    .flatMap((message) => {
+      if (!message || typeof message !== "object") return [];
+      const record = message as Record<string, unknown>;
+      const role = record.role === "USER" ? "USER" : record.role === "AI" ? "AI" : null;
+      const content = typeof record.content === "string" ? record.content.trim() : "";
+      if (!role || !content) return [];
+      return [{ role, content: content.slice(0, 2200) }];
+    })
+    .slice(-12);
+}
+
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
@@ -112,10 +127,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ thread, answer: result.answer, action: result.action });
     }
 
+    const persistedHistory = recentBefore.reverse().map((message) => ({ role: message.role, content: message.content }));
+    const visibleHistory = clientConversationHistory(body);
     const result = await runShopIqAgentTurn({
       user,
       question: text,
-      recentMessages: recentBefore.reverse().map((message) => ({ role: message.role, content: message.content }))
+      recentMessages: visibleHistory.length ? visibleHistory : persistedHistory
     });
 
     const metadata: PendingAiActionMetadata = {

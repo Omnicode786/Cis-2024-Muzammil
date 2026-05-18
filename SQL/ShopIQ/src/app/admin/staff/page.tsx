@@ -14,8 +14,8 @@ import { workspaceHeading, workspaceNav, workspacePath } from "@/lib/workspace";
 
 export default async function StaffPage() {
   const user = await getCurrentUser();
-  const staffRaw = await prisma.user.findMany({ where: { shopId: user!.shopId }, orderBy: { createdAt: "desc" }, select: { id: true, name: true, email: true, role: true, status: true, designation: true, phone: true, createdAt: true } });
-  const staff = toPlain(staffRaw).map((member: any) => ({ ...member, joinedDisplay: formatDate(member.createdAt), password: "", canManage: canManageStaffMember(user?.role, member.role, member.id, user?.id) }));
+  const staffRaw = await prisma.user.findMany({ where: { shopId: user!.shopId }, orderBy: { createdAt: "desc" }, select: { id: true, name: true, email: true, role: true, status: true, designation: true, phone: true, cnic: true, shift: true, branchArea: true, joiningDate: true, createdAt: true } });
+  const staff = toPlain(staffRaw).map((member: any) => ({ ...member, joinedDisplay: formatDate(member.joiningDate || member.createdAt), password: "", canManage: canManageStaffMember(user?.role, member.role, member.id, user?.id) }));
   const roleOptions = (["ADMIN", "MANAGER", "STAFF"] as const)
     .filter((role) => canCreateStaffRole(user?.role, role))
     .map((role) => ({ label: role === "ADMIN" ? "Admin" : role === "MANAGER" ? "Manager" : "Staff", value: role }));
@@ -104,7 +104,10 @@ export default async function StaffPage() {
             { key: "role", label: "Role", type: "select", required: true, defaultValue: roleOptions[0]?.value || "STAFF", options: roleOptions },
             { key: "status", label: "Status", type: "select", defaultValue: "ACTIVE", options: [{ label: "Active", value: "ACTIVE" }, { label: "Invited", value: "INVITED" }, { label: "Suspended", value: "SUSPENDED" }] },
             { key: "designation", label: "Designation" },
-            { key: "phone", label: "Phone" }
+            { key: "phone", label: "Phone" },
+            { key: "cnic", label: "CNIC" },
+            { key: "shift", label: "Shift", type: "select", options: [{ label: "Morning", value: "Morning" }, { label: "Evening", value: "Evening" }, { label: "Closing", value: "Closing" }, { label: "Flexible", value: "Flexible" }] },
+            { key: "branchArea", label: "Branch area" }
           ]}
           columns={[
             { key: "name", label: "Name" },
@@ -112,6 +115,8 @@ export default async function StaffPage() {
             { key: "role", label: "Role" },
             { key: "status", label: "Status" },
             { key: "designation", label: "Designation" },
+            { key: "shift", label: "Shift" },
+            { key: "branchArea", label: "Branch area" },
             { key: "joinedDisplay", label: "Joined" }
           ]}
           canCreate={can(user?.role, "staff", "create")}

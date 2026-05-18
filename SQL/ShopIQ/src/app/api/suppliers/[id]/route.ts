@@ -11,6 +11,12 @@ const supplierUpdateSchema = z.object({
   phone: nullableText(40),
   email: nullableEmail,
   address: nullableText(220),
+  contactPerson: nullableText(120),
+  paymentTerms: nullableText(120),
+  ntn: nullableText(80),
+  gstNumber: nullableText(80),
+  leadTimeDays: z.coerce.number().int().min(0).nullable().optional(),
+  supplierType: nullableText(100),
   balance: money.optional(),
   reliabilityScore: z.coerce.number().int().min(0).max(100).optional(),
   notes: nullableText(600)

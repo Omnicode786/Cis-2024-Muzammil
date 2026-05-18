@@ -100,6 +100,11 @@ model User {
   status       UserStatus @default(ACTIVE)
   phone        String?
   designation  String?
+  cnic         String?
+  shift        String?
+  branchArea   String?
+  joiningDate  DateTime?
+  permissions  Json?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -113,6 +118,7 @@ model User {
 
   @@index([shopId, role])
   @@index([shopId, status])
+  @@index([shopId, branchArea])
 }
 
 model Category {
@@ -136,17 +142,30 @@ model Product {
   shop              Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
   categoryId        String?
   category          Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  supplierId        String?
+  supplier          Supplier?     @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   sku               String
   barcode           String?
   name              String
   brand             String?
+  description       String?
+  imageUrl          String?
   unit              String        @default("pcs")
   costPrice         Decimal       @db.Decimal(12,2)
   salePrice         Decimal       @db.Decimal(12,2)
+  taxRate           Decimal       @default(0) @db.Decimal(5,2)
+  discountRate      Decimal       @default(0) @db.Decimal(5,2)
   stockQty          Int           @default(0)
   reorderLevel      Int           @default(5)
   reorderQuantity   Int           @default(10)
   location          String?
+  aisle             String?
+  shelf             String?
+  productType       String?
+  isPerishable      Boolean       @default(false)
+  batchNo           String?
+  manufactureDate   DateTime?
+  expiryDate        DateTime?
   status            ProductStatus @default(ACTIVE)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -159,6 +178,9 @@ model Product {
   @@index([shopId, name])
   @@index([shopId, status])
   @@index([shopId, categoryId])
+  @@index([shopId, supplierId])
+  @@index([shopId, productType])
+  @@index([shopId, expiryDate])
   @@index([shopId, stockQty, reorderLevel])
   @@index([shopId, createdAt])
 }
@@ -171,6 +193,14 @@ model Customer {
   phone       String?
   email       String?
   address     String?
+  loyaltyCardNo String?
+  customerType String?
+  area        String?
+  city        String?
+  whatsapp    String?
+  loyaltyPoints Int    @default(0)
+  lastVisitAt DateTime?
+  preferredPaymentMethod PaymentMethod?
   creditLimit Decimal  @default(0) @db.Decimal(12,2)
   balance     Decimal  @default(0) @db.Decimal(12,2)
   notes       String?
@@ -182,6 +212,9 @@ model Customer {
 
   @@index([shopId, name])
   @@index([shopId, phone])
+  @@index([shopId, loyaltyCardNo])
+  @@index([shopId, customerType])
+  @@index([shopId, area])
   @@index([shopId, balance])
   @@index([shopId, createdAt])
 }
@@ -194,17 +227,25 @@ model Supplier {
   phone       String?
   email       String?
   address     String?
+  contactPerson String?
+  paymentTerms String?
+  ntn         String?
+  gstNumber   String?
+  leadTimeDays Int?
+  supplierType String?
   balance     Decimal  @default(0) @db.Decimal(12,2)
   reliabilityScore Int @default(80)
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  products    Product[]
   purchases   Purchase[]
   payments    Payment[]
 
   @@index([shopId, name])
   @@index([shopId, phone])
+  @@index([shopId, supplierType])
   @@index([shopId, balance])
   @@index([shopId, createdAt])
 }
@@ -227,6 +268,12 @@ model Invoice {
   dueAmount   Decimal       @default(0) @db.Decimal(12,2)
   invoiceDate DateTime      @default(now())
   dueDate     DateTime?
+  cashierCounter String?
+  channel     String?
+  loyaltyDiscount Decimal   @default(0) @db.Decimal(12,2)
+  promoCode   String?
+  receiptNo   String?
+  paymentBreakdown Json?
   notes       String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -235,6 +282,8 @@ model Invoice {
   payments    Payment[]
 
   @@unique([shopId, invoiceNo])
+  @@index([shopId, channel])
+  @@index([shopId, receiptNo])
   @@index([shopId, status])
   @@index([shopId, invoiceDate])
   @@index([shopId, customerId])
