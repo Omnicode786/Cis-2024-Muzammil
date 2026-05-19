@@ -7,6 +7,7 @@ import SmoothScroll from './components/layout/SmoothScroll';
 import AmbientAudio from './components/ui/AmbientAudio';
 import CustomCursor from './components/ui/CustomCursor';
 import CommandPalette from './components/ui/CommandPalette';
+import SiteLoader from './components/ui/SiteLoader';
 import Hero from './components/sections/Hero';
 import About from './components/sections/About';
 import Skills from './components/sections/Skills';
@@ -36,9 +37,12 @@ const navItems = [
 
 function Home() {
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [loaderComplete, setLoaderComplete] = useState(false);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-system-void text-system-text">
+      {!loaderComplete && <SiteLoader onComplete={() => setLoaderComplete(true)} />}
+
       <div className="systems-backdrop fixed inset-0 z-0 bg-system-void">
         <CanvasBackdrop />
       </div>
@@ -47,7 +51,7 @@ function Home() {
       <div className="pointer-events-none fixed inset-0 z-[2] bg-[radial-gradient(circle_at_72%_14%,rgba(168,213,140,0.23),transparent_31%),radial-gradient(circle_at_22%_76%,rgba(243,217,155,0.24),transparent_28%),radial-gradient(circle_at_50%_42%,rgba(140,198,189,0.12),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,248,235,0.9)_94%)]" />
       <div className="pointer-events-none fixed inset-0 z-[3] opacity-[0.16] mix-blend-multiply [background-image:url('data:image/svg+xml,%3Csvg_viewBox=%220_0_160_160%22_xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter_id=%22n%22%3E%3CfeTurbulence_type=%22fractalNoise%22_baseFrequency=%220.72%22_numOctaves=%224%22_stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect_width=%22160%22_height=%22160%22_filter=%22url(%23n)%22_opacity=%220.33%22/%3E%3C/svg%3E')]" />
 
-      <nav data-no-canvas-interaction className="fixed left-0 top-0 z-50 w-full border-b border-[#86a9a0]/20 bg-white/90 shadow-[0_10px_38px_rgba(98,119,113,0.07)] backdrop-blur-md">
+      <nav data-loader-nav data-no-canvas-interaction className="fixed left-0 top-0 z-50 w-full border-b border-[#86a9a0]/20 bg-white/90 shadow-[0_10px_38px_rgba(98,119,113,0.07)] backdrop-blur-md">
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 md:px-8">
           <a href="#top" className="group flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-full border border-system-cyan/40 bg-white/70 text-[#2a6f73] shadow-[0_18px_40px_rgba(101,207,215,0.22)]">

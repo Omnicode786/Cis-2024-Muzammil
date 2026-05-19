@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap');
 @import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap');
 
 @tailwind base;
@@ -18,6 +19,11 @@
   html {
     scroll-behavior: smooth;
     background: #fff8eb;
+  }
+
+  html.site-loader-active,
+  body.site-loader-active {
+    overflow: hidden;
   }
 
   body {
@@ -177,6 +183,110 @@
   .svg-draw {
     stroke-dasharray: 1;
     stroke-dashoffset: 1;
+  }
+
+  .loader-logo-path {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+
+  .loader-stage {
+    translate: -50% -50%;
+    transform-origin: center;
+  }
+
+  .loader-center-layer {
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    transform-origin: center;
+  }
+
+  .loader-logo-wrap {
+    transform-origin: center;
+    will-change: transform, opacity, filter;
+  }
+
+  .loader-aura {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.72);
+    filter: blur(24px);
+    will-change: opacity, transform, filter;
+  }
+
+  .loader-ripple,
+  .loader-drift-ring,
+  .loader-mote,
+  .loader-percentage,
+  .loader-wordmark,
+  .loader-portal {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .loader-drift-ring {
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    transform: scale(0.82);
+    transform-origin: center;
+    will-change: opacity, transform;
+  }
+
+  .loader-mote,
+  .loader-dot {
+    transform-box: fill-box;
+    transform-origin: center;
+    transform: scale(0);
+    will-change: opacity, transform;
+  }
+
+  .loader-leaf {
+    opacity: 0;
+    visibility: hidden;
+    transform-box: fill-box;
+    transform-origin: center;
+    transform: scale(0.78);
+  }
+
+  .loader-core {
+    opacity: 0;
+    visibility: hidden;
+    transform-box: fill-box;
+    transform-origin: center;
+    transform: scale(0.68) rotate(-16deg);
+  }
+
+  .loader-portal {
+    transform: scale(0);
+    transform-origin: center;
+    will-change: opacity, transform;
+  }
+
+  .loader-percentage {
+    transform: translateY(10px);
+    filter: blur(8px);
+    will-change: opacity, transform, filter;
+  }
+
+  .loader-wordmark {
+    left: 50%;
+    top: calc(50% + min(20vw, 20vh, 142px));
+    translate: -50% 0%;
+    transform: translateY(22px);
+    filter: blur(14px);
+    will-change: opacity, transform, filter, letter-spacing;
+  }
+
+  .loader-wordmark-fill {
+    clip-path: inset(100% 0% 0% 0%);
+    will-change: clip-path, transform;
+  }
+
+  .loader-wordmark-wave {
+    transform: translate(-46%, 18%);
+    will-change: transform, background-position;
   }
 }
 
