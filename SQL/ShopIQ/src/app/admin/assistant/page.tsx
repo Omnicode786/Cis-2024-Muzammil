@@ -1,16 +1,11 @@
 import { ShieldCheck, Sparkles } from "lucide-react";
-import { AppShell } from "@/components/workspace/app-shell";
 import { AssistantConsole } from "@/components/workspace/assistant-console";
 import { SectionHeader } from "@/components/workspace/section-header";
 import { Badge } from "@/components/ui/badge";
-import { getCurrentUser } from "@/lib/auth";
-import { workspaceHeading, workspaceNav, workspacePath } from "@/lib/workspace";
 
 export default async function AssistantPage() {
-  const user = await getCurrentUser();
-
   return (
-    <AppShell nav={workspaceNav(user?.role)} heading={workspaceHeading(user?.role)} currentPath={workspacePath(user?.role, "assistant")} user={user}>
+    <>
       <SectionHeader
         eyebrow="Gemini AI Agent"
         title="ShopIQ Assistant"
@@ -29,9 +24,9 @@ export default async function AssistantPage() {
         }
       />
 
-      <div className="mt-6">
+      <div className="mt-6 grid gap-4">
         <AssistantConsole />
       </div>
-    </AppShell>
+    </>
   );
 }

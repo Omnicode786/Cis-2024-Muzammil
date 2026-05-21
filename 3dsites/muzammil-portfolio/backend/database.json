@@ -64,7 +64,7 @@
             "mobile": "Mobile users are active users whose latest tracked session came from a phone browser or mobile app.",
             "desktop": "Desktop users are active users whose latest tracked session came from a desktop or laptop browser."
           },
-          "lastUpdated": "2026-04-17",
+          "lastUpdated": "2026-05-20",
           "deviceCounts": {
             "mobile": 1811,
             "desktop": 1542
