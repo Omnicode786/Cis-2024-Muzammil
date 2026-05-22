@@ -763,6 +763,7 @@ export function CrudManager({
               tax: basePayload.tax,
               loyaltyDiscount: basePayload.loyaltyDiscount,
               paidAmount: basePayload.paidAmount,
+              paymentMethod: basePayload.paymentMethod || "CASH",
               cashierCounter: basePayload.cashierCounter,
               channel: basePayload.channel,
               promoCode: basePayload.promoCode,

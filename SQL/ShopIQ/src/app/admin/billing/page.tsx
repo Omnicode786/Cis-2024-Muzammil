@@ -6,12 +6,28 @@ import { ModuleHero, ModuleInsightPanel } from "@/components/workspace/module-he
 import { SectionHeader } from "@/components/workspace/section-header";
 import { getCurrentUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import { paymentMethodFromBreakdown } from "@/lib/payment-workflow";
 import { prisma } from "@/lib/prisma";
 import { contains, dateRange, paginationMeta, readTableState, type TableSearchParams } from "@/lib/table-pagination";
 import { formatDate, toPlain } from "@/lib/utils";
 
 function money(value: any) {
   return `PKR ${Number(value || 0).toLocaleString()}`;
+}
+
+function paymentMethodLabel(value?: string | null) {
+  if (!value) return "-";
+  return value
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function invoicePaymentMethod(invoice: any) {
+  if (invoice.paymentBreakdown && typeof invoice.paymentBreakdown === "object") return paymentMethodFromBreakdown(invoice.paymentBreakdown);
+  const invoicePayment = invoice.payments?.find((payment: any) => payment.direction === "CUSTOMER_IN");
+  if (invoicePayment?.method) return invoicePayment.method;
+  return Number(invoice.paidAmount || 0) > 0 ? "CASH" : "";
 }
 
 export default async function Billing({ searchParams }: { searchParams?: TableSearchParams }) {
@@ -41,6 +57,7 @@ export default async function Billing({ searchParams }: { searchParams?: TableSe
       include: {
         customer: true,
         items: { include: { product: true }, orderBy: { id: "asc" } },
+        payments: { where: { direction: "CUSTOMER_IN" }, orderBy: { paidAt: "asc" } },
         _count: { select: { items: true } }
       },
       orderBy: { invoiceDate: "desc" },
@@ -54,6 +71,8 @@ export default async function Billing({ searchParams }: { searchParams?: TableSe
   ]);
   const invoices = toPlain(invoicesRaw).map((invoice: any) => ({
     ...invoice,
+    paymentMethod: invoicePaymentMethod(invoice),
+    paymentMethodDisplay: paymentMethodLabel(invoicePaymentMethod(invoice)),
     customerName: invoice.customer?.name || "Walk-in",
     channelDisplay: invoice.channel || "POS",
     receiptDisplay: invoice.receiptNo || invoice.invoiceNo,
@@ -132,6 +151,7 @@ export default async function Billing({ searchParams }: { searchParams?: TableSe
             { key: "loyaltyDiscount", label: "Loyalty discount", type: "number" },
             { key: "tax", label: "Tax", type: "number" },
             { key: "paidAmount", label: "Paid amount", type: "number" },
+            { key: "paymentMethod", label: "Payment method", type: "select", defaultValue: "CASH", options: [{ label: "Cash", value: "CASH" }, { label: "Bank transfer", value: "BANK_TRANSFER" }, { label: "Card", value: "CARD" }, { label: "JazzCash", value: "JAZZCASH" }, { label: "EasyPaisa", value: "EASYPAISA" }, { label: "Cheque", value: "CHEQUE" }, { label: "Other", value: "OTHER" }] },
             { key: "cashierCounter", label: "Cashier counter" },
             { key: "channel", label: "Channel", type: "select", options: [{ label: "POS", value: "POS" }, { label: "Loyalty counter", value: "LOYALTY" }, { label: "B2B / bulk", value: "B2B" }] },
             { key: "promoCode", label: "Promo code" },
@@ -144,6 +164,7 @@ export default async function Billing({ searchParams }: { searchParams?: TableSe
             { key: "invoiceNo", label: "Invoice" },
             { key: "customerName", label: "Customer" },
             { key: "channelDisplay", label: "Channel" },
+            { key: "paymentMethodDisplay", label: "Payment" },
             { key: "receiptDisplay", label: "Receipt" },
             { key: "invoiceDateDisplay", label: "Date" },
             { key: "itemCount", label: "Items" },

@@ -16,6 +16,7 @@ const invoiceUpdateSchema = z.object({
   tax: money.optional(),
   loyaltyDiscount: money.optional(),
   paidAmount: money.optional(),
+  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "CARD", "JAZZCASH", "EASYPAISA", "CHEQUE", "OTHER"]).optional(),
   total: money.optional(),
   dueDate: z.coerce.date().optional(),
   cashierCounter: nullableText(80),
@@ -59,7 +60,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         payments: { where: { direction: "CUSTOMER_IN" }, select: { id: true, amount: true, reference: true, notes: true } }
       }
     });
-    const data = invoiceUpdateSchema.parse(await request.json());
+    const parsed = invoiceUpdateSchema.parse(await request.json());
+    const { paymentMethod, ...data } = parsed;
     if (!existing) return notFound("Invoice not found.");
     if (data.status === "CANCELLED") return cancelInvoice(user, params.id);
     if (existing.status === "CANCELLED") return badRequest("Cancelled invoices cannot be edited.");
@@ -79,6 +81,14 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     const nextDue = Math.max(nextTotal - nextPaid, 0);
     const nextCustomerId = data.customerId !== undefined ? data.customerId || null : existing.customerId;
     const nextStatus = invoiceStatusFromPaid(nextTotal, nextPaid);
+    const nextPaymentBreakdown =
+      data.paymentBreakdown !== undefined
+        ? data.paymentBreakdown
+        : paymentMethod && nextAutoPaid > 0
+          ? { [paymentMethod]: nextAutoPaid }
+          : nextPaid <= 0 || (paymentMethod && nextAutoPaid <= 0)
+            ? null
+            : undefined;
     if (walkInInvoiceHasDue(nextCustomerId, nextTotal, nextPaid, nextStatus)) return badRequest(WALK_IN_PAYMENT_REQUIRED_MESSAGE);
     const updateData = {
       ...data,
@@ -86,7 +96,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       paidAmount: nextPaid,
       dueAmount: nextDue,
       status: nextStatus,
-      paymentBreakdown: data.paymentBreakdown === null ? Prisma.JsonNull : data.paymentBreakdown
+      paymentBreakdown: nextPaymentBreakdown === null ? Prisma.JsonNull : nextPaymentBreakdown
     };
     const invoice = await prisma.$transaction(async (tx) => {
       if (existing.customerId && Number(existing.dueAmount) > 0) await tx.customer.update({ where: { id: existing.customerId }, data: { balance: { decrement: Number(existing.dueAmount) } } });
@@ -97,6 +107,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         invoice: updated,
         amount: nextAutoPaid,
         invoicePaidAmount: nextPaid,
+        method: paymentMethod,
         createdById: user.id
       });
       await tx.activityLog.create({ data: { shopId: user.shopId, userId: user.id, type: "INVOICE_UPDATED", title: `Invoice ${updated.invoiceNo} updated` } });

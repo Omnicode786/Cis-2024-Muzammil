@@ -216,6 +216,7 @@ const invoiceCreateSchema = z.object({
   discount: money,
   tax: money,
   paidAmount: money,
+  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "CARD", "JAZZCASH", "EASYPAISA", "CHEQUE", "OTHER"]).default("CASH"),
   dueDate: z.coerce.date().optional(),
   notes: optionalText(600),
   items: z.array(invoiceItemSchema).min(1, "Add at least one invoice item.")
@@ -1448,6 +1449,7 @@ async function executeCreateInvoice(user: AgentUser, payload: unknown) {
   const total = Math.max(subtotal - data.discount + data.tax, 0);
   const paid = Math.min(data.paidAmount, total);
   const due = Math.max(total - paid, 0);
+  const paymentBreakdown = paid > 0 ? { [data.paymentMethod]: paid } : undefined;
   if (walkInInvoiceHasDue(customerId, total, paid)) throw new Error(WALK_IN_PAYMENT_REQUIRED_MESSAGE);
   const invoice = await prisma.$transaction(async (tx) => {
     const inv = await tx.invoice.create({
@@ -1463,6 +1465,7 @@ async function executeCreateInvoice(user: AgentUser, payload: unknown) {
         paidAmount: paid,
         dueAmount: due,
         status: invoiceStatus(total, paid),
+        paymentBreakdown,
         dueDate: data.dueDate,
         notes: data.notes,
         items: {
@@ -1489,6 +1492,7 @@ async function executeCreateInvoice(user: AgentUser, payload: unknown) {
         invoice: inv,
         amount: paid,
         invoicePaidAmount: paid,
+        method: data.paymentMethod,
         createdById: user.id
       });
     }

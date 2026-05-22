@@ -50,6 +50,7 @@ export function BillingFlow({ customers, products, canCreate }: { customers: Cus
     productId: "",
     quantity: "1",
     paidAmount: "0",
+    paymentMethod: "CASH",
     discount: "0",
     channel: "POS",
     notes: ""
@@ -95,6 +96,7 @@ export function BillingFlow({ customers, products, canCreate }: { customers: Cus
       productId: "",
       quantity: "1",
       paidAmount: "0",
+      paymentMethod: "CASH",
       discount: "0",
       channel: "POS",
       notes: ""
@@ -208,6 +210,8 @@ export function BillingFlow({ customers, products, canCreate }: { customers: Cus
           tax: 0,
           loyaltyDiscount: 0,
           paidAmount: effectivePaid,
+          paymentMethod: form.paymentMethod,
+          paymentBreakdown: effectivePaid > 0 ? { [form.paymentMethod]: effectivePaid } : undefined,
           channel: form.channel,
           notes: form.notes,
           items: [{ productId: form.productId, quantity }]
@@ -335,6 +339,18 @@ export function BillingFlow({ customers, products, canCreate }: { customers: Cus
                           title={isWalkInCustomer ? "Walk-in invoices are paid in full on spot." : undefined}
                         />
                         {isWalkInCustomer ? <span className="text-xs leading-5 text-muted-foreground">Walk-in bills are settled on spot. Select or create a customer to allow dues.</span> : null}
+                      </label>
+                      <label className="crud-field">
+                        <span className="crud-field-label">Payment method</span>
+                        <select className="form-select" value={form.paymentMethod} onChange={(event) => update("paymentMethod", event.target.value)}>
+                          <option value="CASH">Cash</option>
+                          <option value="BANK_TRANSFER">Bank transfer</option>
+                          <option value="CARD">Card</option>
+                          <option value="JAZZCASH">JazzCash</option>
+                          <option value="EASYPAISA">EasyPaisa</option>
+                          <option value="CHEQUE">Cheque</option>
+                          <option value="OTHER">Other</option>
+                        </select>
                       </label>
                       <label className="crud-field">
                         <span className="crud-field-label">Channel</span>

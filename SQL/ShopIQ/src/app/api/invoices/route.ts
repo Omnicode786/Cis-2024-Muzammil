@@ -21,6 +21,7 @@ const invoiceSchema = z.object({
   tax: money,
   loyaltyDiscount: money,
   paidAmount: money,
+  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "CARD", "JAZZCASH", "EASYPAISA", "CHEQUE", "OTHER"]).default("CASH"),
   dueDate: z.coerce.date().optional(),
   cashierCounter: optionalText(80),
   channel: optionalText(80),
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
     const total = Math.max(subtotal - data.discount - data.loyaltyDiscount + data.tax, 0);
     const paid = Math.min(data.paidAmount, total);
     const due = Math.max(total - paid, 0);
+    const paymentBreakdown = data.paymentBreakdown || (paid > 0 ? { [data.paymentMethod]: paid } : undefined);
     if (walkInInvoiceHasDue(data.customerId, total, paid)) return badRequest(WALK_IN_PAYMENT_REQUIRED_MESSAGE);
     const invoice = await prisma.$transaction(async (tx) => {
       const inv = await tx.invoice.create({
@@ -93,7 +95,7 @@ export async function POST(request: Request) {
           channel: data.channel,
           promoCode: data.promoCode,
           receiptNo: data.receiptNo,
-          paymentBreakdown: data.paymentBreakdown,
+          paymentBreakdown,
           notes: data.notes,
           items: {
             create: data.items.map((item) => {
@@ -111,6 +113,7 @@ export async function POST(request: Request) {
           invoice: inv,
           amount: paid,
           invoicePaidAmount: paid,
+          method: data.paymentMethod,
           createdById: user.id
         });
       }

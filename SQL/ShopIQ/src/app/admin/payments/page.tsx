@@ -57,6 +57,7 @@ export default async function Payments({ searchParams }: { searchParams?: TableS
   const payments = toPlain(paymentsRaw).map((payment: any) => ({
     ...payment,
     isAutomaticInvoicePayment: isAutomaticInvoicePayment(payment, payment.invoice?.invoiceNo),
+    canManagePaymentRecord: !isAutomaticInvoicePayment(payment, payment.invoice?.invoiceNo),
     partyName: payment.customer?.name || payment.invoice?.customer?.name || (payment.invoice ? "Walk-in" : payment.supplier?.name || "General"),
     referenceLabel: payment.invoice?.invoiceNo || payment.purchase?.purchaseNo || payment.reference || "-",
     amountDisplay: money(payment.amount),
@@ -160,8 +161,8 @@ export default async function Payments({ searchParams }: { searchParams?: TableS
           canCreate={can(user?.role, "payments", "create")}
           canUpdate={can(user?.role, "payments", "update")}
           canDelete={can(user?.role, "payments", "delete")}
-          canUpdateRow={(row) => !row.isAutomaticInvoicePayment}
-          canDeleteRow={(row) => !row.isAutomaticInvoicePayment}
+          canUpdateRowKey="canManagePaymentRecord"
+          canDeleteRowKey="canManagePaymentRecord"
           createLabel="Record payment"
         />
       </div>
