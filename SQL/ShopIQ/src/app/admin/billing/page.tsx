@@ -36,7 +36,17 @@ export default async function Billing({ searchParams }: { searchParams?: TableSe
   if (invoiceDateRange) invoiceFilters.push(invoiceDateRange);
   const invoiceWhere = { shopId: user!.shopId, ...(invoiceFilters.length ? { AND: invoiceFilters } : {}) };
   const [invoicesRaw, invoicesTotal, invoiceMetrics, customersRaw, productsRaw] = await Promise.all([
-    prisma.invoice.findMany({ where: invoiceWhere, include: { customer: true, _count: { select: { items: true } } }, orderBy: { invoiceDate: "desc" }, skip: table.skip, take: table.take }),
+    prisma.invoice.findMany({
+      where: invoiceWhere,
+      include: {
+        customer: true,
+        items: { include: { product: true }, orderBy: { id: "asc" } },
+        _count: { select: { items: true } }
+      },
+      orderBy: { invoiceDate: "desc" },
+      skip: table.skip,
+      take: table.take
+    }),
     prisma.invoice.count({ where: invoiceWhere }),
     prisma.invoice.aggregate({ where: { shopId: user!.shopId }, _sum: { total: true, dueAmount: true }, _count: true }),
     prisma.customer.findMany({ where: { shopId: user!.shopId }, orderBy: { name: "asc" } }),
@@ -50,7 +60,7 @@ export default async function Billing({ searchParams }: { searchParams?: TableSe
     invoiceDateDisplay: formatDate(invoice.invoiceDate),
     totalDisplay: money(invoice.total),
     dueDisplay: money(invoice.dueAmount),
-    itemCount: invoice._count?.items || 0
+    itemCount: invoice.items?.length || invoice._count?.items || 0
   }));
   const customers = toPlain(customersRaw);
   const products = toPlain(productsRaw);

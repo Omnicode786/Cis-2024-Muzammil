@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { Prisma, type InvoiceStatus } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { apiError, badRequest, forbidden, notFound, unauthorized } from "@/lib/api-response";
 import { can } from "@/lib/permissions";
+import { WALK_IN_PAYMENT_REQUIRED_MESSAGE, walkInInvoiceHasDue } from "@/lib/invoice-rules";
+import { invoiceStatusFromPaid, isAutomaticInvoicePayment, moneyLabel, syncAutomaticInvoicePayment } from "@/lib/payment-workflow";
 import { prisma } from "@/lib/prisma";
 import { money, nullableId, nullableText } from "@/lib/validation";
 
@@ -23,10 +25,6 @@ const invoiceUpdateSchema = z.object({
   paymentBreakdown: z.record(z.any()).nullable().optional(),
   notes: nullableText(600)
 });
-
-function invoiceStatus(total: number, paid: number): InvoiceStatus {
-  return paid >= total ? "PAID" : paid > 0 ? "PARTIAL" : "UNPAID";
-}
 
 async function cancelInvoice(user: { id: string; shopId: string }, invoiceId: string) {
   const existing = await prisma.invoice.findFirst({ where: { id: invoiceId, shopId: user.shopId }, include: { items: true } });
@@ -55,7 +53,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     const user = await getCurrentUser();
     if (!user) return unauthorized();
     if (!can(user.role, "invoices", "update")) return forbidden();
-    const existing = await prisma.invoice.findFirst({ where: { id: params.id, shopId: user.shopId } });
+    const existing = await prisma.invoice.findFirst({
+      where: { id: params.id, shopId: user.shopId },
+      include: {
+        payments: { where: { direction: "CUSTOMER_IN" }, select: { id: true, amount: true, reference: true, notes: true } }
+      }
+    });
     const data = invoiceUpdateSchema.parse(await request.json());
     if (!existing) return notFound("Invoice not found.");
     if (data.status === "CANCELLED") return cancelInvoice(user, params.id);
@@ -65,21 +68,37 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       if (!customer) return notFound("Customer not found.");
     }
     const nextTotal = Number(data.total ?? existing.total);
-    const nextPaid = Math.min(Number(data.paidAmount ?? existing.paidAmount), nextTotal);
+    const manualPaid = existing.payments
+      .filter((payment) => !isAutomaticInvoicePayment(payment, existing.invoiceNo))
+      .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    if (manualPaid > nextTotal) return badRequest(`Invoice total cannot be lower than ${moneyLabel(manualPaid)} already recorded through payments.`);
+    const requestedPaid = Math.min(Number(data.paidAmount ?? existing.paidAmount), nextTotal);
+    if (requestedPaid < manualPaid) return badRequest(`Paid amount cannot be lower than ${moneyLabel(manualPaid)} already recorded through manual payments.`);
+    const nextAutoPaid = Math.max(requestedPaid - manualPaid, 0);
+    const nextPaid = Math.min(manualPaid + nextAutoPaid, nextTotal);
     const nextDue = Math.max(nextTotal - nextPaid, 0);
     const nextCustomerId = data.customerId !== undefined ? data.customerId || null : existing.customerId;
+    const nextStatus = invoiceStatusFromPaid(nextTotal, nextPaid);
+    if (walkInInvoiceHasDue(nextCustomerId, nextTotal, nextPaid, nextStatus)) return badRequest(WALK_IN_PAYMENT_REQUIRED_MESSAGE);
     const updateData = {
       ...data,
       customerId: nextCustomerId,
       paidAmount: nextPaid,
       dueAmount: nextDue,
-      status: data.status === "DRAFT" ? "DRAFT" : invoiceStatus(nextTotal, nextPaid),
+      status: nextStatus,
       paymentBreakdown: data.paymentBreakdown === null ? Prisma.JsonNull : data.paymentBreakdown
     };
     const invoice = await prisma.$transaction(async (tx) => {
       if (existing.customerId && Number(existing.dueAmount) > 0) await tx.customer.update({ where: { id: existing.customerId }, data: { balance: { decrement: Number(existing.dueAmount) } } });
       if (nextCustomerId && nextDue > 0 && updateData.status !== "CANCELLED") await tx.customer.update({ where: { id: nextCustomerId }, data: { balance: { increment: nextDue } } });
       const updated = await tx.invoice.update({ where: { id: existing.id }, data: updateData, include: { customer: true, items: { include: { product: true } } } });
+      await syncAutomaticInvoicePayment(tx, {
+        shopId: user.shopId,
+        invoice: updated,
+        amount: nextAutoPaid,
+        invoicePaidAmount: nextPaid,
+        createdById: user.id
+      });
       await tx.activityLog.create({ data: { shopId: user.shopId, userId: user.id, type: "INVOICE_UPDATED", title: `Invoice ${updated.invoiceNo} updated` } });
       return updated;
     });

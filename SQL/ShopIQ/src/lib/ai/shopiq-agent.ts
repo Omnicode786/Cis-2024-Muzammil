@@ -5,6 +5,8 @@ import type { Content, FunctionCall, FunctionDeclaration } from "@google/genai";
 import type { UserRole } from "@prisma/client";
 import { runGeminiToolTurn } from "@/lib/ai";
 import { getDashboardSnapshot } from "@/lib/data";
+import { WALK_IN_PAYMENT_REQUIRED_MESSAGE, walkInInvoiceHasDue } from "@/lib/invoice-rules";
+import { invoiceItemsSummary, invoicePaymentNotes, syncAutomaticInvoicePayment } from "@/lib/payment-workflow";
 import { prisma } from "@/lib/prisma";
 import { buildReportDownloadUrl, normalizeReportType, reportFileSlug, reportLabel, reportRangeLabel, REPORT_TYPE_VALUES } from "@/lib/report-config";
 import {
@@ -557,9 +559,28 @@ async function resolvePaymentLinks(shopId: string, payment: z.infer<typeof payme
     next.supplierId = next.supplierId || purchase.supplierId || null;
   }
   if (next.invoiceId) {
-    const invoice = await prisma.invoice.findFirst({ where: { id: next.invoiceId, shopId }, select: { id: true, customerId: true } });
+    const invoice = await prisma.invoice.findFirst({ where: { id: next.invoiceId, shopId, status: { not: "CANCELLED" } }, include: { customer: true, items: { include: { product: true } } } });
     if (!invoice) throw new Error("Invoice not found.");
-    next.customerId = next.customerId || invoice.customerId || null;
+    if (next.customerId && next.customerId !== invoice.customerId) throw new Error("The selected invoice controls the customer. Clear the invoice to choose a different customer.");
+    const remainingBalance = Number(invoice.dueAmount || 0);
+    if (remainingBalance <= 0) throw new Error("This invoice is already fully paid.");
+    if (Number(next.amount) > remainingBalance) throw new Error(`Payment amount cannot exceed the remaining invoice balance of ${moneyLabel(remainingBalance)}.`);
+    const paidAfter = Number(invoice.paidAmount || 0) + Number(next.amount);
+    const statusAfter = invoiceStatus(Number(invoice.total || 0), paidAfter);
+    next.customerId = invoice.customerId || null;
+    next.reference = next.reference || invoice.invoiceNo;
+    next.notes = invoicePaymentNotes({
+      automatic: false,
+      customerName: invoice.customer?.name,
+      invoiceId: invoice.id,
+      invoiceNo: invoice.invoiceNo,
+      amount: Number(next.amount),
+      method: next.method,
+      productsSummary: invoiceItemsSummary(invoice.items || []),
+      status: statusAfter,
+      remainingBalance: Math.max(Number(invoice.total || 0) - paidAfter, 0),
+      userNotes: next.notes
+    });
   }
   if (next.purchaseId) {
     const purchase = await prisma.purchase.findFirst({ where: { id: next.purchaseId, shopId }, select: { id: true, supplierId: true } });
@@ -586,9 +607,12 @@ async function applyPaymentEffect(
       const invoice = await tx.invoice.findFirst({ where: { id: payment.invoiceId, shopId } });
       if (invoice) {
         customerId = customerId || invoice.customerId;
+        if (sign === 1 && amount > Number(invoice.dueAmount || 0)) throw new Error(`Payment amount cannot exceed the remaining invoice balance of ${moneyLabel(invoice.dueAmount)}.`);
         const paidAmount = Math.max(Number(invoice.paidAmount) + sign * amount, 0);
         const dueAmount = Math.max(Number(invoice.total) - paidAmount, 0);
-        await tx.invoice.update({ where: { id: invoice.id }, data: { paidAmount, dueAmount, status: invoiceStatus(Number(invoice.total), paidAmount) } });
+        const status = invoiceStatus(Number(invoice.total), paidAmount);
+        if (walkInInvoiceHasDue(invoice.customerId, Number(invoice.total), paidAmount, status)) throw new Error(WALK_IN_PAYMENT_REQUIRED_MESSAGE);
+        await tx.invoice.update({ where: { id: invoice.id }, data: { paidAmount, dueAmount, status } });
       }
     }
     if (customerId) await tx.customer.update({ where: { id: customerId }, data: { balance: sign === 1 ? { decrement: amount } : { increment: amount } } });
@@ -666,7 +690,7 @@ async function validateActionForPreview(user: AgentUser, action: AiActionType, p
     await resolvePaymentLinks(user.shopId, parsed);
   }
   if (action === "create_invoice") {
-    await resolveCustomerId(user.shopId, parsed.customerId, parsed.customerName);
+    const customerId = await resolveCustomerId(user.shopId, parsed.customerId, parsed.customerName);
     const resolvedItems = await Promise.all(parsed.items.map((item: any) => resolveProduct(user.shopId, item)));
     const demand = new Map<string, number>();
     for (const [index, product] of resolvedItems.entries()) demand.set(product.id, (demand.get(product.id) || 0) + parsed.items[index].quantity);
@@ -674,6 +698,10 @@ async function validateActionForPreview(user: AgentUser, action: AiActionType, p
       const product = resolvedItems.find((item) => item.id === productId)!;
       if (product.stockQty < quantity) return `${product.name} has only ${product.stockQty} in stock.`;
     }
+    const subtotal = parsed.items.reduce((sum: number, item: any, index: number) => sum + item.quantity * Number(item.unitPrice ?? resolvedItems[index].salePrice), 0);
+    const total = Math.max(subtotal - parsed.discount + parsed.tax, 0);
+    const paid = Math.min(parsed.paidAmount, total);
+    if (walkInInvoiceHasDue(customerId, total, paid)) return WALK_IN_PAYMENT_REQUIRED_MESSAGE;
   }
   if (action === "create_purchase") {
     await resolveSupplierId(user.shopId, parsed.supplierId, parsed.supplierName);
@@ -1420,6 +1448,7 @@ async function executeCreateInvoice(user: AgentUser, payload: unknown) {
   const total = Math.max(subtotal - data.discount + data.tax, 0);
   const paid = Math.min(data.paidAmount, total);
   const due = Math.max(total - paid, 0);
+  if (walkInInvoiceHasDue(customerId, total, paid)) throw new Error(WALK_IN_PAYMENT_REQUIRED_MESSAGE);
   const invoice = await prisma.$transaction(async (tx) => {
     const inv = await tx.invoice.create({
       data: {
@@ -1454,6 +1483,15 @@ async function executeCreateInvoice(user: AgentUser, payload: unknown) {
       await tx.stockMovement.create({ data: { shopId: user.shopId, productId: item.product.id, userId: user.id, type: "SALE", quantity: -item.quantity, beforeQty, afterQty, reference: inv.invoiceNo, notes: "Invoice sale created by ShopIQ AI after user confirmation." } });
     }
     if (customerId && due > 0) await tx.customer.update({ where: { id: customerId }, data: { balance: { increment: due } } });
+    if (paid > 0) {
+      await syncAutomaticInvoicePayment(tx, {
+        shopId: user.shopId,
+        invoice: inv,
+        amount: paid,
+        invoicePaidAmount: paid,
+        createdById: user.id
+      });
+    }
     await tx.activityLog.create({ data: { shopId: user.shopId, userId: user.id, type: "AI_INVOICE_CREATED", title: `AI created invoice ${inv.invoiceNo}`, details: moneyLabel(total) } });
     return inv;
   });

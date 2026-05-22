@@ -5732,6 +5732,181 @@ html[data-ui-mode="glass"] .crud-card {
   font-weight: 620;
 }
 
+.invoice-detail-section {
+  margin-top: 1rem;
+  border: 1px solid hsl(var(--border) / 0.62);
+  border-radius: 1.2rem;
+  background: hsl(var(--background) / 0.5);
+  padding: 0.9rem;
+}
+
+.invoice-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.invoice-detail-header span,
+.invoice-detail-totals span {
+  display: block;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.invoice-detail-header strong {
+  display: block;
+  margin-top: 0.2rem;
+  color: hsl(var(--foreground));
+  font-size: 0.98rem;
+}
+
+.invoice-detail-header p {
+  max-width: 18rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+  line-height: 1.45;
+  text-align: right;
+}
+
+.invoice-detail-table-wrap {
+  overflow-x: auto;
+  border: 1px solid hsl(var(--border) / 0.54);
+  border-radius: 1rem;
+}
+
+.invoice-detail-table {
+  width: 100%;
+  min-width: 44rem;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.invoice-detail-table th,
+.invoice-detail-table td {
+  padding: 0.75rem 0.85rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.42);
+  text-align: left;
+  vertical-align: top;
+}
+
+.invoice-detail-table th:not(:first-child),
+.invoice-detail-table td:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-detail-table th {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.invoice-detail-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.invoice-detail-table td:first-child {
+  max-width: 18rem;
+  color: hsl(var(--foreground));
+  font-weight: 650;
+}
+
+.invoice-detail-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+}
+
+.invoice-detail-totals > div {
+  min-width: 0;
+  border: 1px solid hsl(var(--border) / 0.48);
+  border-radius: 0.9rem;
+  background: hsl(var(--muted) / 0.16);
+  padding: 0.7rem;
+}
+
+.invoice-detail-totals strong {
+  display: block;
+  margin-top: 0.25rem;
+  color: hsl(var(--foreground));
+  font-size: 0.92rem;
+  font-weight: 720;
+}
+
+.dark .invoice-detail-section,
+.dark .invoice-detail-totals > div {
+  background: hsl(var(--muted) / 0.14);
+}
+
+.payment-invoice-context {
+  margin-top: 1rem;
+  border: 1px solid hsl(var(--border) / 0.6);
+  border-radius: 1.05rem;
+  background:
+    linear-gradient(135deg, hsl(var(--primary) / 0.08), transparent 42%),
+    hsl(var(--background) / 0.52);
+  padding: 0.9rem;
+}
+
+.payment-invoice-context-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.payment-invoice-context-heading span,
+.payment-invoice-context-grid span {
+  display: block;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.payment-invoice-context-heading strong {
+  color: hsl(var(--foreground));
+  font-size: 0.95rem;
+}
+
+.payment-invoice-context-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: 0.6rem;
+}
+
+.payment-invoice-context-grid > div {
+  min-width: 0;
+  border: 1px solid hsl(var(--border) / 0.48);
+  border-radius: 0.85rem;
+  background: hsl(var(--muted) / 0.14);
+  padding: 0.65rem;
+}
+
+.payment-invoice-context-grid strong {
+  display: block;
+  margin-top: 0.25rem;
+  color: hsl(var(--foreground));
+  font-size: 0.86rem;
+  font-weight: 680;
+  overflow-wrap: anywhere;
+}
+
+.payment-invoice-context-products {
+  grid-column: 1 / -1;
+}
+
+.dark .payment-invoice-context,
+.dark .payment-invoice-context-grid > div {
+  background: hsl(var(--muted) / 0.14);
+}
+
 .crud-detail-icon {
   display: grid;
   flex: 0 0 auto;
@@ -5980,6 +6155,10 @@ html[data-ui-mode="glass"] .crud-card {
   width: min(48rem, calc(100vw - 1.5rem)) !important;
 }
 
+.crud-modal-invoice-details {
+  width: min(64rem, calc(100vw - 1.5rem)) !important;
+}
+
 .billing-flow-modal {
   width: min(62rem, calc(100vw - 1.5rem)) !important;
 }
@@ -6038,6 +6217,7 @@ html[data-ui-mode="glass"] .crud-card {
 
   .crud-modal,
   .crud-modal-details,
+  .crud-modal-invoice-details,
   .billing-flow-modal {
     width: min(100%, calc(100vw - 1.5rem)) !important;
     max-height: calc(100dvh - 1.5rem) !important;
@@ -6168,6 +6348,8 @@ html[data-ui-mode="glass"] .crud-card {
 .crud-modal.motion-modal {
   border-radius: 1.35rem;
   will-change: transform, opacity, filter, border-radius;
+  backface-visibility: hidden;
+  contain: layout paint style;
   transform-origin: center !important;
   animation: modal-origin-in 520ms cubic-bezier(0.19, 1, 0.22, 1) both !important;
 }
@@ -6195,11 +6377,23 @@ html[data-ui-mode="glass"] .crud-card {
     filter: blur(1.4px);
     transform: translate3d(var(--modal-dx, 0px), var(--modal-dy, 18px), 0) scale(var(--modal-origin-scale-x, var(--modal-origin-scale, 0.96)), var(--modal-origin-scale-y, var(--modal-origin-scale, 0.96)));
   }
+  7% {
+    opacity: 0.28;
+    border-radius: 1.75rem;
+    filter: blur(1.08px);
+    transform: translate3d(calc(var(--modal-dx, 0px) * 0.86), calc(var(--modal-dy, 18px) * 0.82 - 1px), 0) scale(calc(var(--modal-origin-scale-x, 0.16) + 0.055), calc(var(--modal-origin-scale-y, 0.12) + 0.05));
+  }
   14% {
     opacity: 0.54;
     border-radius: 2.2rem;
     filter: blur(0.8px);
     transform: translate3d(calc(var(--modal-dx, 0px) * 0.72), calc(var(--modal-dy, 18px) * 0.68 - 2px), 0) scale(calc(var(--modal-origin-scale-x, 0.16) + 0.11), calc(var(--modal-origin-scale-y, 0.12) + 0.1));
+  }
+  22% {
+    opacity: 0.69;
+    border-radius: 2rem;
+    filter: blur(0.55px);
+    transform: translate3d(calc(var(--modal-dx, 0px) * 0.54), calc(var(--modal-dy, 18px) * 0.47 - 5px), 0) scale(0.52, 0.47);
   }
   32% {
     opacity: 0.84;
@@ -6207,11 +6401,23 @@ html[data-ui-mode="glass"] .crud-card {
     filter: blur(0.3px);
     transform: translate3d(calc(var(--modal-dx, 0px) * 0.34), calc(var(--modal-dy, 18px) * 0.29 - 7px), 0) scale(0.82, 0.76);
   }
+  43% {
+    opacity: 0.91;
+    border-radius: 1.55rem;
+    filter: blur(0.12px);
+    transform: translate3d(calc(var(--modal-dx, 0px) * 0.17), calc(var(--modal-dy, 18px) * 0.12 - 7px), 0) scale(0.96, 0.91);
+  }
   54% {
     opacity: 0.96;
     border-radius: 1.42rem;
     filter: blur(0);
     transform: translate3d(calc(var(--modal-dx, 0px) * 0.07), calc(var(--modal-dy, 18px) * 0.04 - 6px), 0) scale(1.018);
+  }
+  64% {
+    opacity: 1;
+    border-radius: 1.37rem;
+    filter: blur(0);
+    transform: translate3d(0, -4px, 0) scale(1.006);
   }
   72% {
     opacity: 1;
@@ -6219,11 +6425,23 @@ html[data-ui-mode="glass"] .crud-card {
     filter: blur(0);
     transform: translate3d(0, -2px, 0) scale(0.996);
   }
+  80% {
+    opacity: 1;
+    border-radius: 1.35rem;
+    filter: blur(0);
+    transform: translate3d(0, -0.7px, 0) scale(0.999);
+  }
   88% {
     opacity: 1;
     border-radius: 1.35rem;
     filter: blur(0);
     transform: translate3d(0, 0.7px, 0) scale(1.003);
+  }
+  94% {
+    opacity: 1;
+    border-radius: 1.35rem;
+    filter: blur(0);
+    transform: translate3d(0, 0.25px, 0) scale(1.001);
   }
   100% {
     opacity: 1;
@@ -6240,11 +6458,23 @@ html[data-ui-mode="glass"] .crud-card {
     filter: blur(0);
     transform: translate3d(0, 0, 0) scale(1);
   }
+  6% {
+    opacity: 1;
+    border-radius: 1.36rem;
+    filter: blur(0);
+    transform: translate3d(0, 2px, 0) scale(0.998);
+  }
   12% {
     opacity: 0.99;
     border-radius: 1.38rem;
     filter: blur(0);
     transform: translate3d(0, 4px, 0) scale(0.994);
+  }
+  20% {
+    opacity: 0.975;
+    border-radius: 1.45rem;
+    filter: blur(0.08px);
+    transform: translate3d(calc(var(--modal-dx, 0px) * 0.03), calc(var(--modal-dy, 18px) * 0.025 + 7px), 0) scale(0.972);
   }
   28% {
     opacity: 0.94;
@@ -6252,11 +6482,23 @@ html[data-ui-mode="glass"] .crud-card {
     filter: blur(0.2px);
     transform: translate3d(calc(var(--modal-dx, 0px) * 0.08), calc(var(--modal-dy, 18px) * 0.06 + 9px), 0) scale(0.94);
   }
+  37% {
+    opacity: 0.9;
+    border-radius: 1.64rem;
+    filter: blur(0.27px);
+    transform: translate3d(calc(var(--modal-dx, 0px) * 0.15), calc(var(--modal-dy, 18px) * 0.12 + 8px), 0) scale(0.88, 0.84);
+  }
   46% {
     opacity: 0.86;
     border-radius: 1.75rem;
     filter: blur(0.35px);
     transform: translate3d(calc(var(--modal-dx, 0px) * 0.24), calc(var(--modal-dy, 18px) * 0.19 + 7px), 0) scale(0.82, 0.78);
+  }
+  55% {
+    opacity: 0.82;
+    border-radius: 1.93rem;
+    filter: blur(0.5px);
+    transform: translate3d(calc(var(--modal-dx, 0px) * 0.34), calc(var(--modal-dy, 18px) * 0.29 + 6px), 0) scale(0.72, 0.67);
   }
   64% {
     opacity: 0.78;
@@ -6264,11 +6506,23 @@ html[data-ui-mode="glass"] .crud-card {
     filter: blur(0.65px);
     transform: translate3d(calc(var(--modal-dx, 0px) * 0.45), calc(var(--modal-dy, 18px) * 0.38 + 5px), 0) scale(0.62, 0.56);
   }
+  73% {
+    opacity: 0.6;
+    border-radius: 2.65rem;
+    filter: blur(0.82px);
+    transform: translate3d(calc(var(--modal-dx, 0px) * 0.62), calc(var(--modal-dy, 18px) * 0.56 + 3px), 0) scale(calc(var(--modal-origin-scale-x, var(--modal-origin-scale, 0.96)) + 0.13), calc(var(--modal-origin-scale-y, var(--modal-origin-scale, 0.96)) + 0.11));
+  }
   82% {
     opacity: 0.42;
     border-radius: var(--modal-origin-radius, 999px);
     filter: blur(1px);
     transform: translate3d(calc(var(--modal-dx, 0px) * 0.78), calc(var(--modal-dy, 18px) * 0.74 + 2px), 0) scale(calc(var(--modal-origin-scale-x, var(--modal-origin-scale, 0.96)) + 0.035), calc(var(--modal-origin-scale-y, var(--modal-origin-scale, 0.96)) + 0.03));
+  }
+  90% {
+    opacity: 0.2;
+    border-radius: var(--modal-origin-radius, 999px);
+    filter: blur(1.15px);
+    transform: translate3d(calc(var(--modal-dx, 0px) * 0.91), calc(var(--modal-dy, 18px) * 0.88 + 1px), 0) scale(calc(var(--modal-origin-scale-x, var(--modal-origin-scale, 0.96)) + 0.012), calc(var(--modal-origin-scale-y, var(--modal-origin-scale, 0.96)) + 0.01));
   }
   100% {
     opacity: 0;

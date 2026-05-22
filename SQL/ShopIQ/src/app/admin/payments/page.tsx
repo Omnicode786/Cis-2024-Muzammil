@@ -5,6 +5,7 @@ import { ModuleHero, ModuleInsightPanel } from "@/components/workspace/module-he
 import { SectionHeader } from "@/components/workspace/section-header";
 import { getCurrentUser } from "@/lib/auth";
 import { can, canReadSupplierCashflow, canUsePaymentDirection } from "@/lib/permissions";
+import { invoiceItemsSummary, isAutomaticInvoicePayment } from "@/lib/payment-workflow";
 import { prisma } from "@/lib/prisma";
 import { contains, dateRange, paginationMeta, readTableState, type TableSearchParams } from "@/lib/table-pagination";
 import { formatDate, toPlain } from "@/lib/utils";
@@ -39,18 +40,24 @@ export default async function Payments({ searchParams }: { searchParams?: TableS
   if (paymentDateRange) paymentFilters.push(paymentDateRange);
   const paymentWhere = { shopId: user!.shopId, ...(paymentFilters.length ? { AND: paymentFilters } : {}) };
   const [paymentsRaw, paymentsTotal, incomingAgg, outgoingAgg, customersRaw, suppliersRaw, invoicesRaw, purchasesRaw] = await Promise.all([
-    prisma.payment.findMany({ where: paymentWhere, include: { customer: true, supplier: true, invoice: true, purchase: true }, orderBy: { paidAt: "desc" }, skip: table.skip, take: table.take }),
+    prisma.payment.findMany({ where: paymentWhere, include: { customer: true, supplier: true, invoice: { include: { customer: true } }, purchase: true }, orderBy: { paidAt: "desc" }, skip: table.skip, take: table.take }),
     prisma.payment.count({ where: paymentWhere }),
     prisma.payment.aggregate({ where: { shopId: user!.shopId, direction: "CUSTOMER_IN" }, _sum: { amount: true } }),
     canSeeSupplierSide ? prisma.payment.aggregate({ where: { shopId: user!.shopId, direction: "SUPPLIER_OUT" }, _sum: { amount: true } }) : Promise.resolve({ _sum: { amount: 0 } }),
     prisma.customer.findMany({ where: { shopId: user!.shopId }, orderBy: { name: "asc" } }),
     canSeeSupplierSide ? prisma.supplier.findMany({ where: { shopId: user!.shopId }, orderBy: { name: "asc" } }) : Promise.resolve([]),
-    prisma.invoice.findMany({ where: { shopId: user!.shopId, status: { not: "CANCELLED" } }, orderBy: { invoiceDate: "desc" }, take: 150 }),
+    prisma.invoice.findMany({
+      where: { shopId: user!.shopId, status: { not: "CANCELLED" } },
+      include: { customer: true, items: { include: { product: true } } },
+      orderBy: { invoiceDate: "desc" },
+      take: 150
+    }),
     canSeeSupplierSide ? prisma.purchase.findMany({ where: { shopId: user!.shopId, status: { not: "CANCELLED" } }, orderBy: { purchaseDate: "desc" }, take: 150 }) : Promise.resolve([])
   ]);
   const payments = toPlain(paymentsRaw).map((payment: any) => ({
     ...payment,
-    partyName: payment.customer?.name || payment.supplier?.name || "General",
+    isAutomaticInvoicePayment: isAutomaticInvoicePayment(payment, payment.invoice?.invoiceNo),
+    partyName: payment.customer?.name || payment.invoice?.customer?.name || (payment.invoice ? "Walk-in" : payment.supplier?.name || "General"),
     referenceLabel: payment.invoice?.invoiceNo || payment.purchase?.purchaseNo || payment.reference || "-",
     amountDisplay: money(payment.amount),
     paidAtDisplay: formatDate(payment.paidAt)
@@ -71,7 +78,25 @@ export default async function Payments({ searchParams }: { searchParams?: TableS
     { key: "amount", label: "Amount", type: "number" as const, required: true },
     { key: "customerId", label: "Customer", type: "select" as const, options: customers.map((customer: any) => ({ label: customer.name, value: customer.id })) },
     ...(canSeeSupplierSide ? [{ key: "supplierId", label: "Supplier", type: "select" as const, options: suppliers.map((supplier: any) => ({ label: supplier.name, value: supplier.id })) }] : []),
-    { key: "invoiceId", label: "Invoice", type: "select" as const, options: invoices.map((invoice: any) => ({ label: invoice.invoiceNo, value: invoice.id })) },
+    {
+      key: "invoiceId",
+      label: "Invoice",
+      type: "select" as const,
+      options: invoices.map((invoice: any) => ({
+        label: `${invoice.invoiceNo} - ${invoice.customer?.name || "Walk-in"} - due ${money(invoice.dueAmount)}`,
+        value: invoice.id,
+        meta: {
+          invoiceNo: invoice.invoiceNo,
+          customerId: invoice.customerId,
+          customerName: invoice.customer?.name || "Walk-in",
+          total: Number(invoice.total || 0),
+          paidAmount: Number(invoice.paidAmount || 0),
+          remainingBalance: Number(invoice.dueAmount || 0),
+          status: invoice.status,
+          itemsSummary: invoiceItemsSummary(invoice.items || [])
+        }
+      }))
+    },
     ...(canSeeSupplierSide ? [{ key: "purchaseId", label: "Purchase", type: "select" as const, options: purchases.map((purchase: any) => ({ label: purchase.purchaseNo, value: purchase.id })) }] : []),
     { key: "reference", label: "Reference" },
     { key: "notes", label: "Notes", type: "textarea" as const, span: "full" as const }
@@ -135,6 +160,8 @@ export default async function Payments({ searchParams }: { searchParams?: TableS
           canCreate={can(user?.role, "payments", "create")}
           canUpdate={can(user?.role, "payments", "update")}
           canDelete={can(user?.role, "payments", "delete")}
+          canUpdateRow={(row) => !row.isAutomaticInvoicePayment}
+          canDeleteRow={(row) => !row.isAutomaticInvoicePayment}
           createLabel="Record payment"
         />
       </div>

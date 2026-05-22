@@ -3,6 +3,8 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { apiError, badRequest, forbidden, notFound, unauthorized } from "@/lib/api-response";
 import { can } from "@/lib/permissions";
+import { WALK_IN_PAYMENT_REQUIRED_MESSAGE, walkInInvoiceHasDue } from "@/lib/invoice-rules";
+import { invoiceStatusFromPaid, syncAutomaticInvoicePayment } from "@/lib/payment-workflow";
 import { prisma } from "@/lib/prisma";
 import { money, optionalId, optionalText, positiveIntQty } from "@/lib/validation";
 
@@ -28,10 +30,6 @@ const invoiceSchema = z.object({
   notes: optionalText(600),
   items: z.array(invoiceItemSchema).min(1, "Add at least one item.")
 });
-
-function invoiceStatus(total: number, paid: number) {
-  return paid >= total ? "PAID" : paid > 0 ? "PARTIAL" : "UNPAID";
-}
 
 export async function GET() {
   try {
@@ -74,6 +72,7 @@ export async function POST(request: Request) {
     const total = Math.max(subtotal - data.discount - data.loyaltyDiscount + data.tax, 0);
     const paid = Math.min(data.paidAmount, total);
     const due = Math.max(total - paid, 0);
+    if (walkInInvoiceHasDue(data.customerId, total, paid)) return badRequest(WALK_IN_PAYMENT_REQUIRED_MESSAGE);
     const invoice = await prisma.$transaction(async (tx) => {
       const inv = await tx.invoice.create({
         data: {
@@ -88,7 +87,7 @@ export async function POST(request: Request) {
           total,
           paidAmount: paid,
           dueAmount: due,
-          status: invoiceStatus(total, paid),
+          status: invoiceStatusFromPaid(total, paid),
           dueDate: data.dueDate,
           cashierCounter: data.cashierCounter,
           channel: data.channel,
@@ -106,6 +105,15 @@ export async function POST(request: Request) {
         },
         include: { customer: true, items: { include: { product: true } } }
       });
+      if (paid > 0) {
+        await syncAutomaticInvoicePayment(tx, {
+          shopId: user.shopId,
+          invoice: inv,
+          amount: paid,
+          invoicePaidAmount: paid,
+          createdById: user.id
+        });
+      }
       const runningStock = new Map(products.map((product) => [product.id, product.stockQty]));
       for (const item of data.items) {
         const beforeQty = runningStock.get(item.productId)!;
