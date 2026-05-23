@@ -111,33 +111,52 @@ Fixed. Selecting an invoice in Payments now controls the customer and prevents s
 
 **Priority:** Fixed
 
-## Products And Inventory
+### Fixed Issue: Concurrent Sales Can Oversell Stock
 
-### 1. Concurrent Sales Can Oversell Stock
+**What the problem was:**  
+Invoice creation checked stock before the transaction, then decremented stock inside the transaction. If two users sold the last units at the same time, both requests passed the stock check before either decrement finished.
 
-**What the problem is:**  
-Invoice creation checks stock before the transaction, then decrements stock inside the transaction. If two users sell the last units at the same time, both requests may pass the stock check before either decrement finishes.
-
-**Why it matters:**  
+**Why it mattered:**  
 Real POS systems must prevent negative stock or overselling when two counters sell the same product.
 
-**Possible risk:**  
-Stock can become negative or incorrect during busy use.
+**Risk before fix:**  
+High. Stock could become negative or incorrect during busy use.
 
-**Priority:** High
+**Current status:**  
+Fixed. The invoice creation uses Prisma's atomic decrement inside a single transaction and strictly checks for negative stock, safely aborting any concurrent oversell attempts.
 
-### 2. Manual Stock Edits Are Too Powerful
+**Priority:** Fixed
 
-**What the problem is:**  
-Admins/managers can edit product stock directly from the product form. ShopIQ creates a generic adjustment movement, but it does not force a reason such as damage, count correction, expired item, theft, or supplier return.
+### Fixed Issue: Manual Stock Edits Are Too Powerful
 
-**Why it matters:**  
+**What the problem was:**  
+Admins/managers could edit product stock directly from the product form without explaining the adjustment, bypassing standard audit requirements.
+
+**Why it mattered:**  
 Real inventory systems require reason codes for stock adjustments.
 
-**Possible risk:**  
-Stock may be changed without enough explanation, making audits weak.
+**Risk before fix:**  
+High. Stock was changed without enough explanation, making audits weak.
 
-**Priority:** High
+**Current status:**  
+Fixed. Editing a product's stock quantity via the UI or API now mandatorily requires a `stockAdjustmentReason` (and an optional note for "Other" reasons), which is cleanly saved to both the Stock Movement and Activity Log tables for full auditing.
+
+**Priority:** Fixed
+
+### 3. Customer Balance Is Directly Editable (FIXED)
+
+**The Loophole:**
+Customer balances could be edited directly from the customer form, bypassing the invoice and payment ledger entirely.
+
+**How we fixed it:**
+1. Removed direct manual overriding of the `balance` field in the customer edit form (made it strictly read-only).
+2. Introduced an `Opening balance` field exclusive to customer creation that formally logs the starting ledger state.
+3. Added a dedicated adjustment workflow (`balanceAdjustment`, `adjustmentReason`, `adjustmentNote`) to the edit form.
+4. Any balance adjustment now utilizes atomic database operations and generates a permanent `CUSTOMER_BALANCE_ADJUSTMENT` activity log with full context and diffs.
+
+**Priority:** Fixed
+
+## Products And Inventory
 
 ### 3. Archived Products Can Hide Real Stock
 
@@ -232,18 +251,6 @@ Accidental loss-making prices.
 
 ## Customers
 
-### 10. Customer Balance Is Directly Editable
-
-**What the problem is:**  
-Customer balance can be edited in the customer form.
-
-**Why it matters:**  
-Balance should normally come from invoices, payments, refunds, and opening balance entries. Direct edits can break ledger history.
-
-**Possible risk:**  
-Customer dues may no longer match invoices and payments.
-
-**Priority:** High
 
 ### 11. Credit Limit Is Not Enforced During Billing
 

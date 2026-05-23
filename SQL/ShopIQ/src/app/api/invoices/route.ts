@@ -117,12 +117,17 @@ export async function POST(request: Request) {
           createdById: user.id
         });
       }
-      const runningStock = new Map(products.map((product) => [product.id, product.stockQty]));
       for (const item of data.items) {
-        const beforeQty = runningStock.get(item.productId)!;
-        const afterQty = beforeQty - item.quantity;
-        runningStock.set(item.productId, afterQty);
-        await tx.product.update({ where: { id: item.productId }, data: { stockQty: { decrement: item.quantity } } });
+        const updatedProduct = await tx.product.update({
+          where: { id: item.productId },
+          data: { stockQty: { decrement: item.quantity } },
+          select: { id: true, stockQty: true, name: true }
+        });
+        if (updatedProduct.stockQty < 0) {
+          throw new Error(`INSUFFICIENT_STOCK: ${updatedProduct.name} has insufficient stock.`);
+        }
+        const afterQty = updatedProduct.stockQty;
+        const beforeQty = afterQty + item.quantity;
         await tx.stockMovement.create({ data: { shopId: user.shopId, productId: item.productId, userId: user.id, type: "SALE", quantity: -item.quantity, beforeQty, afterQty, reference: inv.invoiceNo, notes: "Invoice sale" } });
       }
       if (data.customerId && due > 0) await tx.customer.update({ where: { id: data.customerId }, data: { balance: { increment: due } } });
@@ -131,6 +136,9 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ invoice });
   } catch (e) {
+    if (e instanceof Error && e.message.startsWith("INSUFFICIENT_STOCK:")) {
+      return badRequest(e.message.replace("INSUFFICIENT_STOCK:", "").trim());
+    }
     return apiError(e, "Unable to create invoice.");
   }
 }

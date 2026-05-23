@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { apiError, forbidden, notFound, unauthorized } from "@/lib/api-response";
+import { apiError, forbidden, notFound, unauthorized, badRequest } from "@/lib/api-response";
 import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { intQty, money, nullableId, nullableText, optionalText, requiredText } from "@/lib/validation";
@@ -15,10 +15,13 @@ const productUpdateSchema = z.object({
   imageUrl: nullableText(500),
   unit: optionalText(40),
   costPrice: money.optional(),
+  latestPurchaseCost: money.optional(),
   salePrice: money.optional(),
   taxRate: money.optional(),
   discountRate: money.optional(),
   stockQty: intQty.optional(),
+  stockAdjustmentReason: optionalText(100),
+  stockAdjustmentNote: optionalText(600),
   reorderLevel: intQty.optional(),
   reorderQuantity: intQty.optional(),
   location: nullableText(120),
@@ -50,11 +53,33 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       const supplier = await prisma.supplier.findFirst({ where: { id: data.supplierId, shopId: user.shopId }, select: { id: true } });
       if (!supplier) return notFound("Selected supplier was not found.");
     }
+    
+    if (data.stockQty !== undefined && data.stockQty !== existing.stockQty) {
+      if (!data.stockAdjustmentReason) {
+        return badRequest("A stock adjustment reason is required when manually changing stock.");
+      }
+      if (data.stockAdjustmentReason === "Other" && !data.stockAdjustmentNote) {
+        return badRequest("Please provide a note for the 'Other' adjustment reason.");
+      }
+    }
+
+    const { stockAdjustmentReason, stockAdjustmentNote, ...updateData } = data;
     const product = await prisma.$transaction(async (tx) => {
-      const updated = await tx.product.update({ where: { id: existing.id }, data, include: { category: true, supplier: true } });
+      const updated = await tx.product.update({ where: { id: existing.id }, data: updateData, include: { category: true, supplier: true } });
       if (data.stockQty !== undefined && data.stockQty !== existing.stockQty) {
         const delta = data.stockQty - existing.stockQty;
-        await tx.stockMovement.create({ data: { shopId: user.shopId, productId: existing.id, userId: user.id, type: "ADJUSTMENT", quantity: delta, beforeQty: existing.stockQty, afterQty: data.stockQty, reference: "PRODUCT_EDIT", notes: "Manual stock adjustment from inventory editor." } });
+        const notes = `Reason: ${stockAdjustmentReason}` + (stockAdjustmentNote ? ` - Note: ${stockAdjustmentNote}` : "");
+        await tx.stockMovement.create({ data: { shopId: user.shopId, productId: existing.id, userId: user.id, type: "ADJUSTMENT", quantity: delta, beforeQty: existing.stockQty, afterQty: data.stockQty, reference: "PRODUCT_EDIT", notes } });
+        await tx.activityLog.create({ 
+          data: { 
+            shopId: user.shopId, 
+            userId: user.id, 
+            type: "STOCK_ADJUSTMENT", 
+            title: `Stock manually adjusted for ${updated.name}`, 
+            details: `${stockAdjustmentReason} (Diff: ${delta > 0 ? '+' : ''}${delta})`,
+            metadata: { reason: stockAdjustmentReason, note: stockAdjustmentNote, beforeQty: existing.stockQty, afterQty: data.stockQty, delta } 
+          } 
+        });
       }
       await tx.activityLog.create({ data: { shopId: user.shopId, userId: user.id, type: "PRODUCT_UPDATED", title: `Product updated: ${updated.name}` } });
       return updated;

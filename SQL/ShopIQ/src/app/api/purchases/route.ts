@@ -68,11 +68,26 @@ export async function POST(request: Request) {
         include: { supplier: true, items: { include: { product: true } } }
       });
       const runningStock = new Map(products.map((product) => [product.id, product.stockQty]));
+      const productCostMap = new Map(products.map((product) => [product.id, Number(product.costPrice || 0)]));
       for (const item of data.items) {
         const beforeQty = runningStock.get(item.productId)!;
+        const beforeCost = productCostMap.get(item.productId)!;
         const afterQty = beforeQty + item.quantity;
         runningStock.set(item.productId, afterQty);
-        await tx.product.update({ where: { id: item.productId }, data: { stockQty: { increment: item.quantity }, costPrice: item.unitCost } });
+        
+        let newAverageCost = item.unitCost;
+        if (afterQty > 0 && beforeQty >= 0) {
+          newAverageCost = ((beforeQty * beforeCost) + (item.quantity * item.unitCost)) / afterQty;
+        }
+
+        await tx.product.update({ 
+          where: { id: item.productId }, 
+          data: { 
+            stockQty: { increment: item.quantity }, 
+            costPrice: newAverageCost,
+            latestPurchaseCost: item.unitCost
+          } 
+        });
         await tx.stockMovement.create({ data: { shopId: user.shopId, productId: item.productId, userId: user.id, type: "PURCHASE", quantity: item.quantity, beforeQty, afterQty, reference: pur.purchaseNo, notes: "Purchase received" } });
       }
       if (data.supplierId && due > 0) await tx.supplier.update({ where: { id: data.supplierId }, data: { balance: { increment: due } } });

@@ -24,6 +24,7 @@ type Field = {
   options?: Option[];
   hideOnEdit?: boolean;
   hideOnCreate?: boolean;
+  readOnly?: boolean;
   span?: "full" | "half";
   min?: number;
   max?: number;
@@ -1015,6 +1016,7 @@ export function CrudManager({
                                 aria-invalid={Boolean(error)}
                                 aria-describedby={error ? `${field.key}-error` : undefined}
                                 autoComplete={autoCompleteFor(field)}
+                                readOnly={field.readOnly}
                               />
                             ) : field.type === "select" ? (
                               <select
@@ -1024,7 +1026,7 @@ export function CrudManager({
                                 aria-invalid={Boolean(error)}
                                 aria-describedby={error ? `${field.key}-error` : undefined}
                                 className="form-select"
-                                disabled={fieldLockedByInvoice}
+                                disabled={fieldLockedByInvoice || field.readOnly}
                               >
                                 <option value="">{endpoint.includes("/invoices") && field.key === "customerId" ? "Walk-in customer (paid on spot)" : `Select ${field.label}`}</option>
                                 {field.options?.map((option) => (
@@ -1047,6 +1049,7 @@ export function CrudManager({
                                 step={field.step ?? (field.type === "number" ? "any" : undefined)}
                                 inputMode={inputModeFor(field)}
                                 autoComplete={autoCompleteFor(field)}
+                                readOnly={field.readOnly}
                               />
                             )}
                             {error ? <span id={`${field.key}-error`} className="crud-field-error">{error}</span> : null}

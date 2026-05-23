@@ -112,7 +112,11 @@ export default async function Customers({ searchParams }: { searchParams?: Table
             { key: "loyaltyPoints", label: "Loyalty points", type: "number" },
             { key: "preferredPaymentMethod", label: "Preferred payment", type: "select", options: [{ label: "Cash", value: "CASH" }, { label: "Card", value: "CARD" }, { label: "Bank transfer", value: "BANK_TRANSFER" }, { label: "JazzCash", value: "JAZZCASH" }, { label: "EasyPaisa", value: "EASYPAISA" }, { label: "Cheque", value: "CHEQUE" }, { label: "Other", value: "OTHER" }] },
             { key: "creditLimit", label: "Credit limit", type: "number" },
-            { key: "balance", label: "Opening balance", type: "number" },
+            { key: "balance", label: "Current balance", type: "number", readOnly: true },
+            { key: "openingBalance", label: "Opening balance", type: "number", hideOnEdit: true },
+            { key: "balanceAdjustment", label: "Adjust balance (+/-)", type: "number", hideOnCreate: true },
+            { key: "balanceAdjustmentReason", label: "Adjustment reason", type: "select", hideOnCreate: true, options: [{ label: "Opening balance correction", value: "Opening balance correction" }, { label: "Discount/Write-off", value: "Discount/Write-off" }, { label: "Refund adjustment", value: "Refund adjustment" }, { label: "Other", value: "Other" }] },
+            { key: "balanceAdjustmentNote", label: "Adjustment note", type: "text", hideOnCreate: true, span: "full" },
             { key: "notes", label: "Notes", type: "textarea", span: "full" }
           ]}
           columns={[
