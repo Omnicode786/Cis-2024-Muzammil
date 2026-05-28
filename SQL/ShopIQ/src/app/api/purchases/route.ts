@@ -15,11 +15,15 @@ const purchaseItemSchema = z.object({
 const purchaseSchema = z.object({
   supplierId: optionalId,
   purchaseNo: optionalText(80),
+  status: z.enum(["ORDERED", "RECEIVED", "PARTIAL", "CANCELLED", "PAYMENT_OUT", "REFUND_IN"]).optional(),
   paidAmount: money,
   purchaseDate: z.coerce.date().optional(),
   notes: optionalText(600),
-  items: z.array(purchaseItemSchema).min(1, "Add at least one item.")
-});
+  items: z.array(purchaseItemSchema).optional().default([])
+}).refine(data => {
+  if (data.status === "PAYMENT_OUT" || data.status === "REFUND_IN") return true;
+  return data.items && data.items.length > 0;
+}, "Add at least one item.");
 
 export async function GET() {
   try {
@@ -46,9 +50,10 @@ export async function POST(request: Request) {
     const products = await prisma.product.findMany({ where: { shopId: user.shopId, id: { in: data.items.map((item) => item.productId) } } });
     const productMap = new Map(products.map((product) => [product.id, product]));
     for (const item of data.items) if (!productMap.has(item.productId)) return notFound("One of the selected products was not found.");
-    const total = data.items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0);
-    const paid = Math.min(data.paidAmount, total);
-    const due = Math.max(total - paid, 0);
+    const total = data.items ? data.items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0) : 0;
+    const isPayment = data.status === "PAYMENT_OUT" || data.status === "REFUND_IN";
+    const paid = isPayment ? data.paidAmount : Math.min(data.paidAmount, total);
+    const due = isPayment ? 0 : Math.max(total - paid, 0);
     const purchase = await prisma.$transaction(async (tx) => {
       const pur = await tx.purchase.create({
         data: {
@@ -60,7 +65,7 @@ export async function POST(request: Request) {
           total,
           paidAmount: paid,
           dueAmount: due,
-          status: "RECEIVED",
+          status: data.status || "RECEIVED",
           purchaseDate: data.purchaseDate,
           notes: data.notes,
           items: { create: data.items.map((item) => ({ productId: item.productId, quantity: item.quantity, unitCost: item.unitCost, total: item.quantity * item.unitCost })) }
@@ -90,8 +95,17 @@ export async function POST(request: Request) {
         });
         await tx.stockMovement.create({ data: { shopId: user.shopId, productId: item.productId, userId: user.id, type: "PURCHASE", quantity: item.quantity, beforeQty, afterQty, reference: pur.purchaseNo, notes: "Purchase received" } });
       }
-      if (data.supplierId && due > 0) await tx.supplier.update({ where: { id: data.supplierId }, data: { balance: { increment: due } } });
-      await tx.activityLog.create({ data: { shopId: user.shopId, userId: user.id, type: "PURCHASE_CREATED", title: `Purchase ${pur.purchaseNo} received`, details: `PKR ${total.toLocaleString()}` } });
+      if (data.supplierId) {
+        if (data.status === "PAYMENT_OUT") {
+          await tx.supplier.update({ where: { id: data.supplierId }, data: { balance: { decrement: data.paidAmount } } });
+        } else if (data.status === "REFUND_IN") {
+          await tx.supplier.update({ where: { id: data.supplierId }, data: { balance: { increment: data.paidAmount } } });
+        } else if (due > 0) {
+          await tx.supplier.update({ where: { id: data.supplierId }, data: { balance: { increment: due } } });
+        }
+      }
+      const logType = data.status === "PAYMENT_OUT" ? "SUPPLIER_PAYMENT_OUT" : data.status === "REFUND_IN" ? "SUPPLIER_REFUND_IN" : "PURCHASE_CREATED";
+      await tx.activityLog.create({ data: { shopId: user.shopId, userId: user.id, type: logType, title: `${logType.replace(/_/g, " ")}: ${pur.purchaseNo}`, details: `PKR ${(total || data.paidAmount).toLocaleString()}` } });
       return pur;
     });
     return NextResponse.json({ purchase });

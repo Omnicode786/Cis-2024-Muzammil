@@ -23,6 +23,7 @@ const customerUpdateSchema = z.object({
   balanceAdjustment: money.optional(),
   balanceAdjustmentReason: optionalText(100),
   balanceAdjustmentNote: optionalText(600),
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
   notes: nullableText(600)
 });
 
@@ -38,6 +39,11 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     }
     
     const { balanceAdjustment, balanceAdjustmentReason, balanceAdjustmentNote, ...updateData } = data;
+    
+    if (updateData.phone) {
+      const existingPhone = await prisma.customer.findFirst({ where: { shopId: user.shopId, phone: updateData.phone, id: { not: params.id } } });
+      if (existingPhone) return NextResponse.json({ error: "A customer with this phone number already exists." }, { status: 400 });
+    }
     
     const updated = await prisma.$transaction(async (tx) => {
       const existing = await tx.customer.findFirst({ where: { id: params.id, shopId: user.shopId } });

@@ -82,6 +82,7 @@ export default async function Billing({ searchParams }: { searchParams?: TableSe
     itemCount: invoice.items?.length || invoice._count?.items || 0
   }));
   const customers = toPlain(customersRaw);
+  const activeCustomers = customers.filter((c: any) => c.status !== "INACTIVE");
   const products = toPlain(productsRaw);
   const total = Number(invoiceMetrics._sum.total || 0);
   const due = Number(invoiceMetrics._sum.dueAmount || 0);
@@ -173,7 +174,7 @@ export default async function Billing({ searchParams }: { searchParams?: TableSe
             { key: "status", label: "Status" }
           ]}
           canCreate={canCreateInvoice}
-          createAction={<BillingFlow customers={customers} products={products} canCreate={canCreateInvoice} />}
+          createAction={<BillingFlow customers={activeCustomers} products={products} canCreate={canCreateInvoice} />}
           canUpdate={can(user?.role, "invoices", "update")}
           canDelete={can(user?.role, "invoices", "delete")}
           createLabel="Create invoice"

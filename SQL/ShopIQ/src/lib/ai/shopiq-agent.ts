@@ -185,17 +185,13 @@ const supplierUpdateSchema = z.object({
 });
 
 const paymentCreateSchema = z.object({
-  direction: z.enum(["CUSTOMER_IN", "SUPPLIER_OUT"]).default("CUSTOMER_IN"),
+  direction: z.enum(["CUSTOMER_IN"]).default("CUSTOMER_IN"),
   method: z.enum(["CASH", "BANK_TRANSFER", "CARD", "JAZZCASH", "EASYPAISA", "CHEQUE", "OTHER"]).default("CASH"),
   amount: positiveMoney,
   customerId: optionalId,
   customerName: optionalText(160),
-  supplierId: optionalId,
-  supplierName: optionalText(160),
   invoiceId: optionalId,
   invoiceNo: optionalText(80),
-  purchaseId: optionalId,
-  purchaseNo: optionalText(80),
   paidAt: z.coerce.date().optional(),
   reference: optionalText(120),
   notes: optionalText(600)
@@ -542,9 +538,7 @@ async function resolvePaymentLinks(shopId: string, payment: z.infer<typeof payme
   const next = {
     ...payment,
     customerId: payment.customerId || null,
-    supplierId: payment.supplierId || null,
     invoiceId: payment.invoiceId || null,
-    purchaseId: payment.purchaseId || null
   };
 
   if (!next.invoiceId && next.invoiceNo) {
@@ -552,12 +546,6 @@ async function resolvePaymentLinks(shopId: string, payment: z.infer<typeof payme
     if (!invoice) throw new Error("Invoice not found.");
     next.invoiceId = invoice.id;
     next.customerId = next.customerId || invoice.customerId || null;
-  }
-  if (!next.purchaseId && next.purchaseNo) {
-    const purchase = await prisma.purchase.findFirst({ where: { shopId, purchaseNo: next.purchaseNo }, select: { id: true, supplierId: true } });
-    if (!purchase) throw new Error("Purchase not found.");
-    next.purchaseId = purchase.id;
-    next.supplierId = next.supplierId || purchase.supplierId || null;
   }
   if (next.invoiceId) {
     const invoice = await prisma.invoice.findFirst({ where: { id: next.invoiceId, shopId, status: { not: "CANCELLED" } }, include: { customer: true, items: { include: { product: true } } } });
@@ -583,22 +571,15 @@ async function resolvePaymentLinks(shopId: string, payment: z.infer<typeof payme
       userNotes: next.notes
     });
   }
-  if (next.purchaseId) {
-    const purchase = await prisma.purchase.findFirst({ where: { id: next.purchaseId, shopId }, select: { id: true, supplierId: true } });
-    if (!purchase) throw new Error("Purchase not found.");
-    next.supplierId = next.supplierId || purchase.supplierId || null;
-  }
   if (!next.customerId && next.customerName) next.customerId = await resolveCustomerId(shopId, undefined, next.customerName);
-  if (!next.supplierId && next.supplierName) next.supplierId = await resolveSupplierId(shopId, undefined, next.supplierName);
   if (next.direction === "CUSTOMER_IN" && !next.customerId && !next.invoiceId) throw new Error("Customer payments need a customer or invoice.");
-  if (next.direction === "SUPPLIER_OUT" && !next.supplierId && !next.purchaseId) throw new Error("Supplier payouts need a supplier or purchase.");
   return next;
 }
 
 async function applyPaymentEffect(
   tx: any,
   shopId: string,
-  payment: { direction: string; amount: unknown; customerId?: string | null; supplierId?: string | null; invoiceId?: string | null; purchaseId?: string | null },
+  payment: { direction: string; amount: unknown; customerId?: string | null; invoiceId?: string | null },
   sign: 1 | -1
 ) {
   const amount = Number(payment.amount);
@@ -617,19 +598,6 @@ async function applyPaymentEffect(
       }
     }
     if (customerId) await tx.customer.update({ where: { id: customerId }, data: { balance: sign === 1 ? { decrement: amount } : { increment: amount } } });
-  }
-  if (payment.direction === "SUPPLIER_OUT") {
-    let supplierId = payment.supplierId || null;
-    if (payment.purchaseId) {
-      const purchase = await tx.purchase.findFirst({ where: { id: payment.purchaseId, shopId } });
-      if (purchase) {
-        supplierId = supplierId || purchase.supplierId;
-        const paidAmount = Math.max(Number(purchase.paidAmount) + sign * amount, 0);
-        const dueAmount = Math.max(Number(purchase.total) - paidAmount, 0);
-        await tx.purchase.update({ where: { id: purchase.id }, data: { paidAmount, dueAmount } });
-      }
-    }
-    if (supplierId) await tx.supplier.update({ where: { id: supplierId }, data: { balance: sign === 1 ? { decrement: amount } : { increment: amount } } });
   }
 }
 
@@ -671,8 +639,8 @@ async function validateActionForPreview(user: AgentUser, action: AiActionType, p
     const existing = await prisma.supplier.findFirst({ where: { id: parsed.id, shopId: user.shopId }, select: { id: true } });
     if (!existing) return "Supplier not found.";
   }
-  if (action === "create_payment" && !canUsePaymentDirection(user.role, parsed.direction)) {
-    return "Your role can record customer receipts only. Supplier payouts are admin/manager actions.";
+  if (action === "create_payment") {
+    // Only customer receipts are allowed here now.
   }
   if (action === "create_staff" && !canCreateStaffRole(user.role, parsed.role)) {
     return "You cannot create a staff member with that role.";
@@ -817,10 +785,9 @@ async function searchBusinessRecords(user: AgentUser, args: Record<string, unkno
     const records = await prisma.payment.findMany({
       where: {
         shopId: user.shopId,
-        ...(canUsePaymentDirection(user.role, "SUPPLIER_OUT") ? {} : { direction: "CUSTOMER_IN" as const }),
-        ...(search ? { OR: [{ reference: contains(search) }, { customer: { name: contains(search) } }, { supplier: { name: contains(search) } }] } : {})
+        ...(search ? { OR: [{ reference: contains(search) }, { customer: { name: contains(search) } }] } : {})
       },
-      include: { customer: true, supplier: true, invoice: true, purchase: true },
+      include: { customer: true, invoice: true },
       orderBy: { paidAt: "desc" },
       take: limit
     });
@@ -851,7 +818,7 @@ async function getRecordDetails(user: AgentUser, args: Record<string, unknown>) 
     return { ok: Boolean(record), entity, record: serializable(record) };
   }
   if (entity === "suppliers") {
-    const record = await prisma.supplier.findFirst({ where: { id, shopId: user.shopId }, include: { purchases: { orderBy: { purchaseDate: "desc" }, take: 12 }, payments: { orderBy: { paidAt: "desc" }, take: 12 } } });
+    const record = await prisma.supplier.findFirst({ where: { id, shopId: user.shopId }, include: { purchases: { orderBy: { purchaseDate: "desc" }, take: 12 } } });
     return { ok: Boolean(record), entity, record: serializable(record) };
   }
   if (entity === "invoices") {
@@ -859,13 +826,13 @@ async function getRecordDetails(user: AgentUser, args: Record<string, unknown>) 
     return { ok: Boolean(record), entity, record: serializable(record) };
   }
   if (entity === "purchases") {
-    const record = await prisma.purchase.findFirst({ where: { id, shopId: user.shopId }, include: { supplier: true, items: { include: { product: true } }, payments: { orderBy: { paidAt: "desc" } } } });
+    const record = await prisma.purchase.findFirst({ where: { id, shopId: user.shopId }, include: { supplier: true, items: { include: { product: true } } } });
     return { ok: Boolean(record), entity, record: serializable(record) };
   }
   if (entity === "payments") {
     const record = await prisma.payment.findFirst({
-      where: { id, shopId: user.shopId, ...(canUsePaymentDirection(user.role, "SUPPLIER_OUT") ? {} : { direction: "CUSTOMER_IN" as const }) },
-      include: { customer: true, supplier: true, invoice: true, purchase: true, createdBy: { select: selectStaff } }
+      where: { id, shopId: user.shopId },
+      include: { customer: true, invoice: true, createdBy: { select: selectStaff } }
     });
     return { ok: Boolean(record), entity, record: serializable(record) };
   }
@@ -1362,6 +1329,11 @@ async function executeUpdateProduct(user: AgentUser, payload: unknown) {
   const categoryName = typeof updateData.categoryName === "string" ? updateData.categoryName : null;
   delete updateData.categoryName;
   if (categoryName || updateData.categoryId) updateData.categoryId = await resolveCategoryId(user, updateData.categoryId as string | undefined, categoryName);
+
+  const futureStock = data.changes.stockQty !== undefined ? data.changes.stockQty : existing.stockQty;
+  if (updateData.status === "ARCHIVED" && existing.status !== "ARCHIVED" && futureStock > 0) {
+    throw new Error("Cannot archive a product that still has stock. Please adjust the stock to zero first.");
+  }
   const product = await prisma.$transaction(async (tx) => {
     const updated = await tx.product.update({ where: { id: existing.id }, data: updateData, include: { category: true } });
     if (data.changes.stockQty !== undefined && data.changes.stockQty !== existing.stockQty) {
@@ -1419,14 +1391,12 @@ async function executeCreatePayment(user: AgentUser, payload: unknown) {
         method: resolved.method,
         amount: resolved.amount,
         customerId: resolved.customerId,
-        supplierId: resolved.supplierId,
         invoiceId: resolved.invoiceId,
-        purchaseId: resolved.purchaseId,
         paidAt: resolved.paidAt,
         reference: resolved.reference,
         notes: resolved.notes
       },
-      include: { customer: true, supplier: true, invoice: true, purchase: true }
+      include: { customer: true, invoice: true }
     });
     await applyPaymentEffect(tx, user.shopId, created, 1);
     await tx.activityLog.create({ data: { shopId: user.shopId, userId: user.id, type: "AI_PAYMENT_RECORDED", title: "AI recorded payment", details: `${moneyLabel(created.amount)} via ${created.method}` } });

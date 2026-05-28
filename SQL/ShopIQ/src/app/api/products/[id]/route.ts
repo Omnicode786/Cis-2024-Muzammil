@@ -14,12 +14,15 @@ const productUpdateSchema = z.object({
   description: nullableText(600),
   imageUrl: nullableText(500),
   unit: optionalText(40),
+  packUnit: nullableText(40),
+  packSize: z.coerce.number().int().min(1).optional().nullable(),
   costPrice: money.optional(),
   latestPurchaseCost: money.optional(),
   salePrice: money.optional(),
   taxRate: money.optional(),
   discountRate: money.optional(),
   stockQty: intQty.optional(),
+  physicalCount: z.coerce.number().min(0).optional(),
   stockAdjustmentReason: optionalText(100),
   stockAdjustmentNote: optionalText(600),
   reorderLevel: intQty.optional(),
@@ -54,6 +57,11 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       if (!supplier) return notFound("Selected supplier was not found.");
     }
     
+    if (data.barcode && data.barcode !== existing.barcode) {
+      const existingBarcode = await prisma.product.findFirst({ where: { shopId: user.shopId, barcode: data.barcode, id: { not: existing.id } } });
+      if (existingBarcode) return badRequest("A product with this barcode already exists.");
+    }
+    
     if (data.stockQty !== undefined && data.stockQty !== existing.stockQty) {
       if (!data.stockAdjustmentReason) {
         return badRequest("A stock adjustment reason is required when manually changing stock.");
@@ -63,10 +71,38 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       }
     }
 
-    const { stockAdjustmentReason, stockAdjustmentNote, ...updateData } = data;
+    const futureStock = data.stockQty !== undefined ? data.stockQty : existing.stockQty;
+    if (data.status === "ARCHIVED" && existing.status !== "ARCHIVED" && futureStock > 0) {
+      return badRequest("Cannot archive a product that still has stock. Please write off the stock first.");
+    }
+
+    const { stockAdjustmentReason, stockAdjustmentNote, physicalCount, ...updateData } = data;
+    if (updateData.isPerishable === false) {
+      updateData.batchNo = null;
+      updateData.manufactureDate = null;
+      updateData.expiryDate = null;
+    }
     const product = await prisma.$transaction(async (tx) => {
+      // If physicalCount is provided, it overrides stockQty for cycle counts
+      if (physicalCount !== undefined && physicalCount !== existing.stockQty) {
+        updateData.stockQty = physicalCount;
+      }
       const updated = await tx.product.update({ where: { id: existing.id }, data: updateData, include: { category: true, supplier: true } });
-      if (data.stockQty !== undefined && data.stockQty !== existing.stockQty) {
+      
+      if (physicalCount !== undefined && physicalCount !== existing.stockQty) {
+        const delta = physicalCount - existing.stockQty;
+        await tx.stockMovement.create({ data: { shopId: user.shopId, productId: existing.id, userId: user.id, type: "CYCLE_COUNT", quantity: delta, beforeQty: existing.stockQty, afterQty: physicalCount, reference: "CYCLE_COUNT", notes: "Stock updated via Cycle Count." } });
+        await tx.activityLog.create({ 
+          data: { 
+            shopId: user.shopId, 
+            userId: user.id, 
+            type: "CYCLE_COUNT_LOGGED", 
+            title: `Cycle count recorded for ${updated.name}`, 
+            details: `Physical count: ${physicalCount} (Diff: ${delta > 0 ? '+' : ''}${delta})`,
+            metadata: { beforeQty: existing.stockQty, afterQty: physicalCount, delta } 
+          } 
+        });
+      } else if (data.stockQty !== undefined && data.stockQty !== existing.stockQty) {
         const delta = data.stockQty - existing.stockQty;
         const notes = `Reason: ${stockAdjustmentReason}` + (stockAdjustmentNote ? ` - Note: ${stockAdjustmentNote}` : "");
         await tx.stockMovement.create({ data: { shopId: user.shopId, productId: existing.id, userId: user.id, type: "ADJUSTMENT", quantity: delta, beforeQty: existing.stockQty, afterQty: data.stockQty, reference: "PRODUCT_EDIT", notes } });
@@ -95,8 +131,11 @@ export async function DELETE(_: Request, { params }: { params: { id: string } })
     const user = await getCurrentUser();
     if (!user) return unauthorized();
     if (!can(user.role, "products", "delete")) return forbidden();
-    const product = await prisma.product.findFirst({ where: { id: params.id, shopId: user.shopId }, select: { id: true, name: true } });
+    const product = await prisma.product.findFirst({ where: { id: params.id, shopId: user.shopId }, select: { id: true, name: true, stockQty: true } });
     if (!product) return notFound("Product not found.");
+    if (product.stockQty > 0) {
+      return badRequest("Cannot archive a product that still has stock. Please write off the stock first.");
+    }
     await prisma.product.update({ where: { id: product.id }, data: { status: "ARCHIVED" } });
     await prisma.activityLog.create({ data: { shopId: user.shopId, userId: user.id, type: "PRODUCT_ARCHIVED", title: `Product archived: ${product.name}` } });
     return NextResponse.json({ ok: true });

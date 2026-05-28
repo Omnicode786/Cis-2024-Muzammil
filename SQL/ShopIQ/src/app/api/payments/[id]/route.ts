@@ -9,16 +9,14 @@ import { invoiceItemsSummary, invoicePaymentNotes, invoiceStatusFromPaid, isAuto
 import { prisma } from "@/lib/prisma";
 import { nullableId, nullableText, positiveMoney } from "@/lib/validation";
 
-const include = { customer: true, supplier: true, invoice: true, purchase: true } as const;
+const include = { customer: true, invoice: true } as const;
 
 const paymentUpdateSchema = z.object({
-  direction: z.enum(["CUSTOMER_IN", "SUPPLIER_OUT"]).optional(),
+  direction: z.enum(["CUSTOMER_IN"]).optional(),
   method: z.enum(["CASH", "BANK_TRANSFER", "CARD", "JAZZCASH", "EASYPAISA", "CHEQUE", "OTHER"]).optional(),
   amount: positiveMoney.optional(),
   customerId: nullableId,
-  supplierId: nullableId,
   invoiceId: nullableId,
-  purchaseId: nullableId,
   paidAt: z.coerce.date().optional(),
   reference: nullableText(120),
   notes: nullableText(600)
@@ -40,13 +38,14 @@ function isPaymentValidationError(message: string) {
   ].some((text) => message.includes(text));
 }
 
-async function applyPaymentEffect(tx: any, shopId: string, payment: { direction: string; amount: unknown; customerId?: string | null; supplierId?: string | null; invoiceId?: string | null; purchaseId?: string | null }, sign: 1 | -1) {
+async function applyPaymentEffect(tx: any, shopId: string, payment: { direction: string; amount: unknown; customerId?: string | null; invoiceId?: string | null }, sign: 1 | -1) {
   const amount = Number(payment.amount);
-  if (payment.direction === "CUSTOMER_IN") {
+  
+  try {
     let customerId = payment.customerId || null;
     if (payment.invoiceId) {
-      const invoice = await tx.invoice.findFirst({ where: { id: payment.invoiceId, shopId } });
-      if (invoice) {
+      const invoice = await tx.invoice.findUnique({ where: { id: payment.invoiceId } });
+      if (invoice && invoice.shopId === shopId) {
         customerId = customerId || invoice.customerId;
         if (sign === 1 && amount > Number(invoice.dueAmount || 0)) throw new Error(`Payment amount cannot exceed the remaining invoice balance of ${moneyLabel(invoice.dueAmount)}.`);
         const paidAmount = Math.max(Number(invoice.paidAmount) + sign * amount, 0);
@@ -56,24 +55,18 @@ async function applyPaymentEffect(tx: any, shopId: string, payment: { direction:
         await tx.invoice.update({ where: { id: invoice.id }, data: { paidAmount, dueAmount, status } });
       }
     }
-    if (customerId) await tx.customer.update({ where: { id: customerId }, data: { balance: sign === 1 ? { decrement: amount } : { increment: amount } } });
-  }
-  if (payment.direction === "SUPPLIER_OUT") {
-    let supplierId = payment.supplierId || null;
-    if (payment.purchaseId) {
-      const purchase = await tx.purchase.findFirst({ where: { id: payment.purchaseId, shopId } });
-      if (purchase) {
-        supplierId = supplierId || purchase.supplierId;
-        const paidAmount = Math.max(Number(purchase.paidAmount) + sign * amount, 0);
-        const dueAmount = Math.max(Number(purchase.total) - paidAmount, 0);
-        await tx.purchase.update({ where: { id: purchase.id }, data: { paidAmount, dueAmount } });
-      }
+    if (customerId) {
+      await tx.customer.update({ where: { id: customerId }, data: { balance: sign === 1 ? { decrement: amount } : { increment: amount } } });
     }
-    if (supplierId) await tx.supplier.update({ where: { id: supplierId }, data: { balance: sign === 1 ? { decrement: amount } : { increment: amount } } });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Transaction")) {
+      throw new Error("Database transaction failed. Please try again.");
+    }
+    throw error;
   }
 }
 
-async function resolvePaymentLinks(db: any, shopId: string, payment: { direction: string; method: PaymentMethod; amount: unknown; customerId?: string | null; supplierId?: string | null; invoiceId?: string | null; purchaseId?: string | null; reference?: string | null; notes?: string | null }) {
+async function resolvePaymentLinks(db: any, shopId: string, payment: { direction: string; method: PaymentMethod; amount: unknown; customerId?: string | null; invoiceId?: string | null; reference?: string | null; notes?: string | null }) {
   if (payment.invoiceId) {
     if (payment.direction !== "CUSTOMER_IN") return "Invoice payments must use customer-in direction.";
     const invoice = await db.invoice.findFirst({ where: { id: payment.invoiceId, shopId, status: { not: "CANCELLED" } }, include: { customer: true, items: { include: { product: true } } } });
@@ -99,15 +92,8 @@ async function resolvePaymentLinks(db: any, shopId: string, payment: { direction
       userNotes: payment.notes
     });
   }
-  if (payment.purchaseId) {
-    const purchase = await db.purchase.findFirst({ where: { id: payment.purchaseId, shopId }, select: { id: true, supplierId: true } });
-    if (!purchase) return "Purchase not found.";
-    payment.supplierId = payment.supplierId || purchase.supplierId;
-  }
   if (payment.customerId && !(await db.customer.findFirst({ where: { id: payment.customerId, shopId }, select: { id: true } }))) return "Customer not found.";
-  if (payment.supplierId && !(await db.supplier.findFirst({ where: { id: payment.supplierId, shopId }, select: { id: true } }))) return "Supplier not found.";
-  if (payment.direction === "CUSTOMER_IN" && !payment.customerId && !payment.invoiceId) return "Customer payments need a customer or invoice.";
-  if (payment.direction === "SUPPLIER_OUT" && !payment.supplierId && !payment.purchaseId) return "Supplier payouts need a supplier or purchase.";
+  if (!payment.customerId && !payment.invoiceId) return "Customer payments need a customer or invoice.";
   return null;
 }
 
@@ -125,26 +111,45 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       method: data.method ?? existing.method,
       amount: data.amount ?? Number(existing.amount),
       customerId: data.customerId !== undefined ? data.customerId || null : existing.customerId,
-      supplierId: data.supplierId !== undefined ? data.supplierId || null : existing.supplierId,
       invoiceId: data.invoiceId !== undefined ? data.invoiceId || null : existing.invoiceId,
-      purchaseId: data.purchaseId !== undefined ? data.purchaseId || null : existing.purchaseId,
       paidAt: data.paidAt ?? existing.paidAt,
       reference: data.reference !== undefined ? data.reference : existing.reference,
       notes: data.notes !== undefined ? data.notes : existing.notes
     };
-    if (!canUsePaymentDirection(user.role, next.direction)) return forbidden("Your role can record customer receipts only.");
-    const payment = await prisma.$transaction(async (tx) => {
-      await applyPaymentEffect(tx, user.shopId, existing, -1);
-      const linkError = await resolvePaymentLinks(tx, user.shopId, next);
-      if (linkError) throw new Error(linkError);
-      const updated = await tx.payment.update({ where: { id: existing.id }, data: next, include });
-      await applyPaymentEffect(tx, user.shopId, updated, 1);
-      await tx.activityLog.create({ data: { shopId: user.shopId, userId: user.id, type: "PAYMENT_UPDATED", title: "Payment updated" } });
-      return updated;
-    });
-    return NextResponse.json({ payment });
+    
+    let payment;
+    let lastError: Error | null = null;
+    const maxRetries = 3;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        payment = await prisma.$transaction(
+          async (tx) => {
+            await applyPaymentEffect(tx, user.shopId, existing, -1);
+            const linkError = await resolvePaymentLinks(tx, user.shopId, next);
+            if (linkError) throw new Error(linkError);
+            const updated = await tx.payment.update({ where: { id: existing.id }, data: next, include });
+            await applyPaymentEffect(tx, user.shopId, updated, 1);
+            await tx.activityLog.create({ data: { shopId: user.shopId, userId: user.id, type: "PAYMENT_UPDATED", title: "Payment updated" } });
+            return updated;
+          },
+          { timeout: 10000, maxWait: 5000 }
+        );
+        return NextResponse.json({ payment });
+      } catch (e) {
+        lastError = e as Error;
+        if (attempt < maxRetries && lastError instanceof Error && (lastError.message.includes("Transaction") || lastError.message.includes("connection"))) {
+          await new Promise(resolve => setTimeout(resolve, Math.min(1000 * attempt, 3000)));
+          continue;
+        }
+        throw lastError;
+      }
+    }
+    
+    throw lastError || new Error("Payment update failed after retries");
   } catch (e) {
     if (e instanceof Error && (e.message === WALK_IN_PAYMENT_REQUIRED_MESSAGE || isPaymentValidationError(e.message))) return badRequest(e.message);
+    if (e instanceof Error && (e.message.includes("Database transaction failed") || e.message.includes("Transaction"))) return apiError(e, "Payment update failed. The database was temporarily unavailable. Please try again.");
     return apiError(e, "Unable to update payment.");
   }
 }

@@ -14,6 +14,8 @@ const productSchema = z.object({
   description: optionalText(600),
   imageUrl: optionalText(500),
   unit: optionalText(40).default("pcs"),
+  packUnit: optionalText(40),
+  packSize: z.coerce.number().int().min(1).optional().nullable(),
   costPrice: money,
   salePrice: money,
   taxRate: money,
@@ -57,6 +59,15 @@ export async function POST(request: Request) {
     if (data.supplierId) {
       const supplier = await prisma.supplier.findFirst({ where: { id: data.supplierId, shopId: user.shopId }, select: { id: true } });
       if (!supplier) return NextResponse.json({ error: "Selected supplier was not found." }, { status: 404 });
+    }
+    if (data.barcode) {
+      const existingBarcode = await prisma.product.findFirst({ where: { shopId: user.shopId, barcode: data.barcode } });
+      if (existingBarcode) return NextResponse.json({ error: "A product with this barcode already exists." }, { status: 400 });
+    }
+    if (!data.isPerishable) {
+      data.batchNo = undefined;
+      data.manufactureDate = undefined;
+      data.expiryDate = undefined;
     }
     const product = await prisma.$transaction(async (tx) => {
       const created = await tx.product.create({

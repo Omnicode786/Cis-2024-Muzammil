@@ -15,7 +15,7 @@ export async function getDashboardSnapshot(shopId: string, role?: UserRole | str
     prisma.customer.findMany({ where: { shopId }, orderBy: { balance: "desc" } }),
     includeSupplierSide ? prisma.supplier.findMany({ where: { shopId }, orderBy: { balance: "desc" } }) : Promise.resolve([]),
     prisma.invoice.findMany({ where: { shopId }, include: { items: { include: { product: true } }, customer: true }, orderBy: { invoiceDate: "desc" }, take: 300 }),
-    prisma.payment.findMany({ where: { shopId, ...(includeSupplierSide ? {} : { direction: "CUSTOMER_IN" as const }) }, orderBy: { paidAt: "desc" }, take: 150 }),
+    prisma.payment.findMany({ where: { shopId }, orderBy: { paidAt: "desc" }, take: 150 }),
     includeSupplierSide ? prisma.purchase.findMany({ where: { shopId }, orderBy: { purchaseDate: "desc" }, take: 150 }) : Promise.resolve([]),
     prisma.stockMovement.findMany({ where: { shopId }, include: { product: true }, orderBy: { movedAt: "desc" }, take: 300 }),
     prisma.activityLog.findMany({ where: { shopId }, orderBy: { createdAt: "desc" }, take: 12 })
@@ -52,12 +52,20 @@ export async function getDashboardSnapshot(shopId: string, role?: UserRole | str
     return acc;
   }, []);
   const revenueTimeline = buildDailySeries(invoices, (invoice) => invoice.invoiceDate, (invoice) => n(invoice.total), 14);
+  const cashflowItems = [
+    ...payments.map(p => ({ date: p.paidAt, in: n(p.amount), out: 0 })),
+    ...purchases.filter(p => p.status === "PAYMENT_OUT" || p.status === "REFUND_IN").map(p => ({
+      date: p.purchaseDate || p.createdAt,
+      in: p.status === "REFUND_IN" ? n(p.paidAmount) : 0,
+      out: p.status === "PAYMENT_OUT" ? n(p.paidAmount) : 0
+    }))
+  ];
   const cashflowTimeline = buildDailySeries(
-    payments,
-    (payment) => payment.paidAt,
-    (payment) => payment.direction === "CUSTOMER_IN" ? n(payment.amount) : 0,
+    cashflowItems,
+    (item) => item.date,
+    (item) => item.in,
     14,
-    (payment) => payment.direction === "SUPPLIER_OUT" ? n(payment.amount) : 0
+    (item) => item.out
   );
   const invoiceStatus = statusSegments(invoices, (invoice) => invoice.status);
   const purchaseStatus = statusSegments(purchases, (purchase) => purchase.status);

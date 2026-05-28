@@ -3,6 +3,7 @@ import { CrudManager } from "@/components/workspace/crud-manager";
 import { MetricCard } from "@/components/workspace/metric-card";
 import { ModuleHero, ModuleInsightPanel } from "@/components/workspace/module-hero";
 import { PurchaseFlow } from "@/components/workspace/purchase-flow";
+import { SupplierPaymentFlow } from "@/components/workspace/supplier-payment-flow";
 import { SectionHeader } from "@/components/workspace/section-header";
 import { getCurrentUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
@@ -95,7 +96,7 @@ export default async function Purchases({ searchParams }: { searchParams?: Table
           pagination={paginationMeta(table, purchasesTotal)}
           filterConfig={{
             statusKey: "status",
-            statusOptions: ["ORDERED", "RECEIVED", "PARTIAL", "CANCELLED"],
+            statusOptions: ["ORDERED", "RECEIVED", "PARTIAL", "CANCELLED", "PAYMENT_OUT", "REFUND_IN"],
             facetKey: "supplierName",
             facetLabel: "Supplier",
             facetOptions: suppliers.map((supplier: any) => supplier.name),
@@ -108,10 +109,10 @@ export default async function Purchases({ searchParams }: { searchParams?: Table
             { key: "supplierId", label: "Supplier", type: "select", options: suppliers.map((supplier: any) => ({ label: supplier.name, value: supplier.id })) },
             { key: "productId", label: "Product", type: "select", required: true, hideOnEdit: true, options: products.map((product: any) => ({ label: product.name, value: product.id })) },
             { key: "quantity", label: "Quantity", type: "number", required: true, hideOnEdit: true },
-            { key: "unitCost", label: "Unit cost", type: "number", required: true, hideOnEdit: true },
+            { key: "unitCost", label: "Unit cost", type: "number", hideOnEdit: true },
             { key: "paidAmount", label: "Paid amount", type: "number" },
             { key: "total", label: "Total", type: "number", hideOnCreate: true },
-            { key: "status", label: "Status", type: "select", hideOnCreate: true, options: [{ label: "Ordered", value: "ORDERED" }, { label: "Received", value: "RECEIVED" }, { label: "Partial", value: "PARTIAL" }, { label: "Cancelled", value: "CANCELLED" }] },
+            { key: "status", label: "Status", type: "select", hideOnCreate: true, options: [{ label: "Ordered", value: "ORDERED" }, { label: "Received", value: "RECEIVED" }, { label: "Partial", value: "PARTIAL" }, { label: "Cancelled", value: "CANCELLED" }, { label: "Payment Out", value: "PAYMENT_OUT" }, { label: "Refund In", value: "REFUND_IN" }] },
             { key: "notes", label: "Notes", type: "textarea", span: "full" }
           ]}
           columns={[
@@ -124,7 +125,12 @@ export default async function Purchases({ searchParams }: { searchParams?: Table
             { key: "status", label: "Status" }
           ]}
           canCreate={canCreatePurchase}
-          createAction={<PurchaseFlow suppliers={suppliers} products={products} canCreate={canCreatePurchase} />}
+          createAction={
+            <div className="flex gap-2">
+              <SupplierPaymentFlow suppliers={suppliers} canCreate={canCreatePurchase} />
+              <PurchaseFlow suppliers={suppliers} products={products} canCreate={canCreatePurchase} />
+            </div>
+          }
           canUpdate={can(user?.role, "purchases", "update")}
           canDelete={can(user?.role, "purchases", "delete")}
           createLabel="Create purchase"

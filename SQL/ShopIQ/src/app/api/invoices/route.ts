@@ -50,8 +50,9 @@ export async function POST(request: Request) {
     if (!user) return unauthorized();
     if (!can(user.role, "invoices", "create")) return forbidden();
     const data = invoiceSchema.parse(await request.json());
+    let customer: any = null;
     if (data.customerId) {
-      const customer = await prisma.customer.findFirst({ where: { id: data.customerId, shopId: user.shopId }, select: { id: true } });
+      customer = await prisma.customer.findFirst({ where: { id: data.customerId, shopId: user.shopId }, select: { id: true, balance: true, creditLimit: true } });
       if (!customer) return notFound("Customer not found.");
     }
     const products = await prisma.product.findMany({ where: { shopId: user.shopId, id: { in: data.items.map((item) => item.productId) }, status: "ACTIVE" } });
@@ -75,6 +76,12 @@ export async function POST(request: Request) {
     const due = Math.max(total - paid, 0);
     const paymentBreakdown = data.paymentBreakdown || (paid > 0 ? { [data.paymentMethod]: paid } : undefined);
     if (walkInInvoiceHasDue(data.customerId, total, paid)) return badRequest(WALK_IN_PAYMENT_REQUIRED_MESSAGE);
+    
+    if (due > 0 && customer && Number(customer.creditLimit) > 0) {
+      if (Number(customer.balance) + due > Number(customer.creditLimit)) {
+        return badRequest(`Credit limit exceeded. The customer's balance is PKR ${Number(customer.balance).toLocaleString()} and their credit limit is PKR ${Number(customer.creditLimit).toLocaleString()}.`);
+      }
+    }
     const invoice = await prisma.$transaction(async (tx) => {
       const inv = await tx.invoice.create({
         data: {

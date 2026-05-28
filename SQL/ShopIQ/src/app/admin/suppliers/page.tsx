@@ -111,7 +111,11 @@ export default async function Suppliers({ searchParams }: { searchParams?: Table
             { key: "leadTimeDays", label: "Lead time days", type: "number" },
             { key: "ntn", label: "NTN" },
             { key: "gstNumber", label: "GST number" },
-            { key: "balance", label: "Opening payable", type: "number" },
+            { key: "balance", label: "Current payable", type: "number", readOnly: true },
+            { key: "openingBalance", label: "Opening payable", type: "number", hideOnEdit: true },
+            { key: "balanceAdjustment", label: "Adjust balance (+/-)", type: "number", hideOnCreate: true },
+            { key: "balanceAdjustmentReason", label: "Adjustment reason", type: "select", hideOnCreate: true, options: [{ label: "Opening balance correction", value: "Opening balance correction" }, { label: "Supplier discount/waiver", value: "Supplier discount/waiver" }, { label: "Refund adjustment", value: "Refund adjustment" }, { label: "Other", value: "Other" }] },
+            { key: "balanceAdjustmentNote", label: "Adjustment note", type: "text", hideOnCreate: true, span: "full" },
             { key: "reliabilityScore", label: "Reliability score", type: "number" },
             { key: "notes", label: "Notes", type: "textarea", span: "full" }
           ]}

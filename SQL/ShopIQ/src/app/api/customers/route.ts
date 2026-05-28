@@ -21,6 +21,7 @@ const customerSchema = z.object({
   preferredPaymentMethod: z.enum(["CASH", "BANK_TRANSFER", "CARD", "JAZZCASH", "EASYPAISA", "CHEQUE", "OTHER"]).optional(),
   creditLimit: money,
   openingBalance: money.optional(),
+  status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
   notes: optionalText(600)
 });
 
@@ -43,6 +44,10 @@ export async function POST(request: Request) {
     if (!can(user.role, "customers", "create")) return forbidden();
     const data = customerSchema.parse(await request.json());
     const { openingBalance, ...customerData } = data;
+    if (customerData.phone) {
+      const existingPhone = await prisma.customer.findFirst({ where: { shopId: user.shopId, phone: customerData.phone } });
+      if (existingPhone) return NextResponse.json({ error: "A customer with this phone number already exists." }, { status: 400 });
+    }
     const customer = await prisma.$transaction(async (tx) => {
       const created = await tx.customer.create({ data: { shopId: user.shopId, ...customerData, balance: openingBalance || 0 } });
       await tx.activityLog.create({ data: { shopId: user.shopId, userId: user.id, type: "CUSTOMER_CREATED", title: `Customer added: ${created.name}` } });

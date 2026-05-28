@@ -65,10 +65,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     if (!existing) return notFound("Invoice not found.");
     if (data.status === "CANCELLED") return cancelInvoice(user, params.id);
     if (existing.status === "CANCELLED") return badRequest("Cancelled invoices cannot be edited.");
-    if (data.customerId) {
-      const customer = await prisma.customer.findFirst({ where: { id: data.customerId, shopId: user.shopId }, select: { id: true } });
-      if (!customer) return notFound("Customer not found.");
-    }
+    // Customer validation moved down to after nextDue calculation
     const nextTotal = Number(data.total ?? existing.total);
     const manualPaid = existing.payments
       .filter((payment) => !isAutomaticInvoicePayment(payment, existing.invoiceNo))
@@ -90,6 +87,21 @@ export async function PATCH(request: Request, { params }: { params: { id: string
             ? null
             : undefined;
     if (walkInInvoiceHasDue(nextCustomerId, nextTotal, nextPaid, nextStatus)) return badRequest(WALK_IN_PAYMENT_REQUIRED_MESSAGE);
+    
+    if (nextCustomerId) {
+      const customer = await prisma.customer.findFirst({ where: { id: nextCustomerId, shopId: user.shopId }, select: { id: true, balance: true, creditLimit: true } });
+      if (!customer) return notFound("Customer not found.");
+      
+      if (nextDue > 0 && Number(customer.creditLimit) > 0) {
+        const baseBalance = nextCustomerId === existing.customerId 
+          ? Number(customer.balance) - Number(existing.dueAmount) 
+          : Number(customer.balance);
+          
+        if (baseBalance + nextDue > Number(customer.creditLimit)) {
+          return badRequest(`Credit limit exceeded. The customer's projected balance is PKR ${(baseBalance + nextDue).toLocaleString()} and their credit limit is PKR ${Number(customer.creditLimit).toLocaleString()}.`);
+        }
+      }
+    }
     const updateData = {
       ...data,
       customerId: nextCustomerId,

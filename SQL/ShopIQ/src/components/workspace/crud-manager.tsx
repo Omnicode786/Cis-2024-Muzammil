@@ -17,7 +17,7 @@ type Option = { label: string; value: string; meta?: Record<string, any> };
 type Field = {
   key: string;
   label: string;
-  type?: "text" | "number" | "email" | "password" | "textarea" | "select";
+  type?: "text" | "number" | "email" | "password" | "textarea" | "select" | "checkbox";
   placeholder?: string;
   required?: boolean;
   defaultValue?: string | number;
@@ -30,6 +30,7 @@ type Field = {
   max?: number;
   step?: string | number;
   autoComplete?: string;
+  showIf?: (form: Record<string, any>) => boolean;
 };
 type Column = { key: string; label: string; render?: (row: any) => ReactNode; className?: string };
 type PaginationMeta = {
@@ -748,6 +749,13 @@ export function CrudManager({
       window.setTimeout(() => (document.getElementsByName(firstKey)[0] as HTMLElement | undefined)?.focus(), 0);
       return;
     }
+    
+    if (form.salePrice !== undefined && form.costPrice !== undefined) {
+      if (Number(form.salePrice) < Number(form.costPrice)) {
+        toast.warning("Warning: Sale price is set lower than cost price.");
+      }
+    }
+    
     setLoading(true);
     setMessage(null);
     setFieldErrors({});
@@ -996,6 +1004,8 @@ export function CrudManager({
                         const error = fieldErrors[field.key];
                         const min = field.min ?? (isNonNegativeNumberField(field) ? 0 : undefined);
                         const fieldLockedByInvoice = endpoint.includes("/payments") && field.key === "customerId" && Boolean(form.invoiceId);
+                        
+                        if (field.showIf && !field.showIf(form)) return null;
 
                         return (
                           <label
@@ -1035,6 +1045,17 @@ export function CrudManager({
                                   </option>
                                 ))}
                               </select>
+                            ) : field.type === "checkbox" ? (
+                              <div className="flex h-10 items-center">
+                                <input
+                                  type="checkbox"
+                                  name={field.key}
+                                  checked={Boolean(form[field.key])}
+                                  onChange={(event) => updateField(field.key, event.target.checked)}
+                                  disabled={field.readOnly}
+                                  className="size-5 rounded border-input bg-background accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                />
+                              </div>
                             ) : (
                               <Input
                                 name={field.key}
