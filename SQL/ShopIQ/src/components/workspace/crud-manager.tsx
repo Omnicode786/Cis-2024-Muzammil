@@ -31,6 +31,7 @@ type Field = {
   step?: string | number;
   autoComplete?: string;
   showIf?: (form: Record<string, any>) => boolean;
+  showWhen?: { key: string; equals?: any; truthy?: boolean };
 };
 type Column = { key: string; label: string; render?: (row: any) => ReactNode; className?: string };
 type PaginationMeta = {
@@ -175,11 +176,19 @@ function validateForm(fields: Field[], form: Record<string, any>, mode: "create"
     const direction = form.direction || "CUSTOMER_IN";
     const invoiceOption = fields.find((field) => field.key === "invoiceId")?.options?.find((option) => option.value === form.invoiceId);
     const invoiceMeta = invoiceOption?.meta;
+    const purchaseOption = fields.find((field) => field.key === "purchaseId")?.options?.find((option) => option.value === form.purchaseId);
+    const purchaseMeta = purchaseOption?.meta;
     if (direction === "CUSTOMER_IN" && !form.customerId && !form.invoiceId) {
       errors.customerId = "Choose a customer or link an invoice.";
     }
-    if (direction === "SUPPLIER_OUT" && !form.supplierId && !form.purchaseId) {
-      errors.supplierId = "Choose a supplier or link a purchase.";
+    if (direction === "CUSTOMER_IN" && (form.supplierId || form.purchaseId)) {
+      errors.direction = "Customer payments cannot be linked to supplier purchases.";
+    }
+    if (direction === "SUPPLIER_OUT" && !form.purchaseId) {
+      errors.purchaseId = "Choose the purchase this supplier payment is settling.";
+    }
+    if (direction === "SUPPLIER_OUT" && (form.customerId || form.invoiceId)) {
+      errors.direction = "Supplier payments cannot be linked to customer invoices.";
     }
     if (form.invoiceId && invoiceMeta) {
       if (form.customerId && invoiceMeta.customerId && form.customerId !== invoiceMeta.customerId) {
@@ -190,6 +199,17 @@ function validateForm(fields: Field[], form: Record<string, any>, mode: "create"
         const amount = Number(form.amount || 0);
         if (remainingBalance <= 0) errors.invoiceId = "This invoice is already fully paid.";
         if (amount > remainingBalance) errors.amount = `Payment cannot exceed ${moneyLabel(remainingBalance)} remaining on this invoice.`;
+      }
+    }
+    if (form.purchaseId && purchaseMeta) {
+      if (form.supplierId && purchaseMeta.supplierId && form.supplierId !== purchaseMeta.supplierId) {
+        errors.supplierId = "The selected purchase controls the supplier.";
+      }
+      if (mode === "create") {
+        const remainingBalance = Number(purchaseMeta.remainingBalance || 0);
+        const amount = Number(form.amount || 0);
+        if (remainingBalance <= 0) errors.purchaseId = "This purchase is already fully paid.";
+        if (amount > remainingBalance) errors.amount = `Payment cannot exceed ${moneyLabel(remainingBalance)} remaining on this purchase.`;
       }
     }
   }
@@ -204,6 +224,7 @@ function validateForm(fields: Field[], form: Record<string, any>, mode: "create"
     }
   }
   if (submitShape === "purchase" && mode === "create" && !form.productId) errors.productId = "Choose a product for this purchase.";
+  if (submitShape === "purchase" && mode === "create" && !form.supplierId) errors.supplierId = "Choose a supplier for this purchase.";
   return errors;
 }
 
@@ -1006,6 +1027,15 @@ export function CrudManager({
                         const fieldLockedByInvoice = endpoint.includes("/payments") && field.key === "customerId" && Boolean(form.invoiceId);
                         
                         if (field.showIf && !field.showIf(form)) return null;
+                        if (field.showWhen) {
+                          const currentValue = form[field.showWhen.key];
+                          const isVisible = field.showWhen.truthy
+                            ? Boolean(currentValue)
+                            : field.showWhen.equals === undefined
+                              ? Boolean(currentValue)
+                              : currentValue === field.showWhen.equals;
+                          if (!isVisible) return null;
+                        }
 
                         return (
                           <label

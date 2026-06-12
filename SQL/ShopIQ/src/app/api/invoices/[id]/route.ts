@@ -32,12 +32,33 @@ async function cancelInvoice(user: { id: string; shopId: string }, invoiceId: st
   if (!existing) return notFound("Invoice not found.");
   if (existing.status === "CANCELLED") return NextResponse.json({ ok: true });
   await prisma.$transaction(async (tx) => {
+    if (existing.customerId && Number(existing.dueAmount) > 0) {
+      await tx.$queryRaw`
+        SELECT "id"
+        FROM "Customer"
+        WHERE "id" = ${existing.customerId} AND "shopId" = ${user.shopId}
+        FOR UPDATE
+      `;
+    }
+    const productIds = [...new Set(existing.items.map((item) => item.productId))].sort();
+    const lockedProducts = productIds.length
+      ? await tx.$queryRaw<Array<{ id: string; stockQty: number }>>`
+          SELECT "id", "stockQty"
+          FROM "Product"
+          WHERE "shopId" = ${user.shopId}
+            AND "id" IN (${Prisma.join(productIds)})
+          ORDER BY "id"
+          FOR UPDATE
+        `
+      : [];
+    const productStock = new Map(lockedProducts.map((product) => [product.id, product.stockQty]));
+
     if (existing.customerId && Number(existing.dueAmount) > 0) await tx.customer.update({ where: { id: existing.customerId }, data: { balance: { decrement: Number(existing.dueAmount) } } });
     const runningStock = new Map<string, number>();
     for (const item of existing.items) {
-      const product = await tx.product.findUnique({ where: { id: item.productId } });
-      if (!product) continue;
-      const beforeQty = runningStock.get(item.productId) ?? product.stockQty;
+      const lockedStock = productStock.get(item.productId);
+      if (lockedStock === undefined) continue;
+      const beforeQty = runningStock.get(item.productId) ?? lockedStock;
       const afterQty = beforeQty + item.quantity;
       runningStock.set(item.productId, afterQty);
       await tx.product.update({ where: { id: item.productId }, data: { stockQty: { increment: item.quantity } } });
@@ -88,20 +109,6 @@ export async function PATCH(request: Request, { params }: { params: { id: string
             : undefined;
     if (walkInInvoiceHasDue(nextCustomerId, nextTotal, nextPaid, nextStatus)) return badRequest(WALK_IN_PAYMENT_REQUIRED_MESSAGE);
     
-    if (nextCustomerId) {
-      const customer = await prisma.customer.findFirst({ where: { id: nextCustomerId, shopId: user.shopId }, select: { id: true, balance: true, creditLimit: true } });
-      if (!customer) return notFound("Customer not found.");
-      
-      if (nextDue > 0 && Number(customer.creditLimit) > 0) {
-        const baseBalance = nextCustomerId === existing.customerId 
-          ? Number(customer.balance) - Number(existing.dueAmount) 
-          : Number(customer.balance);
-          
-        if (baseBalance + nextDue > Number(customer.creditLimit)) {
-          return badRequest(`Credit limit exceeded. The customer's projected balance is PKR ${(baseBalance + nextDue).toLocaleString()} and their credit limit is PKR ${Number(customer.creditLimit).toLocaleString()}.`);
-        }
-      }
-    }
     const updateData = {
       ...data,
       customerId: nextCustomerId,
@@ -111,6 +118,32 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       paymentBreakdown: nextPaymentBreakdown === null ? Prisma.JsonNull : nextPaymentBreakdown
     };
     const invoice = await prisma.$transaction(async (tx) => {
+      const customerIdsToLock = [...new Set([existing.customerId, nextCustomerId].filter(Boolean) as string[])].sort();
+      const lockedCustomers = customerIdsToLock.length
+        ? await tx.$queryRaw<Array<{ id: string; balance: unknown; creditLimit: unknown }>>`
+            SELECT "id", "balance", "creditLimit"
+            FROM "Customer"
+            WHERE "shopId" = ${user.shopId}
+              AND "id" IN (${Prisma.join(customerIdsToLock)})
+            ORDER BY "id"
+            FOR UPDATE
+          `
+        : [];
+      const customerMap = new Map(lockedCustomers.map((customer) => [customer.id, customer]));
+      if (nextCustomerId) {
+        const customer = customerMap.get(nextCustomerId);
+        if (!customer) throw new Error("CUSTOMER_NOT_FOUND");
+
+        if (nextDue > 0 && Number(customer.creditLimit) > 0) {
+          const baseBalance = nextCustomerId === existing.customerId
+            ? Number(customer.balance) - Number(existing.dueAmount)
+            : Number(customer.balance);
+
+          if (baseBalance + nextDue > Number(customer.creditLimit)) {
+            throw new Error(`CREDIT_LIMIT_EXCEEDED: Credit limit exceeded. The customer's projected balance is PKR ${(baseBalance + nextDue).toLocaleString()} and their credit limit is PKR ${Number(customer.creditLimit).toLocaleString()}.`);
+          }
+        }
+      }
       if (existing.customerId && Number(existing.dueAmount) > 0) await tx.customer.update({ where: { id: existing.customerId }, data: { balance: { decrement: Number(existing.dueAmount) } } });
       if (nextCustomerId && nextDue > 0 && updateData.status !== "CANCELLED") await tx.customer.update({ where: { id: nextCustomerId }, data: { balance: { increment: nextDue } } });
       const updated = await tx.invoice.update({ where: { id: existing.id }, data: updateData, include: { customer: true, items: { include: { product: true } } } });
@@ -127,6 +160,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     });
     return NextResponse.json({ invoice });
   } catch (e) {
+    if (e instanceof Error && e.message === "CUSTOMER_NOT_FOUND") return notFound("Customer not found.");
+    if (e instanceof Error && e.message.startsWith("CREDIT_LIMIT_EXCEEDED:")) return badRequest(e.message.replace("CREDIT_LIMIT_EXCEEDED:", "").trim());
     return apiError(e, "Unable to update invoice.");
   }
 }

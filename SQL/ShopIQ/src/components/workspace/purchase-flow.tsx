@@ -174,8 +174,8 @@ export function PurchaseFlow({ suppliers, products, canCreate }: { suppliers: Su
       stopWithMessage("Enter the new supplier name or switch back to selecting a supplier.");
       return;
     }
-    if (due > 0 && !createSupplier && !form.supplierId) {
-      stopWithMessage("Choose or create a supplier when any purchase amount will remain due.");
+    if (!createSupplier && !form.supplierId) {
+      stopWithMessage("Choose or create a supplier before receiving stock.");
       return;
     }
 
@@ -285,7 +285,7 @@ export function PurchaseFlow({ suppliers, products, canCreate }: { suppliers: Su
                       <label className="crud-field">
                         <span className="crud-field-label">Supplier</span>
                         <select className="form-select" value={form.supplierId} onChange={(event) => update("supplierId", event.target.value)}>
-                          <option value="">General cash purchase</option>
+                          <option value="">Select supplier</option>
                           {suppliers.map((supplier) => (
                             <option key={supplier.id} value={supplier.id}>{supplier.name}{supplier.phone ? ` - ${supplier.phone}` : ""}</option>
                           ))}

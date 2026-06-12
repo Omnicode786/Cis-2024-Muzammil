@@ -42,7 +42,7 @@ export default async function ProductsPage({ searchParams }: { searchParams?: Ta
     prisma.product.findMany({ where: productWhere, include: { category: true, supplier: true }, orderBy: { updatedAt: "desc" }, skip: table.skip, take: table.take }),
     prisma.product.count({ where: productWhere }),
     prisma.category.findMany({ where: { shopId: user!.shopId }, orderBy: { name: "asc" } }),
-    prisma.supplier.findMany({ where: { shopId: user!.shopId }, orderBy: { name: "asc" } }),
+    prisma.supplier.findMany({ where: { shopId: user!.shopId, status: "ACTIVE" }, orderBy: { name: "asc" } }),
     prisma.product.findMany({ where: { shopId: user!.shopId, status: "ACTIVE" }, select: { stockQty: true, costPrice: true, reorderLevel: true } })
   ]);
   const products = toPlain(productsRaw).map((product: any) => ({
@@ -134,9 +134,9 @@ export default async function ProductsPage({ searchParams }: { searchParams?: Ta
             { key: "shelf", label: "Shelf" },
             { key: "productType", label: "Product type" },
             { key: "isPerishable", label: "Is Perishable/Batch Tracked?", type: "checkbox", span: "full" },
-            { key: "batchNo", label: "Batch number", showIf: (form) => Boolean(form.isPerishable) },
-            { key: "manufactureDate", label: "Manufacture date", type: "date" as any, showIf: (form) => Boolean(form.isPerishable) },
-            { key: "expiryDate", label: "Expiry date", type: "date" as any, showIf: (form) => Boolean(form.isPerishable) },
+            { key: "batchNo", label: "Batch number", showWhen: { key: "isPerishable", truthy: true } },
+            { key: "manufactureDate", label: "Manufacture date", type: "date" as any, showWhen: { key: "isPerishable", truthy: true } },
+            { key: "expiryDate", label: "Expiry date", type: "date" as any, showWhen: { key: "isPerishable", truthy: true } },
             { key: "description", label: "Description", type: "textarea", span: "full" },
             { key: "status", label: "Status", type: "select", hideOnCreate: true, options: [{ label: "Active", value: "ACTIVE" }, { label: "Archived", value: "ARCHIVED" }] }
           ]}

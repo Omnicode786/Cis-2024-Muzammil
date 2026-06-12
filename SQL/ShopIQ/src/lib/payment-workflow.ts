@@ -108,7 +108,17 @@ export async function syncAutomaticInvoicePayment(
   });
   const normalizedAmount = Math.max(0, Math.min(amount, Number(invoice.total || 0)));
   if (normalizedAmount <= 0) {
-    if (existing) await tx.payment.delete({ where: { id: existing.id } });
+    if (existing) {
+      await tx.payment.update({
+        where: { id: existing.id },
+        data: {
+          status: "VOIDED",
+          voidedAt: new Date(),
+          voidedById: createdById,
+          voidReason: "Automatic invoice payment voided because the invoice paid amount is zero."
+        }
+      });
+    }
     await tx.payment.updateMany({ where: { shopId, invoiceId: invoice.id, direction: "CUSTOMER_IN" }, data: { customerId: invoice.customerId || null } });
     return null;
   }
@@ -135,9 +145,13 @@ export async function syncAutomaticInvoicePayment(
     purchaseId: null,
     direction: "CUSTOMER_IN" as const,
     method: nextMethod,
+    status: "ACTIVE" as const,
     amount: normalizedAmount,
     reference,
-    notes
+    notes,
+    voidedAt: null,
+    voidedById: null,
+    voidReason: null
   };
 
   if (existing) {

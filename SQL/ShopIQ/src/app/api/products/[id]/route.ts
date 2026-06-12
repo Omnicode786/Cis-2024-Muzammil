@@ -22,7 +22,7 @@ const productUpdateSchema = z.object({
   taxRate: money.optional(),
   discountRate: money.optional(),
   stockQty: intQty.optional(),
-  physicalCount: z.coerce.number().min(0).optional(),
+  physicalCount: z.coerce.number().int().min(0).optional(),
   stockAdjustmentReason: optionalText(100),
   stockAdjustmentNote: optionalText(600),
   reorderLevel: intQty.optional(),
@@ -53,7 +53,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       if (!category) return notFound("Selected category was not found.");
     }
     if (data.supplierId) {
-      const supplier = await prisma.supplier.findFirst({ where: { id: data.supplierId, shopId: user.shopId }, select: { id: true } });
+      const supplier = await prisma.supplier.findFirst({ where: { id: data.supplierId, shopId: user.shopId, status: "ACTIVE" }, select: { id: true } });
       if (!supplier) return notFound("Selected supplier was not found.");
     }
     
@@ -71,7 +71,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       }
     }
 
-    const futureStock = data.stockQty !== undefined ? data.stockQty : existing.stockQty;
+    const futureStock = data.physicalCount !== undefined ? data.physicalCount : data.stockQty !== undefined ? data.stockQty : existing.stockQty;
     if (data.status === "ARCHIVED" && existing.status !== "ARCHIVED" && futureStock > 0) {
       return badRequest("Cannot archive a product that still has stock. Please write off the stock first.");
     }
@@ -87,7 +87,14 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       if (physicalCount !== undefined && physicalCount !== existing.stockQty) {
         updateData.stockQty = physicalCount;
       }
-      const updated = await tx.product.update({ where: { id: existing.id }, data: updateData, include: { category: true, supplier: true } });
+      let updated;
+      if (updateData.status === "ARCHIVED" && existing.status !== "ARCHIVED") {
+        const archiveResult = await tx.product.updateMany({ where: { id: existing.id, shopId: user.shopId, stockQty: 0 }, data: updateData });
+        if (!archiveResult.count) throw new Error("ARCHIVE_STOCK_REMAINING");
+        updated = await tx.product.findUniqueOrThrow({ where: { id: existing.id }, include: { category: true, supplier: true } });
+      } else {
+        updated = await tx.product.update({ where: { id: existing.id }, data: updateData, include: { category: true, supplier: true } });
+      }
       
       if (physicalCount !== undefined && physicalCount !== existing.stockQty) {
         const delta = physicalCount - existing.stockQty;
@@ -122,6 +129,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     });
     return NextResponse.json({ product });
   } catch (e) {
+    if (e instanceof Error && e.message === "ARCHIVE_STOCK_REMAINING") {
+      return badRequest("Cannot archive a product that still has stock. Please write off the stock first.");
+    }
     return apiError(e, "Unable to update product.");
   }
 }
@@ -136,7 +146,10 @@ export async function DELETE(_: Request, { params }: { params: { id: string } })
     if (product.stockQty > 0) {
       return badRequest("Cannot archive a product that still has stock. Please write off the stock first.");
     }
-    await prisma.product.update({ where: { id: product.id }, data: { status: "ARCHIVED" } });
+    const result = await prisma.product.updateMany({ where: { id: product.id, shopId: user.shopId, stockQty: 0 }, data: { status: "ARCHIVED" } });
+    if (!result.count) {
+      return badRequest("Cannot archive a product that still has stock. Please write off the stock first.");
+    }
     await prisma.activityLog.create({ data: { shopId: user.shopId, userId: user.id, type: "PRODUCT_ARCHIVED", title: `Product archived: ${product.name}` } });
     return NextResponse.json({ ok: true });
   } catch (e) {

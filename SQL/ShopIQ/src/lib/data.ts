@@ -14,8 +14,8 @@ export async function getDashboardSnapshot(shopId: string, role?: UserRole | str
     prisma.product.findMany({ where: { shopId, status: "ACTIVE" }, include: { category: true }, orderBy: { updatedAt: "desc" } }),
     prisma.customer.findMany({ where: { shopId }, orderBy: { balance: "desc" } }),
     includeSupplierSide ? prisma.supplier.findMany({ where: { shopId }, orderBy: { balance: "desc" } }) : Promise.resolve([]),
-    prisma.invoice.findMany({ where: { shopId }, include: { items: { include: { product: true } }, customer: true }, orderBy: { invoiceDate: "desc" }, take: 300 }),
-    prisma.payment.findMany({ where: { shopId }, orderBy: { paidAt: "desc" }, take: 150 }),
+    prisma.invoice.findMany({ where: { shopId, status: { not: "CANCELLED" } }, include: { items: { include: { product: true } }, customer: true }, orderBy: { invoiceDate: "desc" }, take: 300 }),
+    prisma.payment.findMany({ where: { shopId, status: "ACTIVE" }, orderBy: { paidAt: "desc" }, take: 150 }),
     includeSupplierSide ? prisma.purchase.findMany({ where: { shopId }, orderBy: { purchaseDate: "desc" }, take: 150 }) : Promise.resolve([]),
     prisma.stockMovement.findMany({ where: { shopId }, include: { product: true }, orderBy: { movedAt: "desc" }, take: 300 }),
     prisma.activityLog.findMany({ where: { shopId }, orderBy: { createdAt: "desc" }, take: 12 })
@@ -52,8 +52,12 @@ export async function getDashboardSnapshot(shopId: string, role?: UserRole | str
     return acc;
   }, []);
   const revenueTimeline = buildDailySeries(invoices, (invoice) => invoice.invoiceDate, (invoice) => n(invoice.total), 14);
+  const customerPayments = payments.filter(p => p.direction === "CUSTOMER_IN");
+  const supplierPayments = payments.filter(p => p.direction === "SUPPLIER_OUT");
+  const operationalPurchases = purchases.filter(p => p.status !== "PAYMENT_OUT" && p.status !== "REFUND_IN");
   const cashflowItems = [
-    ...payments.map(p => ({ date: p.paidAt, in: n(p.amount), out: 0 })),
+    ...customerPayments.map(p => ({ date: p.paidAt, in: n(p.amount), out: 0 })),
+    ...supplierPayments.map(p => ({ date: p.paidAt, in: 0, out: n(p.amount) })),
     ...purchases.filter(p => p.status === "PAYMENT_OUT" || p.status === "REFUND_IN").map(p => ({
       date: p.purchaseDate || p.createdAt,
       in: p.status === "REFUND_IN" ? n(p.paidAmount) : 0,
@@ -68,8 +72,8 @@ export async function getDashboardSnapshot(shopId: string, role?: UserRole | str
     (item) => item.out
   );
   const invoiceStatus = statusSegments(invoices, (invoice) => invoice.status);
-  const purchaseStatus = statusSegments(purchases, (purchase) => purchase.status);
-  const paymentMethodMix = sumByGroup(payments, (payment) => payment.method?.replace(/_/g, " "), (payment) => n(payment.amount), 7);
+  const purchaseStatus = statusSegments(operationalPurchases, (purchase) => purchase.status);
+  const paymentMethodMix = sumByGroup(customerPayments, (payment) => payment.method?.replace(/_/g, " "), (payment) => n(payment.amount), 7);
   const customerDueRank = topRows(customers, (customer) => customer.name, (customer) => n(customer.balance), 6);
   const supplierDueRank = topRows(suppliers, (supplier) => supplier.name, (supplier) => n(supplier.balance), 6);
   const marginLeaders = topRows(
@@ -87,7 +91,7 @@ export async function getDashboardSnapshot(shopId: string, role?: UserRole | str
     suppliers: suppliers.slice(0, 8),
     invoices: invoices.slice(0, 8),
     payments,
-    purchases,
+    purchases: operationalPurchases,
     movements: movements.slice(0, 12),
     activities,
     fastMoving,

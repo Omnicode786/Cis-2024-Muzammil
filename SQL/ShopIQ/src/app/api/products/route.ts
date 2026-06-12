@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { apiError, forbidden, unauthorized } from "@/lib/api-response";
+import { apiError, badRequest, forbidden, unauthorized } from "@/lib/api-response";
 import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { intQty, money, optionalId, optionalText, requiredText } from "@/lib/validation";
@@ -57,12 +57,12 @@ export async function POST(request: Request) {
       if (!category) return NextResponse.json({ error: "Selected category was not found." }, { status: 404 });
     }
     if (data.supplierId) {
-      const supplier = await prisma.supplier.findFirst({ where: { id: data.supplierId, shopId: user.shopId }, select: { id: true } });
+      const supplier = await prisma.supplier.findFirst({ where: { id: data.supplierId, shopId: user.shopId, status: "ACTIVE" }, select: { id: true } });
       if (!supplier) return NextResponse.json({ error: "Selected supplier was not found." }, { status: 404 });
     }
     if (data.barcode) {
       const existingBarcode = await prisma.product.findFirst({ where: { shopId: user.shopId, barcode: data.barcode } });
-      if (existingBarcode) return NextResponse.json({ error: "A product with this barcode already exists." }, { status: 400 });
+      if (existingBarcode) return badRequest("A product with this barcode already exists.");
     }
     if (!data.isPerishable) {
       data.batchNo = undefined;
@@ -80,6 +80,8 @@ export async function POST(request: Request) {
           description: data.description,
           imageUrl: data.imageUrl,
           unit: data.unit || "pcs",
+          packUnit: data.packUnit,
+          packSize: data.packSize,
           costPrice: data.costPrice,
           salePrice: data.salePrice,
           taxRate: data.taxRate,
